@@ -1,0 +1,19 @@
+{
+  "name": "localnotion",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w @localnotion/server",
+    "dev:web": "npm run dev -w @localnotion/web",
+    "build": "npm run build -w @localnotion/web && npm run build -w @localnotion/server",
+    "start": "npm run start -w @localnotion/server",
+    "typecheck": "npm run typecheck --workspaces",
+    "test:e2e": "npm run build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}
