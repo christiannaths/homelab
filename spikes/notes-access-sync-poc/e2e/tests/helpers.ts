@@ -11,7 +11,17 @@ export async function openAs(browser: Browser, url: string, person: string): Pro
 export async function pickPerson(page: Page, name: string): Promise<void> {
   await page.getByTestId("person-option").filter({ hasText: name }).click();
   await expect(page.getByTestId("current-person")).toHaveText(name);
-  await expect(page.getByTestId("new-page")).toBeVisible();
+  await expect(page.getByTestId("sync-badge")).toBeVisible();
+}
+
+/** A sidebar section: "private" or "shared". */
+export function section(page: Page, key: "private" | "shared") {
+  return page.locator(`[data-testid="sidebar-section"][data-section="${key}"]`);
+}
+
+/** Names of this person's documents in the browser's IndexedDB (`notes-access:<person>:<doc>`). */
+export async function storedDocNames(page: Page): Promise<string[]> {
+  return page.evaluate(async () => (await indexedDB.databases()).map((db) => db.name ?? ""));
 }
 
 /** Waits until the service worker controls the page, so later reloads work offline. */

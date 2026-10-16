@@ -1,11 +1,11 @@
-import { WORKSPACE_DOC, type Person } from "@homelab/notes-access-sync-poc-model";
+import type { Person } from "@homelab/notes-access-sync-poc-model";
 import { useEffect, useMemo, useState } from "react";
 import { PageView } from "./components/PageView";
 import { PeopleView } from "./components/PeopleView";
 import { Sidebar } from "./components/Sidebar";
 import { colorFor } from "./identity";
 import { useLocalReady, useSyncManager, useTree } from "./sync/context";
-import { keepWorkspaceLocal } from "./sync/keepLocal";
+import { LocalPages } from "./sync/pages";
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(location.hash);
@@ -19,14 +19,16 @@ function useHashRoute(): string {
 
 export function App({ me, onSwitchPerson }: { me: Person; onSwitchPerson: () => void }) {
   const manager = useSyncManager();
-  const workspace = useMemo(() => manager.open(WORKSPACE_DOC), [manager]);
-  const ready = useLocalReady(workspace);
-  const tree = useTree(workspace.doc);
+  // This person's page index and page documents. There is no workspace-wide tree document: the
+  // sidebar is derived from the page documents this device received.
+  const pages = useMemo(() => new LocalPages(manager, me.id), [manager, me.id]);
+  const ready = useLocalReady(pages.index);
+  const tree = useTree(pages);
   const route = useHashRoute();
   const identity = useMemo(() => ({ name: me.name, color: colorFor(me) }), [me]);
 
-  // Keep every page on this device, so all of it works offline.
-  useEffect(() => keepWorkspaceLocal(manager, workspace.doc), [manager, workspace]);
+  // Keep every page this person can open on this device, so all of it works offline.
+  useEffect(() => pages.start(), [pages]);
 
   if (!ready) return <div className="boot">Opening workspace…</div>;
 
@@ -35,7 +37,7 @@ export function App({ me, onSwitchPerson }: { me: Person; onSwitchPerson: () => 
 
   let content;
   if (route === "#/people") content = <PeopleView me={me} />;
-  else if (node) content = <PageView key={node.page.id} page={node.page} workspace={workspace.doc} identity={identity} />;
+  else if (node) content = <PageView key={node.page.id} page={node.page} pages={pages} identity={identity} />;
   else
     content = (
       <div className="empty">
@@ -45,7 +47,7 @@ export function App({ me, onSwitchPerson }: { me: Person; onSwitchPerson: () => 
 
   return (
     <div className="layout">
-      <Sidebar workspace={workspace.doc} tree={tree} currentId={node?.page.id ?? null} me={me} onSwitchPerson={onSwitchPerson} />
+      <Sidebar pages={pages} tree={tree} currentId={node?.page.id ?? null} me={me} onSwitchPerson={onSwitchPerson} />
       <main className="content">{content}</main>
     </div>
   );

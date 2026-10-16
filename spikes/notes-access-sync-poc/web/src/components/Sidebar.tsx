@@ -1,25 +1,49 @@
-import { createPage, flattenVisible, type Person, type Tree, type TreeNode } from "@homelab/notes-access-sync-poc-model";
-import type * as Y from "yjs";
+import {
+  createPage, flattenVisible, privateSection, sidebarSections,
+  type Person, type Tree, type TreeNode,
+} from "@homelab/notes-access-sync-poc-model";
 import { useExpanded } from "../useExpanded";
+import type { LocalPages } from "../sync/pages";
 import { SyncBadge } from "./SyncBadge";
 
 interface Props {
-  workspace: Y.Doc;
+  pages: LocalPages;
   tree: Tree;
   currentId: string | null;
   me: Person;
   onSwitchPerson: () => void;
 }
 
-export function Sidebar({ workspace, tree, currentId, me, onSwitchPerson }: Props) {
+/** The sidebar, built only from the page documents this device received. */
+export function Sidebar({ pages, tree, currentId, me, onSwitchPerson }: Props) {
   const { isExpanded, setExpanded } = useExpanded();
-  const rows = flattenVisible(tree, isExpanded);
+  const sections = sidebarSections(tree, me.id);
+  // Guests have no Private section and create no top-level pages.
+  const canCreate = me.role !== "guest";
 
   const newPage = (parentId: string | null) => {
-    const id = createPage(workspace, tree, { parentId });
+    const id = createPage(pages, tree, { parentId, section: privateSection(me.id) });
     if (parentId) setExpanded(parentId, true);
     location.hash = `#/page/${id}`;
   };
+
+  const section = (key: "shared" | "private", label: string, roots: TreeNode[]) => (
+    <section className="side-section" data-testid="sidebar-section" data-section={key}>
+      <h3 className="side-section-title">{label}</h3>
+      <ul className="page-tree" data-testid="page-tree">
+        {flattenVisible({ roots }, isExpanded).map((node) => (
+          <TreeRow
+            key={node.page.id}
+            node={node}
+            active={node.page.id === currentId}
+            expanded={isExpanded(node.page.id)}
+            onToggle={() => setExpanded(node.page.id, !isExpanded(node.page.id))}
+            onAddChild={() => newPage(node.page.id)}
+          />
+        ))}
+      </ul>
+    </section>
+  );
 
   return (
     <nav className="sidebar">
@@ -34,21 +58,15 @@ export function Sidebar({ workspace, tree, currentId, me, onSwitchPerson }: Prop
           Switch
         </button>
       </div>
-      <button className="side-action" onClick={() => newPage(null)} data-testid="new-page">
-        + New page
-      </button>
-      <ul className="page-tree" data-testid="page-tree">
-        {rows.map((node) => (
-          <TreeRow
-            key={node.page.id}
-            node={node}
-            active={node.page.id === currentId}
-            expanded={isExpanded(node.page.id)}
-            onToggle={() => setExpanded(node.page.id, !isExpanded(node.page.id))}
-            onAddChild={() => newPage(node.page.id)}
-          />
-        ))}
-      </ul>
+      {canCreate && (
+        <button className="side-action" onClick={() => newPage(null)} data-testid="new-page">
+          + New page
+        </button>
+      )}
+      <div className="side-sections">
+        {sections.shared.length > 0 && section("shared", "Shared", sections.shared)}
+        {canCreate && section("private", "Private", sections.private)}
+      </div>
       {me.role === "owner" && (
         <a className="side-link" href="#/people" data-testid="people-link">
           People

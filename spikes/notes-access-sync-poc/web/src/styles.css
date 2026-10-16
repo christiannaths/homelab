@@ -31,7 +31,11 @@ body { background: var(--bg); -webkit-font-smoothing: antialiased; }
   border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px;
 }
 .side-action:hover, .trash:hover { background: var(--hover); color: var(--text); }
-.page-tree { list-style: none; margin: 8px 0; padding: 0; overflow-y: auto; flex: 1; }
+.side-sections { flex: 1; overflow-y: auto; }
+.side-section-title {
+  margin: 12px 8px 0; font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.page-tree { list-style: none; margin: 4px 0 8px; padding: 0; }
 .tree-row {
   display: flex; align-items: center; gap: 2px; border-radius: 6px; position: relative;
   font-size: 14px; min-height: 30px; touch-action: manipulation;

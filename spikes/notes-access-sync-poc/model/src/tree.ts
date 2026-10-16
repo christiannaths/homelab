@@ -7,6 +7,13 @@ export interface PageMeta {
   title: string;
   kind: PageKind;
   parentId: string | null;
+  /**
+   * The sidebar section the page was last placed in, such as `private:<personId>`. Only a
+   * top-level page's section counts: a subpage takes its section from its top-level ancestor.
+   * Every page still carries one, so a page whose parent is missing or that breaks a cycle
+   * has a section to fall back to.
+   */
+  section: string;
   order: string;
   createdAt: number;
   deletedAt?: number;
@@ -16,6 +23,10 @@ export interface TreeNode {
   page: PageMeta;
   /** The parent actually used, after repairing cycles and dangling references. */
   parentId: string | null;
+  /** The effective section: the section of this node's top-level ancestor (its own, if it is top level). */
+  section: string;
+  /** True if the page names a parent that isn't in the list, such as a parent this person can't open. */
+  parentHidden: boolean;
   children: TreeNode[];
   depth: number;
 }
@@ -38,7 +49,7 @@ export function comparePages(a: PageMeta, b: PageMeta): number {
  * - a parent that doesn't exist, or is a database, becomes the root
  * - a cycle (from two concurrent moves) is broken at its smallest id, which becomes a root
  */
-export function resolveParents(pages: Map<string, PageMeta>): Map<string, string | null> {
+export function resolveParents(pages: ReadonlyMap<string, PageMeta>): Map<string, string | null> {
   const parent = new Map<string, string | null>();
   for (const p of pages.values()) {
     const target = p.parentId ? pages.get(p.parentId) : undefined;
@@ -88,21 +99,25 @@ export function buildTree(list: PageMeta[]): Tree {
 
   const byId = new Map<string, TreeNode>();
   for (const p of list) {
-    if (!isTrashed(p.id)) byId.set(p.id, { page: p, parentId: parent.get(p.id) ?? null, children: [], depth: 0 });
+    if (!isTrashed(p.id)) {
+      const parentHidden = p.parentId !== null && !pages.has(p.parentId);
+      byId.set(p.id, { page: p, parentId: parent.get(p.id) ?? null, section: p.section, parentHidden, children: [], depth: 0 });
+    }
   }
   const roots: TreeNode[] = [];
   for (const node of byId.values()) {
     if (node.parentId === null) roots.push(node);
     else byId.get(node.parentId)!.children.push(node);
   }
-  const sortAndDepth = (nodes: TreeNode[], depth: number) => {
+  const sortAndDepth = (nodes: TreeNode[], depth: number, section: string | null) => {
     nodes.sort((a, b) => comparePages(a.page, b.page));
     for (const n of nodes) {
       n.depth = depth;
-      sortAndDepth(n.children, depth + 1);
+      if (section !== null) n.section = section;
+      sortAndDepth(n.children, depth + 1, n.section);
     }
   };
-  sortAndDepth(roots, 0);
+  sortAndDepth(roots, 0, null);
 
   const trash = list
     .filter((p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)))
@@ -120,7 +135,7 @@ export function isInSubtree(tree: Tree, id: string, ancestorId: string): boolean
 }
 
 /** Depth-first list of nodes, skipping the children of collapsed nodes: the sidebar's rows. */
-export function flattenVisible(tree: Tree, expanded: (id: string) => boolean): TreeNode[] {
+export function flattenVisible(tree: Pick<Tree, "roots">, expanded: (id: string) => boolean): TreeNode[] {
   const out: TreeNode[] = [];
   const walk = (nodes: TreeNode[]) => {
     for (const n of nodes) {
@@ -130,4 +145,34 @@ export function flattenVisible(tree: Tree, expanded: (id: string) => boolean): T
   };
   walk(tree.roots);
   return out;
+}
+
+/**
+ * Each page's effective section, trashed pages included: the section of its top-level ancestor in
+ * the derived tree (`resolveParents`), so a page with a missing parent, or the page a cycle is
+ * broken at, falls back to its own section.
+ */
+export function effectiveSections(list: readonly PageMeta[]): Map<string, string> {
+  const pages = new Map(list.map((p) => [p.id, p]));
+  const parent = resolveParents(pages);
+  const sections = new Map<string, string>();
+  for (const start of pages.keys()) {
+    const path: string[] = [];
+    let cur = start;
+    let section: string | undefined;
+    // Walk up to a page whose section is known, or to a top-level page. resolveParents is acyclic.
+    for (;;) {
+      section = sections.get(cur);
+      if (section !== undefined) break;
+      path.push(cur);
+      const up = parent.get(cur) ?? null;
+      if (up === null) {
+        section = pages.get(cur)!.section;
+        break;
+      }
+      cur = up;
+    }
+    for (const id of path) sections.set(id, section);
+  }
+  return sections;
 }

@@ -5,8 +5,8 @@
 //   const olive = await server.addPerson("Olive");                 // the first person is the owner
 //   const max = await server.addPerson("Max", "member", olive);    // added by the owner
 //   const client = await connectAs(server, max);                    // a Node client connected as Max
-//   await client.syncAll();                                         // ["workspace:default", "page:…"]
-//   client.received(); client.denied(); client.pageTitles();
+//   await client.syncAll();                                         // ["index:<max id>", "page:…"]
+//   client.received(); client.denied(); client.pageTitles(); client.sidebar();
 //   await client.close(); await server.stop();
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -15,12 +15,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  buildTree, createPage, pageDocName, pagesMap, readPages, WORKSPACE_DOC,
-  type Person, type Role,
+  buildTree, createPage, indexDocName, pageDocName, parseDocName, privateSection, readIndex, readMeta,
+  sidebarSections, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
-export { WORKSPACE_DOC, pageDocName };
+export { indexDocName, pageDocName };
 
 const serverDir = path.resolve(import.meta.dirname, "..");
 const defaultWebRoot = path.resolve(serverDir, "../web/dist");
@@ -158,8 +158,13 @@ export class TestClient {
 
   /** Opens a document and waits until the server has synced it or refused it. */
   open(name: string): Promise<OpenResult> {
+    return this.entry(name).result;
+  }
+
+  /** Starts a provider for `name` (once), so a page this device creates can be written before it syncs. */
+  private entry(name: string): Entry {
     const existing = this.entries.get(name);
-    if (existing) return existing.result;
+    if (existing) return existing;
     const doc = new Y.Doc();
     let settle!: (r: OpenResult) => void;
     const result = new Promise<OpenResult>((resolve) => (settle = resolve));
@@ -183,17 +188,17 @@ export class TestClient {
     const entry: Entry = { doc, provider, result };
     this.entries.set(name, entry);
     provider.attach();
-    return result;
+    return entry;
   }
 
   /**
-   * Opens the workspace document, then every page document it lists, as the web app does,
-   * and returns the names of the documents received.
+   * Opens this person's page index, then every page document it lists, as the web app does, and
+   * returns the names of the documents received. Call it again to follow later index changes.
    */
   async syncAll(): Promise<string[]> {
-    const workspace = await this.open(WORKSPACE_DOC);
-    if (workspace.status === "synced") {
-      await Promise.all([...pagesMap(workspace.doc).keys()].map((id) => this.open(pageDocName(id))));
+    const index = await this.open(indexDocName(this.person.id));
+    if (index.status === "synced") {
+      await Promise.all(readIndex(index.doc).map((id) => this.open(pageDocName(id))));
     }
     return this.received();
   }
@@ -214,15 +219,41 @@ export class TestClient {
     return entry?.status === "synced" ? entry.doc : undefined;
   }
 
-  /** Titles of the live pages in the received workspace document, in sidebar order (depth-first). */
+  /** The metadata of every received page document. */
+  pages(): PageMeta[] {
+    return this.received().flatMap((name) => {
+      const ref = parseDocName(name);
+      return ref?.kind === "page" ? (readMeta(ref.id, this.doc(name)!) ?? []) : [];
+    });
+  }
+
+  /** This device's page tree, derived only from the page documents it received. */
+  tree(): Tree {
+    return buildTree(this.pages());
+  }
+
+  /** Titles of the live pages, in sidebar order (depth-first). */
   pageTitles(): string[] {
-    const workspace = this.doc(WORKSPACE_DOC);
-    if (!workspace) return [];
     const titles: string[] = [];
-    const walk = (nodes: ReturnType<typeof buildTree>["roots"]) =>
-      nodes.forEach((n) => (titles.push(n.page.title), walk(n.children)));
-    walk(buildTree(readPages(workspace)).roots);
+    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => (titles.push(n.page.title), walk(n.children)));
+    walk(this.tree().roots);
     return titles;
+  }
+
+  /** The top-level titles in each sidebar section. */
+  sidebar(): { shared: string[]; private: string[] } {
+    const s = sidebarSections(this.tree(), this.person.id);
+    return { shared: s.shared.map((n) => n.page.title), private: s.private.map((n) => n.page.title) };
+  }
+
+  /** Everything in every received document as one string, for asserting that no trace of something arrived. */
+  receivedContent(): string {
+    return this.received()
+      .map((name) => {
+        const doc = this.doc(name)!;
+        return JSON.stringify(doc.toJSON()) + doc.getXmlFragment("content").toString();
+      })
+      .join("\n");
   }
 
   /** The plain text of a received page, one line per block. */
@@ -231,11 +262,16 @@ export class TestClient {
     return doc && blockText(doc.getXmlFragment("content"));
   }
 
-  /** Creates a page in the workspace document, with `body` as its first paragraph. Returns its id. */
+  /**
+   * Creates a page in a document of its own, with `body` as its first paragraph, and waits for the
+   * server to accept it. Top-level pages go in this person's Private section. Returns its id.
+   */
   async createPage(title: string, body = "", parentId: string | null = null): Promise<string> {
-    const workspace = await this.open(WORKSPACE_DOC);
-    if (workspace.status !== "synced") throw new Error(`workspace denied: ${workspace.reason}`);
-    const id = createPage(workspace.doc, buildTree(readPages(workspace.doc)), { title, parentId });
+    const docs: PageDocs = {
+      get: (id) => this.doc(pageDocName(id)),
+      create: (id) => this.entry(pageDocName(id)).doc,
+    };
+    const id = createPage(docs, this.tree(), { title, parentId, section: privateSection(this.person.id) });
     const page = await this.open(pageDocName(id));
     if (page.status !== "synced") throw new Error(`page denied: ${page.reason}`);
     if (body) writeParagraph(page.doc, body);
