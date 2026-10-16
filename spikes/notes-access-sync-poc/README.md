@@ -11,6 +11,15 @@ A throwaway spike for [issue #11](https://github.com/christiannaths/homelab/issu
 ## Identity is faked
 On a new workspace the app asks for the first person, who becomes the workspace owner. The owner adds members and guests under People. Anyone opening the app picks who they are from a list. The person's id is the connection token, and the server trusts it.
 
+## Where access data lives (#15)
+- **The access set on a page lives in that page's own document**, in an `access` Y.Map beside `meta` and `content`: one key per entry, `person:<id>` → level (an invite, or an override of what the person inherits) and `workspace` → level (general access for everyone in the workspace; guests never get it). An absent key inherits from the parent page.
+  - It reaches exactly the people who can open the page, who are also the people Notion shows the Share menu to (read-only below Full access). Nobody receives the access entries of a page they can't open.
+  - Access changes are ordinary Yjs edits, so they work offline and merge like any other data: invites for different people both survive, and two changes to the same entry end with the same winner everywhere (convergence tests in `model/src/sharing.test.ts`).
+  - The sharer's sidebar needs it: a top-level Private page with any invite or general access moves to their Shared section.
+- **Each person's levels live in their page index** (`index:<personId>`, id → level), written only by the server. A level depends on ancestors the device may not hold, so devices never work out their own level: they read it from the index to decide what to offer (editing, the Share menu).
+- **The server works levels out** from every page's `meta` and `access` (`PageCatalog`, through `model/src/access.ts`), and checks every update before applying it: below Can edit nothing is applied, and below Full access an update that touches `access` is refused (`beforeSync`, `touchedRoots`, `refuseUpdate`).
+- **Rejected:** a separate `access:<pageId>` document (doubles the document count, and the two must always carry the same access); access in SQLite with an HTTP API (not Yjs, so no offline sharing and no merge, against ADR 2); access entries in the per-person index (every sharer's change would be fanned out by the server, and the Share menu needs entries for other people).
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh

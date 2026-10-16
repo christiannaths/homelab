@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, documentAccess, indexDocName, parseDocName, writeIndex, type Person, type Role,
+  addPerson, canShare, documentAccess, indexDocName, parseDocName, refuseUpdate, touchedRoots, writeIndex,
+  type Person, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 import { PageCatalog } from "./catalog.ts";
@@ -59,8 +60,21 @@ const server = new Server<ConnectionContext>({
     return { person };
   },
 
+  // Hocuspocus calls this before applying any sync message. A page document's `access` map may
+  // only be changed with Full access, so updates from connections below Full (and above view,
+  // whose connections are read-only and refused by Hocuspocus itself) are checked against what
+  // they would change. Throwing closes that document's connection with the reason, and the
+  // update is not applied. The level is looked up now, not at open, so it follows access changes.
+  async beforeSync({ type, payload, document, documentName, connection, context }) {
+    if (type === 0 || connection.readOnly || parseDocName(documentName)?.kind !== "page") return;
+    const level = documentAccess(catalog.workspace(), context.person.id, documentName, catalog.levels(context.person.id));
+    if (canShare(level)) return;
+    const reason = refuseUpdate(level, touchedRoots(document, payload));
+    if (reason) throw { reason };
+  },
+
   // Keep the catalog current, and the page indexes with it. Title and content edits don't change
-  // who can open what, so only new pages and moves refresh the indexes.
+  // who can open what, so only new pages, moves and access changes refresh the indexes.
   async onChange({ documentName, document }) {
     const ref = parseDocName(documentName);
     if (ref?.kind === "page" && catalog.update(ref.id, document)) refreshIndexes();
@@ -95,11 +109,11 @@ let indexWrites: Promise<void> = Promise.resolve();
  */
 function refreshIndexes(): Promise<void> {
   indexWrites = indexWrites.then(async () => {
-    for (const { personId, ids } of catalog.staleIndexes()) {
+    for (const { personId, levels } of catalog.staleIndexes()) {
       const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
-      await connection.transact((doc) => writeIndex(doc, ids));
+      await connection.transact((doc) => writeIndex(doc, levels));
       await connection.disconnect();
-      catalog.indexWritten(personId, ids);
+      catalog.indexWritten(personId, levels);
     }
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;

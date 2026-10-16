@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { documentAccess, visiblePageIds, type Workspace } from "./access.ts";
-import type { PageMeta } from "./tree.ts";
+import { documentAccess, sidebarSections, visiblePageIds, type Workspace } from "./access.ts";
+import { buildTree, type PageMeta } from "./tree.ts";
 import { indexDocName, pageDocName, privateSection } from "./workspace.ts";
 
 const people: Workspace["people"] = [
@@ -70,6 +70,116 @@ describe("Private pages", () => {
     const ws: Workspace = { people, pages: [page("old", null, privateSection("m"), { deletedAt: 1 })] };
     expect(documentAccess(ws, "m", pageDocName("old"))).toBe("full");
     expect(documentAccess(ws, "o", pageDocName("old"))).toBe("none");
+  });
+});
+
+describe("sharing a page", () => {
+  // Max's Private section: trip > packing > shoes, and journal (unshared).
+  const shared = (access: PageMeta["access"]): Workspace => ({
+    people,
+    pages: [
+      page("trip", null, privateSection("m"), { access }),
+      page("packing", "trip", privateSection("m")),
+      page("shoes", "packing", privateSection("m")),
+      page("journal", null, privateSection("m")),
+    ],
+  });
+
+  it("gives an invited person the invite's level on the page and its subpages, and nothing else", () => {
+    const ws = shared({ people: { n: "view" } });
+    for (const id of ["trip", "packing", "shoes"]) expect(documentAccess(ws, "n", pageDocName(id))).toBe("view");
+    expect(documentAccess(ws, "n", pageDocName("journal"))).toBe("none");
+    expect([...visiblePageIds(ws, "n")].sort()).toEqual(["packing", "shoes", "trip"]);
+    expect(documentAccess(ws, "o", pageDocName("trip"))).toBe("none");
+  });
+
+  it("keeps each of Notion's levels as invited, guests included", () => {
+    const ws = shared({ people: { o: "full", n: "edit", g: "comment" } });
+    expect(documentAccess(ws, "o", pageDocName("shoes"))).toBe("full");
+    expect(documentAccess(ws, "n", pageDocName("shoes"))).toBe("edit");
+    expect(documentAccess(ws, "g", pageDocName("shoes"))).toBe("comment");
+  });
+
+  it("can't restrict the Private section's own member", () => {
+    const ws = shared({ people: { m: "view" } });
+    expect(documentAccess(ws, "m", pageDocName("packing"))).toBe("full");
+  });
+
+  it("with Everyone in the workspace, gives every member and owner that level, but no guest", () => {
+    const ws = shared({ workspace: "comment" });
+    for (const person of ["o", "n"]) {
+      expect([...visiblePageIds(ws, person)].sort()).toEqual(["packing", "shoes", "trip"]);
+      expect(documentAccess(ws, person, pageDocName("shoes"))).toBe("comment");
+    }
+    expect(visiblePageIds(ws, "g").size).toBe(0);
+  });
+
+  it("gives a person the most permissive level of all their sources", () => {
+    const ws = shared({ workspace: "view", people: { n: "edit", o: "none" } });
+    expect(documentAccess(ws, "n", pageDocName("trip"))).toBe("edit");
+    // An invite below the general level doesn't lower it.
+    expect(documentAccess(ws, "o", pageDocName("trip"))).toBe("view");
+  });
+
+  it("lets a subpage expand an inherited level, or invite someone just there", () => {
+    const ws: Workspace = {
+      people,
+      pages: [
+        page("trip", null, privateSection("m"), { access: { people: { n: "view" } } }),
+        page("packing", "trip", privateSection("m"), { access: { people: { n: "edit", g: "view" } } }),
+        page("shoes", "packing", privateSection("m")),
+      ],
+    };
+    expect(documentAccess(ws, "n", pageDocName("trip"))).toBe("view");
+    expect(documentAccess(ws, "n", pageDocName("shoes"))).toBe("edit");
+    expect(documentAccess(ws, "g", pageDocName("trip"))).toBe("none");
+    expect([...visiblePageIds(ws, "g")].sort()).toEqual(["packing", "shoes"]);
+  });
+
+  it("lets a subpage restrict an inherited level, down to No access for it and everything below", () => {
+    const ws: Workspace = {
+      people,
+      pages: [
+        page("trip", null, privateSection("m"), { access: { people: { n: "edit" }, workspace: "none" } }),
+        page("packing", "trip", privateSection("m"), { access: { people: { n: "none" } } }),
+        page("shoes", "packing", privateSection("m")),
+      ],
+    };
+    expect([...visiblePageIds(ws, "n")]).toEqual(["trip"]);
+  });
+
+  it("follows a moved page: a page moved under a shared one is shared with it", () => {
+    const ws = { ...shared({ people: { n: "view" } }) };
+    const moved: Workspace = {
+      people,
+      pages: ws.pages.map((p) => (p.id === "journal" ? { ...p, parentId: "shoes" } : p)),
+    };
+    expect(documentAccess(moved, "n", pageDocName("journal"))).toBe("view");
+  });
+});
+
+describe("sidebar sections with sharing", () => {
+  const trip = page("trip", null, privateSection("m"), { access: { people: { n: "view" } } });
+  const packing = page("packing", "trip", privateSection("m"));
+  const journal = page("journal", null, privateSection("m"));
+
+  it("move the sharer's shared Private page to Shared, and leave unshared ones in Private", () => {
+    const s = sidebarSections(buildTree([trip, packing, journal]), "m");
+    expect(s.shared.map((n) => n.page.id)).toEqual(["trip"]);
+    expect(s.shared[0].children.map((n) => n.page.id)).toEqual(["packing"]);
+    expect(s.private.map((n) => n.page.id)).toEqual(["journal"]);
+  });
+
+  it("count Everyone in the workspace as shared, but not an entry that only names the member, or No access", () => {
+    const general = { ...trip, access: { workspace: "view" as const } };
+    const self = { ...trip, access: { people: { m: "full" as const, n: "none" as const }, workspace: "none" as const } };
+    expect(sidebarSections(buildTree([general]), "m").shared.map((n) => n.page.id)).toEqual(["trip"]);
+    expect(sidebarSections(buildTree([self]), "m").private.map((n) => n.page.id)).toEqual(["trip"]);
+  });
+
+  it("put a page shared with me from someone else's Private section in my Shared section", () => {
+    const s = sidebarSections(buildTree([trip, packing]), "n");
+    expect(s).toMatchObject({ private: [], shared: [{ page: { id: "trip" } }] });
   });
 });
 

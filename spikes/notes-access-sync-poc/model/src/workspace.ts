@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { isAccessLevel, type AccessLevel, type PageAccess } from "./levels.ts";
 import { freshKeys, keyBetween, keysAreUsable } from "./order.ts";
 import { isInSubtree, type PageKind, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
 
@@ -38,8 +39,45 @@ export function parseSection(section: string): SectionRef | null {
 /** A page document's metadata: one key per field, so a rename and a move merge (ADR 7 rule 4). */
 export const metaMap = (doc: Y.Doc) => doc.getMap<unknown>("meta");
 
-/** A page index document's ids (id → true). */
-export const indexMap = (doc: Y.Doc) => doc.getMap<boolean>("pages");
+/**
+ * A page document's own access (see `PageAccess`): one key per entry, `person:<id>` → level and
+ * `workspace` → level, so concurrent changes to different entries merge (ADR 7 rule 4) and two
+ * changes to the same entry end with the same winner everywhere. Only Full access may write it.
+ */
+export const accessMap = (doc: Y.Doc) => doc.getMap<unknown>("access");
+
+const PERSON_KEY = "person:";
+const WORKSPACE_KEY = "workspace";
+
+/** Invites `personId` at `level`, or overrides what they inherit. `null` is Restore inherited access. */
+export function setPersonAccess(doc: Y.Doc, personId: string, level: AccessLevel | null): void {
+  if (level === null) accessMap(doc).delete(PERSON_KEY + personId);
+  else accessMap(doc).set(PERSON_KEY + personId, level);
+}
+
+/** Sets general access for everyone in the workspace ("none" = Only people invited). `null` inherits it. */
+export function setWorkspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
+  if (level === null) accessMap(doc).delete(WORKSPACE_KEY);
+  else accessMap(doc).set(WORKSPACE_KEY, level);
+}
+
+/** The access set on the page itself, or undefined if it sets none. Unknown keys and values are ignored. */
+export function readAccess(doc: Y.Doc): PageAccess | undefined {
+  const people: Record<string, AccessLevel> = {};
+  let workspace: AccessLevel | undefined;
+  for (const [key, value] of accessMap(doc)) {
+    if (!isAccessLevel(value)) continue;
+    if (key === WORKSPACE_KEY) workspace = value;
+    else if (key.startsWith(PERSON_KEY)) people[key.slice(PERSON_KEY.length)] = value;
+  }
+  const access: PageAccess = {};
+  if (Object.keys(people).length) access.people = people;
+  if (workspace !== undefined) access.workspace = workspace;
+  return access.people || access.workspace ? access : undefined;
+}
+
+/** A page index document: page id → this person's level on it. */
+export const indexMap = (doc: Y.Doc) => doc.getMap<unknown>("pages");
 
 /**
  * The page's metadata, or null while it hasn't arrived yet (a document opened before its first
@@ -57,6 +95,7 @@ export function readMeta(id: string, doc: Y.Doc): PageMeta | null {
     order: (m.get("order") as string) ?? "",
     createdAt: (m.get("createdAt") as number) ?? 0,
     deletedAt: (m.get("deletedAt") as number | undefined) ?? undefined,
+    access: readAccess(doc),
   };
 }
 
@@ -65,12 +104,23 @@ export function readIndex(doc: Y.Doc): string[] {
   return [...indexMap(doc).keys()];
 }
 
-/** Makes a page index list exactly `ids`, touching only the entries that change. Server only. */
-export function writeIndex(doc: Y.Doc, ids: ReadonlySet<string>): void {
+/**
+ * Each listed page's level, for what the device offers (editing, the Share menu). The server
+ * computes it from the whole tree, which the device may only partly hold, so a device never
+ * works out its own level. Anything that isn't a level reads as "view", the safe side.
+ */
+export function readIndexLevels(doc: Y.Doc): Map<string, AccessLevel> {
+  const levels = new Map<string, AccessLevel>();
+  for (const [id, value] of indexMap(doc)) levels.set(id, isAccessLevel(value) ? value : "view");
+  return levels;
+}
+
+/** Makes a page index list exactly `levels`, touching only the entries that change. Server only. */
+export function writeIndex(doc: Y.Doc, levels: ReadonlyMap<string, AccessLevel>): void {
   const map = indexMap(doc);
   doc.transact(() => {
-    for (const id of [...map.keys()]) if (!ids.has(id)) map.delete(id);
-    for (const id of ids) if (!map.has(id)) map.set(id, true);
+    for (const id of [...map.keys()]) if (!levels.has(id)) map.delete(id);
+    for (const [id, level] of levels) if (map.get(id) !== level) map.set(id, level);
   });
 }
 

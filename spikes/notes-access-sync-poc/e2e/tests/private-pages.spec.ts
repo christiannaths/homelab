@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { TestServer } from "@homelab/notes-access-sync-poc-server/testing";
-import { createPage, editor, openAs, section, storedDocNames, treeRow, waitForSynced } from "./helpers.ts";
+import { addSubpage, createPage, editor, openAs, section, storedDocNames, treeRow, waitForSynced } from "./helpers.ts";
 
 let server: TestServer;
 
@@ -20,8 +20,7 @@ test("a member's Private pages reach their own devices and nobody else's", async
   // Bob writes a Private page with a subpage on his laptop.
   const laptop = await openAs(browser, server.url, "Bob");
   const route = await createPage(laptop, "Bob's journal", "Dear diary");
-  await treeRow(laptop, "Bob's journal").getByTestId("add-subpage").click();
-  await laptop.getByTestId("page-title").fill("Gift ideas");
+  await addSubpage(laptop, "Bob's journal", "Gift ideas");
   await expect(section(laptop, "private").getByTestId("tree-row")).toHaveText([/Bob's journal/, /Gift ideas/]);
   await waitForSynced(laptop);
   const journalId = route.replace("#/page/", "");

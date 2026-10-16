@@ -71,6 +71,114 @@ describe("sync boundary", () => {
     });
   });
 
+  describe("sharing a Private page", () => {
+    let trip: string;
+    let packing: string;
+    let shoes: string;
+    let journal: string;
+    let maxDevice: TestClient;
+    beforeAll(async () => {
+      maxDevice = await connect(server, max);
+      trip = await maxDevice.createPage("Trip", "Flights booked");
+      packing = await maxDevice.createPage("Packing", "Socks", trip);
+      shoes = await maxDevice.createPage("Shoes", "Boots", packing);
+      journal = await maxDevice.createPage("Max's journal", "Not for Nia");
+      await maxDevice.settled();
+    });
+
+    it("at Can view sends the page and its subpages to the invitee, read-only, and nothing else from the sharer's Private section", async () => {
+      const before = await connect(server, nia);
+      expect(await before.syncAll()).toEqual([indexDocName(nia.id)]);
+
+      await maxDevice.share(trip, nia.id, "view");
+      await maxDevice.settled();
+
+      const phone = await connect(server, nia);
+      await expect.poll(() => phone.syncAll()).toEqual(
+        [indexDocName(nia.id), pageDocName(trip), pageDocName(packing), pageDocName(shoes)].sort(),
+      );
+      expect(phone.pageTitles()).toEqual(["Trip", "Packing", "Shoes"]);
+      expect(phone.pageText(shoes)).toBe("Boots");
+      for (const id of [trip, packing, shoes]) {
+        expect(await phone.open(pageDocName(id))).toMatchObject({ status: "synced", scope: "readonly" });
+        expect(phone.level(id)).toBe("view");
+      }
+      const everything = phone.receivedContent();
+      for (const trace of ["Max's journal", "Not for Nia", journal]) expect(everything).not.toContain(trace);
+      expect(await phone.open(pageDocName(journal))).toEqual({ status: "denied", reason: "no-access" });
+      // Nobody else got it.
+      const olivesDevice = await connect(server, olive);
+      expect(await olivesDevice.syncAll()).toEqual([indexDocName(olive.id)]);
+    });
+
+    it("appears in the sharer's Shared section and in the recipient's", async () => {
+      const phone = await connect(server, nia);
+      await expect.poll(() => phone.syncAll()).toContain(pageDocName(trip));
+      expect(phone.sidebar()).toEqual({ shared: ["Trip"], private: [] });
+      const maxPhone = await connect(server, max);
+      await expect.poll(async () => (await maxPhone.syncAll(), maxPhone.sidebar().shared)).toEqual(["Trip"]);
+      // His unshared pages (the journal, and the diary from earlier) stay in Private.
+      expect(maxPhone.sidebar().private.sort()).toEqual(["Max's diary", "Max's journal"]);
+    });
+  });
+
+  describe("general access", () => {
+    it("Everyone in the workspace sends the page to every member and owner, but not to guests", async () => {
+      const device = await connect(server, nia);
+      const notice = await device.createPage("House rules", "Shoes off");
+      await device.shareWithWorkspace(notice, "comment");
+      await device.settled();
+      for (const person of [olive, max]) {
+        const other = await connect(server, person);
+        await expect.poll(() => other.syncAll()).toContain(pageDocName(notice));
+        expect(other.level(notice)).toBe("comment");
+        expect(other.pageText(notice)).toBe("Shoes off");
+      }
+      const guest = await connect(server, gus);
+      expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
+      expect(await guest.open(pageDocName(notice))).toEqual({ status: "denied", reason: "no-access" });
+    });
+  });
+
+  describe("changing access", () => {
+    let plan: string;
+    let sharer: TestClient;
+    beforeAll(async () => {
+      sharer = await connect(server, olive);
+      plan = await sharer.createPage("Garden plan", "Tomatoes");
+      await sharer.share(plan, max.id, "edit");
+      await sharer.share(plan, nia.id, "full");
+      await sharer.settled();
+    });
+
+    it("is refused from someone with Can edit, though their other edits are kept", async () => {
+      const editor = await connect(server, max);
+      await expect.poll(() => editor.syncAll()).toContain(pageDocName(plan));
+      expect(editor.level(plan)).toBe("edit");
+      await editor.writeText(plan, "Basil");
+      await editor.settled();
+      await expect.poll(() => sharer.pageText(plan)).toBe("Tomatoes\nBasil");
+
+      await editor.share(plan, gus.id, "full");
+      await expect.poll(() => editor.closedReason(pageDocName(plan))).toBe("access-change-refused");
+      const guest = await connect(server, gus);
+      expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
+      expect(await guest.open(pageDocName(plan))).toEqual({ status: "denied", reason: "no-access" });
+      expect(sharer.access(plan)).toEqual({ people: { [max.id]: "edit", [nia.id]: "full" } });
+    });
+
+    it("is accepted from someone invited with Full access", async () => {
+      const full = await connect(server, nia);
+      await expect.poll(() => full.syncAll()).toContain(pageDocName(plan));
+      expect(full.level(plan)).toBe("full");
+      await full.share(plan, gus.id, "view");
+      await full.settled();
+      const guest = await connect(server, gus);
+      await expect.poll(() => guest.syncAll()).toContain(pageDocName(plan));
+      expect(guest.sidebar()).toEqual({ shared: ["Garden plan"], private: [] });
+    });
+  });
+
   it("opens a person's own page index read-only, so only the server writes it", async () => {
     const device = await connect(server, nia);
     const index = await device.open(indexDocName(nia.id));
@@ -104,8 +212,8 @@ describe("sync boundary", () => {
     await server.start();
     const after = await connect(server, nia);
     await expect.poll(() => after.syncAll()).toContain(pageDocName(id));
-    expect(after.pageTitles()).toEqual(["Nia's list"]);
+    expect(after.pageTitles()).toContain("Nia's list");
     const other = await connect(server, olive);
-    expect(await other.syncAll()).toEqual([indexDocName(olive.id)]);
+    expect(await other.syncAll()).not.toContain(pageDocName(id));
   });
 });

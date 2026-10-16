@@ -1,35 +1,101 @@
+import { atLeast, mostPermissive, type AccessLevel, type PageAccess } from "./levels.ts";
 import type { Person } from "./people.ts";
-import { effectiveSections, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
+import { resolveParents, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
 import { parseDocName, parseSection, privateSection } from "./workspace.ts";
 
+export type { AccessLevel, PageAccess } from "./levels.ts";
+
 /**
- * The access rules: pure functions from the workspace's people, page tree and (later) teamspaces
- * and grants to each person's effective level. The server asks them which documents a connection
- * may open and write, and which pages go in each person's page index; clients may ask them what
- * to offer.
+ * The access rules: pure functions from the workspace's people, page tree, sections and the
+ * access set on each page to each person's effective level. The server asks them which documents
+ * a connection may open and write, and which pages go in each person's page index; clients may
+ * ask them what to offer.
  *
- * So far only Private pages exist: a page in someone's Private section (directly, or below a page
- * that is) is theirs alone. Access follows the *derived* tree (ADR 7), the same one every device
- * builds, so a cycle or a missing parent never leaves a page without an answer.
+ * How a level is worked out (`resolveAccess`, then `levelOf`):
+ * 1. Walk the *derived* tree (ADR 7) top-down, so a cycle or a missing parent never leaves a page
+ *    without an answer. A top-level page starts from its section's defaults (a Private section
+ *    has none: only its member, below); a subpage starts from its parent's resolved access.
+ * 2. The page's own `PageAccess` (`PageMeta.access`) replaces inherited entries key by key: an
+ *    invite or override per person, and general access for the workspace.
+ * 3. A person's level is the most permissive of their sources: their per-person entry, general
+ *    access (never for guests), and owning the page's Private section (always Full, and not
+ *    restrictable).
+ * New sources (teamspace membership and defaults, #17) are new fields in `PageAccess` and
+ * `ResolvedAccess`, a section default in step 1 and a line in `levelOf`; new kinds of override
+ * (#16) change step 2 only.
  */
 
-/** Notion's page access levels, most permissive first. */
-export type AccessLevel = "full" | "edit" | "edit-content" | "comment" | "view" | "none";
-
-/** Everything the rules read. Grows as the spike adds teamspaces and grants. */
+/** Everything the rules read. Grows as the spike adds teamspaces. */
 export interface Workspace {
   people: readonly Person[];
-  /** Every page's metadata, as the server holds it. */
+  /** Every page's metadata, including the access set on it, as the server holds it. */
   pages: readonly PageMeta[];
+}
+
+/** A page's access after inheritance: what every source gives, before picking one person's level. */
+export interface ResolvedAccess {
+  /** The page's effective section (its top-level ancestor's). */
+  section: string;
+  /** Per-person levels from invites and overrides, inherited or set on this page. */
+  people: ReadonlyMap<string, AccessLevel>;
+  /** General access for everyone in the workspace except guests. */
+  workspace: AccessLevel;
+}
+
+const resolvedCache = new WeakMap<Workspace, Map<string, ResolvedAccess>>();
+
+/**
+ * Every page's resolved access, trashed pages included (trash doesn't change who can open a page).
+ * Cached per `Workspace` object, which callers must treat as immutable.
+ */
+export function resolveAccess(workspace: Workspace): Map<string, ResolvedAccess> {
+  const cached = resolvedCache.get(workspace);
+  if (cached) return cached;
+  const pages = new Map(workspace.pages.map((p) => [p.id, p]));
+  const parent = resolveParents(pages);
+  const resolved = new Map<string, ResolvedAccess>();
+  const resolve = (id: string): ResolvedAccess => {
+    const known = resolved.get(id);
+    if (known) return known;
+    // resolveParents is acyclic, so this ends; the recursion is as deep as the tree.
+    const up = parent.get(id) ?? null;
+    const page = pages.get(id)!;
+    const inherited: ResolvedAccess =
+      up === null ? { section: page.section, people: new Map(), workspace: "none" } : resolve(up);
+    const result = applyOwnAccess(inherited, page.access);
+    resolved.set(id, result);
+    return result;
+  };
+  for (const id of pages.keys()) resolve(id);
+  resolvedCache.set(workspace, resolved);
+  return resolved;
+}
+
+/** Step 2: the page's own entries replace the inherited ones, key by key. */
+function applyOwnAccess(inherited: ResolvedAccess, own: PageAccess | undefined): ResolvedAccess {
+  if (!own || (!own.people && own.workspace === undefined)) return inherited;
+  const people = new Map(inherited.people);
+  for (const [personId, level] of Object.entries(own.people ?? {})) people.set(personId, level);
+  return { section: inherited.section, people, workspace: own.workspace ?? inherited.workspace };
+}
+
+/** Step 3: one person's level on a page, from the page's resolved access. */
+export function levelOf(person: Person, access: ResolvedAccess): AccessLevel {
+  const s = parseSection(access.section);
+  if (s?.kind === "private" && s.personId === person.id) return "full";
+  let level = access.people.get(person.id) ?? "none";
+  if (person.role !== "guest") level = mostPermissive(level, access.workspace);
+  return level;
 }
 
 /** The level `personId` has on each page they can open. Pages missing from the map are "none". */
 export function pageLevels(workspace: Workspace, personId: string): Map<string, AccessLevel> {
   const levels = new Map<string, AccessLevel>();
-  if (!workspace.people.some((p) => p.id === personId)) return levels;
-  for (const [id, section] of effectiveSections(workspace.pages)) {
-    const s = parseSection(section);
-    if (s?.kind === "private" && s.personId === personId) levels.set(id, "full");
+  const person = workspace.people.find((p) => p.id === personId);
+  if (!person) return levels;
+  for (const [id, access] of resolveAccess(workspace)) {
+    const level = levelOf(person, access);
+    if (level !== "none") levels.set(id, level);
   }
   return levels;
 }
@@ -39,23 +105,57 @@ export function visiblePageIds(workspace: Workspace, personId: string): Set<stri
   return new Set(pageLevels(workspace, personId).keys());
 }
 
+/** Only Full access can invite people or change anyone's access (ADR 14). */
+export const canShare = (level: AccessLevel): boolean => atLeast(level, "full");
+
+/** Can edit and above change a page's title, place and content. */
+export const canEdit = (level: AccessLevel): boolean => atLeast(level, "edit");
+
+/**
+ * Why a connection at `level` may not apply an update that changes the page document's
+ * `touched` top-level parts (from `touchedRoots`), or null if it may. The server refuses the
+ * whole update when this returns a reason.
+ * - Below Can edit, any change is refused ("read-only").
+ * - Below Full access, a change to `access` is refused ("access-change-refused").
+ * #18 decides how a refused device gets back in step, and extends this for Can edit content
+ * (databases), which needs paths below the top level.
+ */
+export function refuseUpdate(level: AccessLevel, touched: ReadonlySet<string>): string | null {
+  if (touched.size === 0) return null;
+  if (!canEdit(level)) return "read-only";
+  if (touched.has("access") && !canShare(level)) return "access-change-refused";
+  return null;
+}
+
 /** A person's sidebar sections, each a list of top-level tree nodes in order. Teamspaces come later. */
 export interface SidebarSections {
-  /** Shown above Private: pages this person can open whose parent they can't, and (later) pages shared with them. */
+  /**
+   * Shown above Private: pages shared with this person (from someone else's section, or below a
+   * parent they can't open), and their own Private pages that they have shared.
+   */
   shared: TreeNode[];
   private: TreeNode[];
 }
 
+/** True if a page's own access gives anyone but `personId` (the section's member) any access. */
+export function isSharedByMe(page: PageMeta, personId: string): boolean {
+  const own = page.access;
+  if (!own) return false;
+  if (own.workspace !== undefined && own.workspace !== "none") return true;
+  return Object.entries(own.people ?? {}).some(([id, level]) => id !== personId && level !== "none");
+}
+
 /**
  * Splits a person's tree (built only from the page documents their device received) into sidebar
- * sections. A top-level page in their own Private section goes in Private, unless it names a parent
- * the device never received: then it is a page they can open below one they can't, and goes in Shared.
+ * sections. A top-level page in their own Private section goes in Private, unless they have
+ * shared it, or it names a parent the device never received (a page they can open below one they
+ * can't): those go in Shared, as does every page from someone else's section.
  */
 export function sidebarSections(tree: Tree, personId: string): SidebarSections {
   const mine = privateSection(personId);
   const sections: SidebarSections = { shared: [], private: [] };
   for (const node of tree.roots) {
-    if (node.section === mine && !node.parentHidden) sections.private.push(node);
+    if (node.section === mine && !node.parentHidden && !isSharedByMe(node.page, personId)) sections.private.push(node);
     else sections.shared.push(node);
   }
   return sections;
