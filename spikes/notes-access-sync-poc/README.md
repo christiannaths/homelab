@@ -20,6 +20,13 @@ On a new workspace the app asks for the first person, who becomes the workspace 
 - **The server works levels out** from every page's `meta` and `access` (`PageCatalog`, through `model/src/access.ts`), and checks every update before applying it: below Can edit nothing is applied, and below Full access an update that touches `access` is refused (`beforeSync`, `touchedRoots`, `refuseUpdate`).
 - **Rejected:** a separate `access:<pageId>` document (doubles the document count, and the two must always carry the same access); access in SQLite with an HTTP API (not Yjs, so no offline sharing and no merge, against ADR 2); access entries in the per-person index (every sharer's change would be fanned out by the server, and the Share menu needs entries for other people).
 
+## Overrides and hidden parents (#16)
+- **A per-person entry on a subpage overrides what that person inherits**, for the subpage and everything below it: a higher level expands, a lower one restricts, "none" hides the subtree, and deleting the entry is Restore inherited access. General access overrides the same way.
+- **Most permissive wins across sources.** A per-person No access only replaces that person's own entry: it doesn't beat general access (or, later, teamspace access), as in Notion and ADR 14. The Private section's member always keeps Full access.
+- **When a person loses a page on the server, the server closes their open connections to it** (reason `access-revoked`), so a restricted page stops reaching a device that already had it. What the device does with its local copy is #21.
+- **A page someone can open below one they can't** arrives alone: their device builds its tree from what it received, so the page is top-level there (in Shared), and the breadcrumb (`breadcrumb()`) starts at it. The hidden parent's document and title never arrive. Its **id** does, as the page's `parentId`: the page's editors write it, and it is a random UUID.
+- **The Share menu lists inherited entries** with the page they come from (`shareEntries()`), built from the pages the device holds. Entries inherited from above a hidden parent can't be listed, and the menu says so.
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh

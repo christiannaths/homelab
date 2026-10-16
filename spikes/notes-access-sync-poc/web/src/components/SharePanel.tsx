@@ -1,5 +1,5 @@
 import {
-  setPersonAccess, setWorkspaceAccess, type AccessLevel, type PageMeta, type Person,
+  setPersonAccess, setWorkspaceAccess, shareEntries, type AccessLevel, type PageMeta, type Person,
 } from "@homelab/notes-access-sync-poc-model";
 import { useEffect, useState } from "react";
 import type * as Y from "yjs";
@@ -19,15 +19,18 @@ interface Props {
   page: PageMeta;
   doc: Y.Doc;
   me: Person;
+  /** Every page document this device holds, to show where inherited entries come from. */
+  pages: readonly PageMeta[];
 }
 
 /**
- * A minimal Share menu, shown only with Full access: invite a person at a level, change or
- * remove the entries set on this page, and set general access for everyone in the workspace.
- * It edits the page document's `access` map; the server refuses such edits below Full access.
- * Inherited entries aren't listed (#16 adds them, with Restricted and Restore inherited access).
+ * A minimal Share menu, shown only with Full access. It lists every per-person entry the page has,
+ * set here or inherited ("from <page>"). Changing an inherited entry's level sets an override on
+ * this page (expand or restrict, down to No access), and an override offers Restore inherited
+ * access, which removes it. General access works the same way. It edits the page document's
+ * `access` map; the server refuses such edits below Full access.
  */
-export function SharePanel({ page, doc, me }: Props) {
+export function SharePanel({ page, doc, me, pages }: Props) {
   const [people, setPeople] = useState<Person[]>([]);
   const [invitee, setInvitee] = useState("");
   const [level, setLevel] = useState<AccessLevel>("view");
@@ -36,9 +39,12 @@ export function SharePanel({ page, doc, me }: Props) {
     fetchPeople().then(setPeople, () => {});
   }, []);
 
-  const entries = Object.entries(page.access?.people ?? {});
+  const shared = shareEntries(pages, page.id);
+  const titleOf = (id: string) => pages.find((p) => p.id === id)?.title || "Untitled";
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "Someone";
-  const invitable = people.filter((p) => p.id !== me.id && !page.access?.people?.[p.id]);
+  const listed = new Set(shared.people.map((e) => e.personId));
+  const invitable = people.filter((p) => p.id !== me.id && !listed.has(p.id));
+  const general = shared.workspace;
   const topLevel = page.parentId === null;
 
   return (
@@ -73,31 +79,50 @@ export function SharePanel({ page, doc, me }: Props) {
         </button>
       </form>
       <ul className="share-entries">
-        {entries.map(([personId, entryLevel]) => (
-          <li key={personId} data-testid="share-entry" data-person-id={personId}>
-            <span>{nameOf(personId)}</span>
-            <select
-              data-testid="share-entry-level"
-              value={entryLevel}
-              onChange={(e) => setPersonAccess(doc, personId, e.target.value as AccessLevel)}
+        {shared.people.map((entry) => {
+          const here = entry.from === page.id;
+          return (
+            <li
+              key={entry.personId}
+              data-testid="share-entry"
+              data-person-id={entry.personId}
+              data-source={here ? (entry.overrides ? "override" : "invite") : "inherited"}
             >
-              {LEVELS.map((l) => (
-                <option key={l.level} value={l.level}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-            <button className="link" data-testid="share-entry-remove" onClick={() => setPersonAccess(doc, personId, null)}>
-              Remove
-            </button>
-          </li>
-        ))}
+              <span>
+                {nameOf(entry.personId)}{" "}
+                {!here && <small className="muted" data-testid="share-entry-from">from {titleOf(entry.from)}</small>}
+                {here && entry.overrides && <small className="muted">overrides inherited access</small>}
+              </span>
+              <select
+                data-testid="share-entry-level"
+                value={entry.level}
+                onChange={(e) => setPersonAccess(doc, entry.personId, e.target.value as AccessLevel)}
+              >
+                {LEVELS.map((l) => (
+                  <option key={l.level} value={l.level}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              {here && (
+                <button className="link" data-testid="share-entry-remove" onClick={() => setPersonAccess(doc, entry.personId, null)}>
+                  {entry.overrides ? "Restore inherited access" : "Remove"}
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
+      {shared.inheritsFromHidden && (
+        <p className="muted" data-testid="share-hidden-parent">
+          This page also inherits access from a page you can't open, which isn't listed.
+        </p>
+      )}
       <label className="share-general">
         General access{" "}
         <select
           data-testid="share-general"
-          value={page.access?.workspace ?? "inherit"}
+          value={general.from === page.id ? general.level : "inherit"}
           onChange={(e) => setWorkspaceAccess(doc, e.target.value === "inherit" ? null : (e.target.value as AccessLevel))}
         >
           <option value="inherit">{topLevel ? "Only people invited" : "Same as the parent page"}</option>
