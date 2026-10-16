@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spaces sidebar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1E3A8A}
+.item{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;font-size:14px;color:#2B2A27}
+.sub{padding-left:30px}
+.sec{display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:26px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5F5D58}
+.av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;border:2px solid #F7F6F3;margin-left:-6px}
+.avl{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;border:2px solid #fff;margin-left:-8px}
+.card{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid #E6E4DF;border-radius:8px;font-size:15px}
+</style>
+</helmet>
+<div style="width:1120px;height:720px;display:flex;flex-direction:column;background:#FFFFFF;font-family:'IBM Plex Sans',sans-serif;color:#2B2A27;overflow:hidden;border-radius:10px;border:1px solid #DAD8D2;box-sizing:border-box">
+  <div style="height:36px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;background:#EFEEEA;border-bottom:1px solid #E1DFD9">
+    <div style="width:12px;height:12px;border-radius:50%;background:#D6D3CC"></div>
+    <div style="width:12px;height:12px;border-radius:50%;background:#D6D3CC"></div>
+    <div style="width:12px;height:12px;border-radius:50%;background:#D6D3CC"></div>
+    <div style="flex:1;text-align:center;font-size:13px;color:#5F5D58">LocalNotion</div>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <nav style="width:268px;flex:none;background:#F7F6F3;border-right:1px solid #E6E4DF;padding:14px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px">
+      <div class="item" style="font-weight:600"><div style="width:22px;height:22px;border-radius:5px;background:#2B2A27;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center">H</div>Home</div>
+      <div>
+        <div class="sec"><span>Shared</span><span style="text-transform:none;letter-spacing:0;font-weight:500">Everyone</span></div>
+        <div class="item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Groceries</div>
+        <div class="item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>House projects</div>
+      </div>
+      <div>
+        <div class="sec"><span>Party for Sam</span><span style="display:flex;padding-left:6px"><span class="av" style="background:#1D4ED8">C</span><span class="av" style="background:#6D28D9">A</span><span class="av" style="background:#0F766E">J</span></span></div>
+        <div class="item" style="background:#E8E6E1;font-weight:500"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>Overview</div>
+        <div class="item sub">Guest list</div>
+        <div class="item sub">Gift ideas</div>
+        <div class="item sub">Menu</div>
+      </div>
+      <div>
+        <div class="sec"><span>Kitchen remodel</span><span style="display:flex;padding-left:6px"><span class="av" style="background:#1D4ED8">C</span><span class="av" style="background:#6D28D9">A</span><span class="av" style="background:#9A3412">D</span></span></div>
+        <div class="item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Quotes</div>
+        <div class="item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Timeline</div>
+      </div>
+      <div>
+        <div class="sec"><span>Private</span><span style="display:flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-weight:500"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Only you</span></div>
+        <div class="item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Journal</div>
+        <div class="item"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Budget draft</div>
+      </div>
+      <button type="button" style="margin-top:auto;display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border:1px dashed #C9C6BF;border-radius:6px;background:transparent;font:inherit;font-size:14px;color:#3F3D39;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>New space</button>
+    </nav>
+    <main style="flex:1;padding:40px 72px;box-sizing:border-box;display:flex;flex-direction:column;gap:22px;min-width:0">
+      <div style="font-size:13px;color:#5F5D58">Party for Sam</div>
+      <h1 style="margin:0;font-size:34px;font-weight:600">Party for Sam</h1>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="display:flex;padding-left:8px"><span class="avl" style="background:#1D4ED8">C</span><span class="avl" style="background:#6D28D9">A</span><span class="avl" style="background:#0F766E">J</span></div>
+        <div style="font-size:14px;color:#3F3D39">Chris, Alex and Jo</div>
+        <button type="button" style="margin-left:auto;height:34px;padding:0 14px;border-radius:6px;border:1px solid #D6D3CC;background:#fff;font:inherit;font-size:14px;color:#2B2A27">Members</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:8px;background:#F1F5FE;color:#1E3A8A;font-size:14px">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+        Sam isn't a member, so this space, its pages and their titles never reach Sam's devices.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+        <div class="card"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Guest list</div>
+        <div class="card"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Gift ideas</div>
+        <div class="card"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Menu</div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

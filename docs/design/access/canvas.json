@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-16T17:00:00Z"},
+  "title": "LocalNotion sharing mockups",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1120, "h": 720, "title": "1a · Your sidebar, organised into spaces"},
+    "SpaceCreate.dc.html": {"x": 1200, "y": 0, "w": 1120, "h": 720, "title": "1b · Creating a space and choosing its members"},
+    "ShareDialog.dc.html": {"x": 0, "y": 1140, "w": 1120, "h": 720, "title": "2a · You share just the Guest list with Sam"},
+    "SamView.dc.html": {"x": 1200, "y": 1140, "w": 1120, "h": 720, "title": "2b · What Sam sees"},
+    "MoveConfirm.dc.html": {"x": 0, "y": 2280, "w": 1120, "h": 720, "title": "3a · Moving a page changes who sees it"},
+    "LinkWarning.dc.html": {"x": 1200, "y": 2280, "w": 1120, "h": 720, "title": "3b · Linking to a page someone can't see"},
+    "RemoveMember.dc.html": {"x": 2400, "y": 2280, "w": 1120, "h": 720, "title": "3c · Removing someone from a space"}
+  },
+  "order": ["Main.dc.html", "SpaceCreate.dc.html", "ShareDialog.dc.html", "SamView.dc.html", "MoveConfirm.dc.html", "LinkWarning.dc.html", "RemoveMember.dc.html"],
+  "notes": {
+    "t1": {"x": 0, "y": -300, "text": "1 · Spaces: sidebar sections, each with its own members", "kind": "title1", "maxW": 2320},
+    "t2": {"x": 0, "y": 840, "text": "2 · Sharing one page from a space with someone outside it", "kind": "title1", "maxW": 2320},
+    "t3": {"x": 0, "y": 1980, "text": "3 · The moments that need care", "kind": "title1", "maxW": 3520}
+  },
+  "designSystems": []
+}

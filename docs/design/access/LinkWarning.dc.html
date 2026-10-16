@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Link to a restricted page</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1E3A8A}
+.win{background:#fff;border:1px solid #DAD8D2;border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.chrome{height:32px;display:flex;align-items:center;padding:0 14px;background:#EFEEEA;border-bottom:1px solid #E1DFD9;font-size:12px;color:#5F5D58}
+.p{margin:0;font-size:15px;line-height:1.6}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:1px 7px;border-radius:5px;font-size:14px;vertical-align:baseline}
+.av{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex:none}
+</style>
+</helmet>
+<div style="width:1120px;height:720px;box-sizing:border-box;padding:40px;background:#F2F1ED;font-family:'IBM Plex Sans',sans-serif;color:#2B2A27;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px;border-radius:10px">
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5F5D58">Chris, editing Guest list</div>
+    <div class="win" style="flex:1;position:relative">
+      <div class="chrome">Party for Sam / Guest list</div>
+      <div style="padding:28px 32px;display:flex;flex-direction:column;gap:14px">
+        <h1 style="margin:0;font-size:26px;font-weight:600">Guest list</h1>
+        <p class="p">Priya, Marco &amp; Lee, the Okafors.</p>
+        <p class="p">Ask each guest to bring one item from <span class="chip" style="background:#EEF3FE;color:#1E3A8A"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>Gift ideas</span><span style="display:inline-block;width:2px;height:18px;background:#1D4ED8;vertical-align:middle"></span></p>
+      </div>
+      <div role="dialog" aria-label="Sam can't see this page" style="position:absolute;left:32px;top:196px;width:380px;background:#fff;border:1px solid #E1DFD9;border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,0.18);padding:18px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="av" style="background:#B45309">S</span><span style="font-size:14px;font-weight:600">Sam can't open Gift ideas</span></div>
+        <div style="font-size:13px;line-height:1.5;color:#4B4945">Sam can see this page but not Gift ideas. Sam will see “Page you don't have access to”, without its title.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" style="height:34px;padding:0 12px;border-radius:6px;border:1px solid #D6D3CC;background:#fff;font:inherit;font-size:13px;color:#2B2A27">Link anyway</button>
+          <button type="button" style="height:34px;padding:0 12px;border-radius:6px;border:1px solid #D6D3CC;background:#fff;font:inherit;font-size:13px;color:#2B2A27">Share Gift ideas with Sam</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5F5D58">What Sam sees</div>
+    <div class="win" style="flex:1">
+      <div class="chrome">Shared with me / Guest list</div>
+      <div style="padding:28px 32px;display:flex;flex-direction:column;gap:14px">
+        <h1 style="margin:0;font-size:26px;font-weight:600">Guest list</h1>
+        <p class="p">Priya, Marco &amp; Lee, the Okafors.</p>
+        <p class="p">Ask each guest to bring one item from <span class="chip" style="background:#F1F0EC;color:#5F5D58"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Page you don't have access to</span></p>
+        <div style="margin-top:22px;border:1px solid #E1DFD9;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,0.10);overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #EEECE7">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#5F5D58" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+            <label for="q" style="position:absolute;left:-9999px">Search</label>
+            <input id="q" value="gift" style="flex:1;border:none;font:inherit;font-size:15px;outline:none">
+          </div>
+          <div style="padding:16px 14px;font-size:14px;color:#5F5D58">No results for “gift”</div>
+        </div>
+        <div style="font-size:13px;color:#5F5D58">Search never reveals titles or text from pages Sam can't open.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
