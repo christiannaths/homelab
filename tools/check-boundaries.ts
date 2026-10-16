@@ -1,8 +1,8 @@
 // Checks module boundaries using the Nx project graph. It replaces @nx/enforce-module-boundaries,
 // which needs typescript-eslint, which does not support TypeScript 7 yet.
 //
-// Every project has one `scope:` tag (its app, or `shared` for packages/) and one `platform:` tag
-// (`browser`, `node` or `any`). The rules:
+// Every project has one `scope:` tag (its app, `shared` for packages/ or `tools` for tools/) and
+// one `platform:` tag (`browser`, `node` or `any`). The rules:
 // - A project depends only on its own scope or on `scope:shared`. Apps never depend on each other.
 // - An import (not an implicit build-order dependency) from a `browser` or `node` project goes
 //   only to the same platform or `any`. An `any` project imports only `any`.
@@ -10,6 +10,12 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+/** The parts of `nx graph --file` output this script reads. */
+interface ProjectGraph {
+  nodes: Record<string, { data: { tags: string[] } }>;
+  dependencies: Record<string, { target: string; type: "static" | "dynamic" | "implicit" }[]>;
+}
 
 const dir = mkdtempSync(path.join(tmpdir(), "nx-graph-"));
 const file = path.join(dir, "graph.json");
@@ -19,28 +25,29 @@ const nx = spawnSync("npx", ["nx", "graph", `--file=${file}`], {
 });
 // On a plugin error Nx still writes a partial graph and exits 0, so check its output too.
 const failed = nx.status !== 0 || /error occurred while processing the project graph/i.test(nx.stdout + nx.stderr);
-const graph = failed ? undefined : JSON.parse(readFileSync(file, "utf8")).graph;
+const graph: ProjectGraph | undefined = failed ? undefined : JSON.parse(readFileSync(file, "utf8")).graph;
 rmSync(dir, { recursive: true, force: true });
 if (failed) {
   console.error(`nx graph failed, so boundaries cannot be checked:\n${nx.stdout}${nx.stderr}`);
   process.exit(1);
 }
+const { nodes, dependencies } = graph!;
 
-const tag = (name, prefix) => {
-  const tags = graph.nodes[name].data.tags.filter((t) => t.startsWith(prefix));
+const tag = (name: string, prefix: string): string | undefined => {
+  const tags = nodes[name].data.tags.filter((t) => t.startsWith(prefix));
   return tags.length === 1 ? tags[0].slice(prefix.length) : undefined;
 };
 const platforms = new Set(["browser", "node", "any"]);
 
-const errors = [];
-for (const name of Object.keys(graph.nodes)) {
+const errors: string[] = [];
+for (const name of Object.keys(nodes)) {
   if (!tag(name, "scope:")) errors.push(`${name}: needs exactly one scope: tag`);
-  if (!platforms.has(tag(name, "platform:"))) errors.push(`${name}: needs one platform: tag (browser, node or any)`);
+  if (!platforms.has(tag(name, "platform:") ?? "")) errors.push(`${name}: needs one platform: tag (browser, node or any)`);
 }
 
-for (const [source, deps] of Object.entries(graph.dependencies)) {
+for (const [source, deps] of Object.entries(dependencies)) {
   for (const { target, type } of deps) {
-    if (!graph.nodes[target]) continue; // npm packages
+    if (!nodes[target]) continue; // npm packages
     const [fromScope, toScope] = [tag(source, "scope:"), tag(target, "scope:")];
     if (toScope !== fromScope && toScope !== "shared") {
       const allowed = fromScope === "shared" ? "scope:shared" : `scope:${fromScope} or scope:shared`;
@@ -57,4 +64,4 @@ if (errors.length) {
   console.error(`Module boundary violations:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
   process.exit(1);
 }
-console.log(`Module boundaries OK (${Object.keys(graph.nodes).length} projects).`);
+console.log(`Module boundaries OK (${Object.keys(nodes).length} projects).`);

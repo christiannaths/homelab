@@ -13,13 +13,14 @@ The repo is growing from one app into a home for several homelab apps. What the 
 - **Layout:**
   - `apps/<app>/` holds one app, split into npm workspace packages such as `web`, `server` and `e2e`. Each package is one Nx project, named `<app>-<package>` (for example `notes-web`).
   - `packages/` holds code shared by more than one app. Code moves there only when a second app needs it.
-  - `tools/` holds repo scripts.
+  - `tools/` holds repo scripts, as the `tools` project.
   - Each app keeps its own `Dockerfile` and `compose.yaml`. An image builds from the app's own packages, with plain npm commands and without Nx.
 - **Tasks stay `package.json` scripts.** Nx reads them as targets, and `nx.json` adds only task order and caching. Nx plugins that infer or wrap tasks are not used.
-- **Every project has two tags:** `scope:<app>` (or `scope:shared` for `packages/`) and `platform:browser`, `platform:node` or `platform:any`.
-- **Module boundaries** are checked by `npm run boundaries` (`tools/check-boundaries.mjs`), which reads the Nx project graph:
+- **Every project has two tags:** `scope:<app>` (`scope:shared` for `packages/`, `scope:tools` for `tools/`) and `platform:browser`, `platform:node` or `platform:any`.
+- **Module boundaries** are checked by `npm run boundaries` (`tools/check-boundaries.ts`), which reads the Nx project graph:
   - A project depends only on its own scope or on `scope:shared`, so apps never depend on each other.
   - Imports cross platforms only into `platform:any`.
+- **Scripts are TypeScript too.** Node 26 runs `.ts` files directly by stripping their types, so a script needs no build step. Each script is typechecked by its project, with `erasableSyntaxOnly` so that it uses only syntax Node can strip.
 - **No Nx Cloud.** `nx.json` sets `neverConnectToCloud` and turns analytics off, and the cache is local only. The `nx` package's install script is not approved in `allowScripts`, because it only updates the Nx Cloud client.
 
 ## Evidence
