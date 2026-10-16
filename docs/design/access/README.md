@@ -33,6 +33,15 @@ Spaces work like channels: you join and leave them. Each has an activity feed. "
 | 4c | `DirectSpace.dc.html` | Direct spaces between people. To share a page with Sam, drop it on Sam. Adding a third person starts a new direct space. |
 | 4d | `GuestView.dc.html` | A guest (Dana) sees only the spaces they were added to, with a banner showing when access ends. |
 
+## Refinement: shared pages keep their space
+
+Feedback on screen 2b: a flat "Shared with me" list loses context. Pages from different spaces get mixed together, and two pages from the same space look unrelated.
+
+| Screen | File | Shows |
+|---|---|---|
+| 5a | `PartialSpace.dc.html` | Sam's sidebar shows each space Sam has pages in, labelled "Some pages", with only those pages. Parents Sam can't open appear greyed out to keep the structure. |
+| 5b | `ShareContext.dc.html` | When the space's name is itself secret (e.g. "Sam's surprise 40th"), the sharer can choose "On its own", which hides the space. |
+
 ## Open questions raised
 
 1. Is per-page Share needed, or are spaces enough?
