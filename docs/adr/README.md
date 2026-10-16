@@ -18,8 +18,8 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [10](0010-yjs-13-until-stack-supports-14.md) | Yjs stays on version 13 until the whole stack supports 14 | 2, 8, 9, 12 | Accepted |
 | [11](0011-local-password-accounts.md) | Users sign in with local password accounts | 1, 4, 5, 6 | Accepted |
 | [12](0012-hocuspocus-sync-server.md) | Hocuspocus is the sync server | 1, 2, 6, 11 | Accepted |
-| [13](0013-spaces-and-page-shares.md) | Access is granted by sharing spaces and pages | 1, 11, 12 | Proposed |
-| [14](0014-google-docs-style-roles.md) | Every share carries a Google Docs-style role | 12, 13 | Proposed |
+| [13](0013-notion-style-access.md) | Access follows Notion's model of teamspaces and page sharing | 1, 11, 12 | Proposed |
+| [14](0014-notion-page-access-levels.md) | Page access levels mirror Notion's | 12, 13 | Proposed |
 
 ## Format and style
 
@@ -52,7 +52,7 @@ These are deliberately **not** locked in, and the current implementation is repl
 
 | Topic | Where it stands | What would settle it | Who |
 |---|---|---|---|
-| **Access control:** who can see and edit which pages (private pages, sharing with guests, read-only roles) | Every account can see and edit everything. Proposed in [ADR 13](0013-spaces-and-page-shares.md) (spaces and page shares) and [ADR 14](0014-google-docs-style-roles.md) (roles) | A feasibility design for per-person sync under [ADR 1](0001-works-offline.md), including the document split | AI, then human review |
+| **Access control:** who can see and edit which pages (private pages, sharing with guests, read-only roles) | Every account can see and edit everything. Proposed in [ADR 13](0013-notion-style-access.md) (Notion's model) and [ADR 14](0014-notion-page-access-levels.md) (access levels); specs in `docs/specs/access/` | A feasibility design for per-person sync under [ADR 1](0001-works-offline.md), including the document split | AI, then human review |
 | **Public read-only publishing of pages and subpages** | Not built | Settled after access control | Human (decision), then AI |
 | **How data is split across Yjs documents** | The prototype uses one workspace doc for the page tree, one doc per page body, and one doc per database holding every row | The final feature list. Access control, sharing individual rows, very large databases, multi-value properties (tags, people, relations) and blocks shared between pages each depend on this split | Human (feature list), then AI |
 | **The PWA works offline on Apple devices** (would reopen [ADR 3](0003-pwa-client.md)) | Loads in Safari on an iPhone. An installed offline start and how long Safari keeps data are unconfirmed | Install on the iPhone and the Mac → Airplane Mode → force-quit → reopen. Then leave it **unopened for 7+ days** and check the data is still there (Diagnostics: persistence flag, storage used) | Human |

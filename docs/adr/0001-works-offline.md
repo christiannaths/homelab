@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 4](0004-homelab-instance.md)
-- Dependency of: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 3](0003-pwa-client.md), [ADR 11](0011-local-password-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md), [ADR 13](0013-spaces-and-page-shares.md)
+- Dependency of: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 3](0003-pwa-client.md), [ADR 11](0011-local-password-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md), [ADR 13](0013-notion-style-access.md)
 
 ## Context
 Full offline support is a core requirement. An offline mode added to a server-first app becomes a second code path that is rarely exercised and breaks easily.
