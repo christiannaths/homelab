@@ -313,16 +313,6 @@ export class TestClient {
     });
   }
 
-  /** Drops the connection, as a device going offline does. Local edits wait for `goOnline()`. */
-  async goOffline(): Promise<void> {
-    this.socket.disconnect();
-  }
-
-  /** Reconnects: every document is authenticated and synced again. */
-  async goOnline(): Promise<void> {
-    await this.socket.connect();
-  }
-
   /** A received document, or undefined. */
   doc(name: string): Y.Doc | undefined {
     const entry = this.entries.get(name);
@@ -673,11 +663,14 @@ export class TestClient {
     await waitFor(() => String(this.socket.status) === "disconnected", timeoutMs, "socket did not close");
   }
 
-  /** Comes back online and waits until every document it holds has synced again. */
+  /**
+   * Comes back online and waits until every document it holds has synced again, or was refused
+   * and deleted because access was lost meanwhile (#21).
+   */
   async connect(timeoutMs = 10_000): Promise<void> {
     void this.socket.connect();
     await waitFor(
-      () => [...this.entries.values()].every((e) => e.status === "denied" || e.provider.synced),
+      () => [...this.entries.values()].every((e) => e.status === "denied" || e.status === "lost" || e.provider.synced),
       timeoutMs,
       "documents did not sync again",
     );

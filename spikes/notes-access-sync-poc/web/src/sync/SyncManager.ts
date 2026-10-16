@@ -227,16 +227,16 @@ export class SyncManager {
    */
   async wipe(): Promise<void> {
     this.socket.destroy();
-    const entries = [...this.entries.values()];
-    this.entries.clear();
-    await Promise.all(entries.map((e) => this.discard(e)));
+    // The entries stay in the map, and nobody is notified: a render in the meantime must find
+    // them rather than open (and so recreate in IndexedDB) a document being deleted. The caller
+    // reloads the app afterwards.
+    await Promise.all([...this.entries.values()].map((e) => this.discard(e)));
     await Promise.all((await this.storedNames()).map((name) => clearDocument(this.storeName(name))));
     try {
       for (const key of Object.keys(localStorage)) if (key.startsWith(this.storeName(""))) localStorage.removeItem(key);
     } catch {
       // Nothing kept there.
     }
-    this.notify();
   }
 
   /** Where this person's copy of a document lives in IndexedDB (and their other keys in localStorage). */
