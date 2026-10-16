@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 1](0001-device-is-source-of-truth.md)
+- Depends on: [ADR 1](0001-works-offline.md)
 - Dependency of: none
 
 ## Context
-The target platforms are macOS and iOS, with a desktop-like experience on the Mac. Separate native apps would multiply the work, and the app must start without a network ([ADR 1](0001-device-is-source-of-truth.md)).
+The target platforms are macOS and iOS, with a desktop-like experience on the Mac. Separate native apps would multiply the work, and the app must start without a network ([ADR 1](0001-works-offline.md)).
 
 ## Decision
 - **One web app, installed as a Progressive Web App:**

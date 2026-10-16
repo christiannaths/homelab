@@ -6,7 +6,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 
 | # | Decision | Depends on | Status |
 |---|---|---|---|
-| [1](0001-device-is-source-of-truth.md) | Each device holds the real data, and the server relays and backs it up | 4 | Accepted |
+| [1](0001-works-offline.md) | The app works fully offline | 4 | Accepted |
 | [2](0002-yjs-stores-shared-data.md) | Yjs stores all shared data | 1 | Accepted |
 | [3](0003-pwa-client.md) | The client is a PWA installed on macOS and iOS | 1 | Accepted |
 | [4](0004-homelab-instance.md) | Each instance is a self-hosted homelab server for a few trusted users | none | Accepted |
@@ -51,7 +51,7 @@ These are deliberately **not** locked in, and the current implementation is repl
 
 | Topic | Where it stands | What would settle it | Who |
 |---|---|---|---|
-| **Access control:** who can see and edit which pages (private pages, sharing with guests, read-only roles) | Every account can see and edit everything | A product decision on the use cases to support, then a design for how access works with whole-workspace sync ([ADR 1](0001-device-is-source-of-truth.md)) | Human (decision), then AI |
+| **Access control:** who can see and edit which pages (private pages, sharing with guests, read-only roles) | Every account can see and edit everything | A product decision on the use cases to support, then a design for how access works with whole-workspace sync ([ADR 1](0001-works-offline.md)) | Human (decision), then AI |
 | **Public read-only publishing of pages and subpages** | Not built | Settled after access control | Human (decision), then AI |
 | **The PWA works offline on Apple devices** (would reopen [ADR 3](0003-pwa-client.md)) | Loads in Safari on an iPhone. An installed offline start and how long Safari keeps data are unconfirmed | Install on the iPhone and the Mac → Airplane Mode → force-quit → reopen. Then leave it **unopened for 7+ days** and check the data is still there (Diagnostics: persistence flag, storage used) | Human |
 | **Device storage** | `y-indexeddb`, one IndexedDB database per doc; this is the startup bottleneck | Build one shared IndexedDB store and an OPFS SQLite store behind the same interface, with a Diagnostics benchmark. Measure in Chromium, then on an iPhone | AI builds and measures in Chromium; human runs on iPhone |

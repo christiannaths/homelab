@@ -1,4 +1,4 @@
-# 1. Each device holds the real data, and the server relays and backs it up
+# 1. The app works fully offline
 
 - Status: Accepted
 - Date: 2026-10-16

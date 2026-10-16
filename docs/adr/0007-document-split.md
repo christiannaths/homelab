@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 1](0001-device-is-source-of-truth.md), [ADR 2](0002-yjs-stores-shared-data.md), [ADR 4](0004-homelab-instance.md)
+- Depends on: [ADR 1](0001-works-offline.md), [ADR 2](0002-yjs-stores-shared-data.md), [ADR 4](0004-homelab-instance.md)
 - Dependency of: [ADR 8](0008-crdt-rules.md), [ADR 9](0009-blocknote-and-mantine.md)
 
 ## Context
-All shared data is in Yjs ([ADR 2](0002-yjs-stores-shared-data.md)), and every device syncs the whole workspace ([ADR 1](0001-device-is-source-of-truth.md)). How that data is split into Yjs documents decides what syncs together, what can load lazily, and what can be computed on the device.
+All shared data is in Yjs ([ADR 2](0002-yjs-stores-shared-data.md)), and every device syncs the whole workspace ([ADR 1](0001-works-offline.md)). How that data is split into Yjs documents decides what syncs together, what can load lazily, and what can be computed on the device.
 
 ## Decision
 - **Workspace doc** (`workspace:default`) holds the page tree. `pages` is a `Y.Map<pageId, Y.Map>` with `title`, `kind` (`page` or `database`), `parentId`, `order`, `createdAt` and `deletedAt`. Each page is a nested `Y.Map`, so concurrent edits to different fields of one page merge.

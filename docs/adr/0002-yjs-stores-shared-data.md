@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 1](0001-device-is-source-of-truth.md)
+- Depends on: [ADR 1](0001-works-offline.md)
 - Dependency of: [ADR 7](0007-document-split.md), [ADR 8](0008-crdt-rules.md), [ADR 9](0009-blocknote-and-mantine.md), [ADR 11](0011-yjs-13-until-stack-supports-14.md), [ADR 13](0013-hocuspocus-sync-server.md)
 
 ## Context
-Offline edits from several devices ([ADR 1](0001-device-is-source-of-truth.md)) must merge automatically and identically everywhere, with no "pick a version" prompts. That requires a CRDT. Yjs, Automerge and Loro were compared in `research/01-foss-landscape.md` and `research/03-architecture.md`.
+Offline edits from several devices ([ADR 1](0001-works-offline.md)) must merge automatically and identically everywhere, with no "pick a version" prompts. That requires a CRDT. Yjs, Automerge and Loro were compared in `research/01-foss-landscape.md` and `research/03-architecture.md`.
 
 ## Decision
 - **All synced data is stored in Yjs documents:** page content, the page tree, and database schemas, rows, cells and views.

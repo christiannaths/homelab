@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 1](0001-device-is-source-of-truth.md), [ADR 2](0002-yjs-stores-shared-data.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 12](0012-local-password-accounts.md)
+- Depends on: [ADR 1](0001-works-offline.md), [ADR 2](0002-yjs-stores-shared-data.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 12](0012-local-password-accounts.md)
 - Dependency of: [ADR 11](0011-yjs-13-until-stack-supports-14.md)
 
 ## Context
-Hocuspocus relays Yjs updates ([ADR 2](0002-yjs-stores-shared-data.md)) between devices and the server's storage ([ADR 6](0006-sqlite-server-storage.md)), and authenticates each document a connection opens. With whole-workspace sync ([ADR 1](0001-device-is-source-of-truth.md)), its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnected large workspaces in a loop during PR #1. The alternative was a small custom sync server on the standard Yjs protocol.
+Hocuspocus relays Yjs updates ([ADR 2](0002-yjs-stores-shared-data.md)) between devices and the server's storage ([ADR 6](0006-sqlite-server-storage.md)), and authenticates each document a connection opens. With whole-workspace sync ([ADR 1](0001-works-offline.md)), its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnected large workspaces in a loop during PR #1. The alternative was a small custom sync server on the standard Yjs protocol.
 
 ## Decision
 - **Hocuspocus 4** stays the sync server.
