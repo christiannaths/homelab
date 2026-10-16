@@ -48,6 +48,12 @@ On a new workspace the app asks for the first person, who becomes the workspace 
 - **A page someone can open below one they can't** arrives alone: their device builds its tree from what it received, so the page is top-level there (in Shared), and the breadcrumb (`breadcrumb()`) starts at it. The hidden parent's document and title never arrive. Its **id** does, as the page's `parentId`: the page's editors write it, and it is a random UUID.
 - **The Share menu lists inherited entries** with the page they come from (`shareEntries()`), built from the pages the device holds. Entries inherited from above a hidden parent can't be listed, and the menu says so.
 
+## Guests (#19)
+- **A guest receives only the pages shared with them, and their subpages.** They get no Private section (owning a `private:<guest>` section gives them nothing, `levelOf`), no teamspace documents, never general access ("Everyone in the workspace", including an open teamspace's level for people who haven't joined), and no teamspace ids in their index. A page shared with them out of a teamspace arrives alone: its `section` names the teamspace's id (a random UUID, like a hidden parent's), never its name.
+- **A guest creates pages only as subpages of a page they can edit.** They open a page document the server hasn't seen at Can edit, and #18's placement check (`reviewUpdate`, `placementLevel`) decides on the first update. With no Private section and no teamspaces, the only places that give a guest Can edit are inside pages shared with them, so a top-level page is refused with `placement-refused`, and so is a subpage of a page they can only view or comment on.
+- **A guest with Full access can share the page**, with other guests too. Below Full access their share is refused, as anyone's is.
+- **The sidebar puts a page from a teamspace the device doesn't hold in Shared** (`sidebarSections(tree, me, teamspaceIds)`), so a guest's teamspace page shows up with their other shared pages.
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh

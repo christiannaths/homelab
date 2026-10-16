@@ -123,7 +123,8 @@ function applyOwnAccess(inherited: ResolvedAccess, own: PageAccess | undefined):
 /** Step 3: one person's level on a page, from the page's resolved access. */
 export function levelOf(person: Person, access: ResolvedAccess): AccessLevel {
   const s = parseSection(access.section);
-  if (s?.kind === "private" && s.personId === person.id) return "full";
+  // Guests have no Private section (#19): a page that names one gives them nothing of its own.
+  if (s?.kind === "private" && s.personId === person.id && person.role !== "guest") return "full";
   if (access.teamspaceOwners.has(person.id)) return "full";
   let level = access.people.get(person.id) ?? "none";
   if (access.teamspaceMembers.has(person.id)) level = mostPermissive(level, access.teamspace);
@@ -198,13 +199,18 @@ export function isSharedByMe(page: PageMeta, personId: string): boolean {
  * sections. A top-level page in their own Private section goes in Private, unless they have
  * shared it, or it names a parent the device never received (a page they can open below one they
  * can't): those go in Shared, as does every page from someone else's section.
+ *
+ * Pass `teamspaceIds`, the teamspaces the device holds (from the person's index), to put a page
+ * from a teamspace the person can't see (a guest's, or one in a private teamspace they aren't in)
+ * in Shared too: it was shared with them on its own (#19). Without it, every top-level teamspace
+ * page goes under its teamspace.
  */
-export function sidebarSections(tree: Tree, personId: string): SidebarSections {
+export function sidebarSections(tree: Tree, personId: string, teamspaceIds?: ReadonlySet<string>): SidebarSections {
   const mine = privateSection(personId);
   const sections: SidebarSections = { shared: [], private: [], teamspaces: new Map() };
   for (const node of tree.roots) {
     const s = parseSection(node.section);
-    if (s?.kind === "teamspace" && !node.parentHidden) {
+    if (s?.kind === "teamspace" && !node.parentHidden && (!teamspaceIds || teamspaceIds.has(s.teamspaceId))) {
       sections.teamspaces.set(s.teamspaceId, [...(sections.teamspaces.get(s.teamspaceId) ?? []), node]);
     } else if (node.section === mine && !node.parentHidden && !isSharedByMe(node.page, personId)) sections.private.push(node);
     else sections.shared.push(node);
@@ -261,7 +267,10 @@ export function documentAccess(
   if (workspace.pages.some((p) => p.id === doc.id)) {
     return (levels ?? pageLevels(workspace, personId)).get(doc.id) ?? "none";
   }
-  // A page the server has never seen is one this device is creating. Members and owners can
-  // create pages; guests only create subpages inside pages shared with them (a later ticket).
-  return person.role === "guest" ? "none" : "full";
+  // A page the server has never seen is one this device is creating, and its first update is
+  // checked against where it puts the page (`reviewUpdate`, `placementLevel`). Members and owners
+  // open it at Full. Guests open it at Can edit: with no Private section and no teamspaces, the
+  // only place they can edit is inside a page shared with them, so that is the only place their
+  // first update can put it (#19).
+  return person.role === "guest" ? "edit" : "full";
 }
