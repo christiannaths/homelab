@@ -45,6 +45,8 @@ export interface ResolvedAccess {
   workspace: AccessLevel;
   /** The members of the teamspace the page is in (empty outside teamspaces). */
   teamspaceMembers: ReadonlySet<string>;
+  /** The teamspace's owners: always Full access on its pages, which no page can lower (the teamspaces spec, Settings). */
+  teamspaceOwners: ReadonlySet<string>;
   /** The level those members get: the teamspace's default, or a page's override of it. */
   teamspace: AccessLevel;
 }
@@ -90,12 +92,17 @@ const NO_MEMBERS: ReadonlySet<string> = new Set();
 function sectionDefaults(section: string, teamspaces: ReadonlyMap<string, Teamspace>): ResolvedAccess {
   const s = parseSection(section);
   const ts = s?.kind === "teamspace" ? teamspaces.get(s.teamspaceId) : undefined;
-  if (!ts) return { section, people: new Map(), workspace: "none", teamspaceMembers: NO_MEMBERS, teamspace: "none" };
+  if (!ts) {
+    return {
+      section, people: new Map(), workspace: "none", teamspaceMembers: NO_MEMBERS, teamspaceOwners: NO_MEMBERS, teamspace: "none",
+    };
+  }
   return {
     section,
     people: new Map(),
     workspace: ts.kind === "open" ? ts.workspaceLevel : "none",
     teamspaceMembers: new Set(Object.keys(ts.members)),
+    teamspaceOwners: new Set(Object.entries(ts.members).filter(([, role]) => role === "owner").map(([id]) => id)),
     teamspace: ts.memberLevel,
   };
 }
@@ -117,6 +124,7 @@ function applyOwnAccess(inherited: ResolvedAccess, own: PageAccess | undefined):
 export function levelOf(person: Person, access: ResolvedAccess): AccessLevel {
   const s = parseSection(access.section);
   if (s?.kind === "private" && s.personId === person.id) return "full";
+  if (access.teamspaceOwners.has(person.id)) return "full";
   let level = access.people.get(person.id) ?? "none";
   if (access.teamspaceMembers.has(person.id)) level = mostPermissive(level, access.teamspace);
   if (person.role !== "guest") level = mostPermissive(level, access.workspace);

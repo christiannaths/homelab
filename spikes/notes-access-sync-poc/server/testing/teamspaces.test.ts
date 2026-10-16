@@ -180,6 +180,26 @@ describe("teamspaces", () => {
       await maxDevice.settled();
     });
 
+    it("owners keep Full access on its pages whatever the members' level and the pages' overrides", async () => {
+      const owner = await connect(max);
+      const office = await owner.createTeamspace("Office", "closed", { memberLevel: "comment" });
+      await owner.addToTeamspace(office, ada.id);
+      const desk = await owner.createTeamspacePage(office, "Desk", "Tidy");
+      await owner.shareWithTeamspace(desk, "view");
+      await owner.share(desk, max.id, "none");
+      await owner.settled();
+      expect(owner.closedReason(pageDocName(desk))).toBeUndefined();
+
+      const phone = await connect(max);
+      await expect.poll(async () => (await phone.syncAll(), phone.level(desk))).toBe("full");
+      expect(await phone.open(pageDocName(desk))).toMatchObject({ status: "synced", scope: "read-write" });
+      await phone.writeText(desk, "Water the plant");
+      await phone.settled();
+      const member = await connect(ada);
+      await expect.poll(async () => (await member.syncAll(), member.pageText(desk))).toBe("Tidy\nWater the plant");
+      expect(member.level(desk)).toBe("view");
+    });
+
     it("the last owner can't leave, but can once there is another owner", async () => {
       await maxDevice.leave(studio);
       await expect.poll(() => maxDevice.closedReason(teamspaceDocName(studio))).toBe("last-owner");
@@ -195,14 +215,20 @@ describe("teamspaces", () => {
     });
 
     it("a change to the members' default level reaches every member's devices, except on pages that override it", async () => {
+      // Nia owns Studio now; Ada joins it as a member.
       const owner = await connect(nia);
-      await expect.poll(() => owner.syncAll()).toContain(pageDocName(plans));
-      expect([owner.level(plans), owner.level(budget)]).toEqual(["full", "view"]);
+      await expect.poll(() => owner.syncAll()).toContain(teamspaceDocName(studio));
+      await owner.addToTeamspace(studio, ada.id);
+      await owner.settled();
+      const member = await connect(ada);
+      await expect.poll(async () => (await member.syncAll(), [member.level(plans), member.level(budget)])).toEqual(["full", "view"]);
       await owner.setTeamspace(studio, { memberLevel: "comment" });
       await owner.settled();
-      const phone = await connect(nia);
+      const phone = await connect(ada);
       await expect.poll(async () => (await phone.syncAll(), [phone.level(plans), phone.level(budget)])).toEqual(["comment", "view"]);
       expect(await phone.open(pageDocName(plans))).toMatchObject({ status: "synced", scope: "readonly" });
+      // The owner keeps Full access.
+      await expect.poll(async () => (await owner.syncAll(), owner.level(plans))).toBe("full");
     });
   });
 

@@ -37,10 +37,10 @@ describe("teamspace pages", () => {
     pages: [page("chores", null, HOUSE), page("kitchen", "chores", HOUSE), page("bills", null, HOUSE)],
   };
 
-  it("give every member the members' default level, top-level pages and subpages alike", () => {
+  it("give every member the members' default level, top-level pages and subpages alike (owners: Full)", () => {
     expect(levels(workspace)).toEqual({
       o: {},
-      m: { bills: "edit", chores: "edit", kitchen: "edit" },
+      m: { bills: "full", chores: "full", kitchen: "full" },
       n: { bills: "edit", chores: "edit", kitchen: "edit" },
       g: {},
     });
@@ -58,8 +58,23 @@ describe("teamspace pages", () => {
     const after: Workspace = { people, teamspaces: [{ ...house, memberLevel: "view" }], pages };
     expect(levels(before).n).toEqual({ bills: "comment", chores: "edit", garden: "full", kitchen: "edit", receipts: "comment" });
     expect(levels(after).n).toEqual({ bills: "comment", chores: "view", garden: "full", kitchen: "view", receipts: "comment" });
-    expect(levels(after).m).toEqual(levels(after).n);
+    // Max owns the teamspace, so he keeps Full access throughout.
+    expect(levels(after).m).toEqual({ bills: "full", chores: "full", garden: "full", kitchen: "full", receipts: "full" });
     expect(levels(after).o).toEqual({});
+  });
+
+  it("give teamspace owners Full access, fixed: neither the default level nor a page's overrides lower it", () => {
+    const ws: Workspace = {
+      people,
+      teamspaces: [{ ...house, memberLevel: "view" }],
+      pages: [
+        page("chores", null, HOUSE),
+        page("bills", null, HOUSE, { access: { teamspace: "comment", people: { m: "none" } } }),
+        page("receipts", "bills", HOUSE),
+      ],
+    };
+    expect(levels(ws).m).toEqual({ bills: "full", chores: "full", receipts: "full" });
+    expect(levels(ws).n).toEqual({ bills: "comment", chores: "view", receipts: "comment" });
   });
 
   it("of an open teamspace give workspace members who haven't joined the non-member level, but not guests", () => {
@@ -79,9 +94,9 @@ describe("teamspace pages", () => {
 
   it("of closed and private teamspaces reach members only, the workspace owner included", () => {
     for (const kind of ["closed", "private"] as const) {
-      const ts = teamspace("t", { kind, workspaceLevel: "edit", members: { n: "owner" } });
+      const ts = teamspace("t", { kind, workspaceLevel: "edit", members: { n: "owner", m: "member" } });
       const ws: Workspace = { people, teamspaces: [ts], pages: [page("p", null, teamspaceSection("t"))] };
-      expect(levels(ws)).toEqual({ o: {}, m: {}, n: { p: "edit" }, g: {} });
+      expect(levels(ws)).toEqual({ o: {}, m: { p: "edit" }, n: { p: "full" }, g: {} });
     }
   });
 });
