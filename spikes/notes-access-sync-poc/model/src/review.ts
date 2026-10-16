@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import {
-  canEdit, canEditContent, canShare, documentAccess, pageLevels, refuseUpdate, type Workspace,
+  canEdit, canEditContent, canShare, documentAccess, pageById, pageLevels, refuseUpdate, type Workspace,
 } from "./access.ts";
 import type { AccessLevel } from "./levels.ts";
 import type { PageMeta } from "./tree.ts";
@@ -68,7 +68,7 @@ export function reviewUpdate(
   levels?: ReadonlyMap<string, AccessLevel>,
 ): Refusal | null {
   const ref = parseDocName(documentName);
-  const before = ref?.kind === "page" ? workspace.pages.find((p) => p.id === ref.id) : undefined;
+  const before = ref?.kind === "page" ? pageById(workspace, ref.id) : undefined;
   const isNewPage = ref?.kind === "page" && !before;
   const level = isNewPage ? null : documentAccess(workspace, personId, documentName, levels);
   const mayMove = before !== undefined && writesPlacement(doc, update);
@@ -132,7 +132,7 @@ export function reviewMove(
  */
 function mayPlace(workspace: Workspace, meta: PageMeta, placed: AccessLevel): boolean {
   if (canEdit(placed)) return true;
-  const parent = meta.kind === "row" ? workspace.pages.find((p) => p.id === meta.parentId) : undefined;
+  const parent = meta.kind === "row" && meta.parentId ? pageById(workspace, meta.parentId) : undefined;
   return parent?.kind === "database" && canEditContent(placed);
 }
 

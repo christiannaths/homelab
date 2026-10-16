@@ -52,6 +52,18 @@ export interface ResolvedAccess {
 }
 
 const resolvedCache = new WeakMap<Workspace, Map<string, ResolvedAccess>>();
+const byIdCache = new WeakMap<Workspace, Map<string, PageMeta>>();
+
+/**
+ * A page of the workspace by id, or undefined. Cached per `Workspace` object like `resolveAccess`:
+ * the server asks for every document a device opens and every update it sends, and a scan of
+ * every page each time cost about 0.25 s per full resync of 2,000 documents (#22).
+ */
+export function pageById(workspace: Workspace, id: string): PageMeta | undefined {
+  let byId = byIdCache.get(workspace);
+  if (!byId) byIdCache.set(workspace, (byId = new Map(workspace.pages.map((p) => [p.id, p]))));
+  return byId.get(id);
+}
 
 /**
  * Every page's resolved access, trashed pages included (trash doesn't change who can open a page).
@@ -273,7 +285,7 @@ export function schemaAccess(
   databaseId: string,
   levels?: ReadonlyMap<string, AccessLevel>,
 ): AccessLevel {
-  const database = workspace.pages.find((p) => p.id === databaseId);
+  const database = pageById(workspace, databaseId);
   if (!database) return person.role === "guest" ? "edit" : "full";
   if (database.kind !== "database") return "none";
   const mine = levels ?? pageLevels(workspace, person.id);
@@ -299,7 +311,7 @@ export function documentAccess(
   if (doc.kind === "index") return doc.personId === personId ? "view" : "none";
   if (doc.kind === "teamspace") return teamspaceAccess(workspace, person, doc.teamspaceId);
   if (doc.kind === "schema") return schemaAccess(workspace, person, doc.databaseId, levels);
-  if (workspace.pages.some((p) => p.id === doc.id)) {
+  if (pageById(workspace, doc.id)) {
     return (levels ?? pageLevels(workspace, personId)).get(doc.id) ?? "none";
   }
   // A page the server has never seen is one this device is creating, and its first update is
