@@ -22,6 +22,17 @@ A household instance has Chris, Alex, Jo and Sam, plus Dana, a contractor with a
 | 3b | `LinkWarning.dc.html` | Linking to a page a reader can't see. The reader sees "Page you don't have access to", with no title, and search never leaks titles. |
 | 3c | `RemoveMember.dc.html` | Removing someone says what can't be taken back: copies already on their devices stay. |
 
+## Model 2: Slack-like spaces you join
+
+Spaces work like channels: you join and leave them. Each has an activity feed. "Direct" spaces hold pages between specific people.
+
+| Screen | File | Shows |
+|---|---|---|
+| 4a | `SlackSidebar.dc.html` | The sidebar lists the spaces you've joined, with new-activity dots. A space's home shows its pages, members and recent activity. Sam's Guest list lives in its own `#party-guests` space. |
+| 4b | `BrowseSpaces.dc.html` | Browse open spaces and join them; joining downloads their pages for offline use. Private spaces aren't listed. |
+| 4c | `DirectSpace.dc.html` | Direct spaces between people. To share a page with Sam, drop it on Sam. Adding a third person starts a new direct space. |
+| 4d | `GuestView.dc.html` | A guest (Dana) sees only the spaces they were added to, with a banner showing when access ends. |
+
 ## Open questions raised
 
 1. Is per-page Share needed, or are spaces enough?

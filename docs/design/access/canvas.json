@@ -11,13 +11,18 @@
     "SamView.dc.html": {"x": 1200, "y": 1140, "w": 1120, "h": 720, "title": "2b · What Sam sees"},
     "MoveConfirm.dc.html": {"x": 0, "y": 2280, "w": 1120, "h": 720, "title": "3a · Moving a page changes who sees it"},
     "LinkWarning.dc.html": {"x": 1200, "y": 2280, "w": 1120, "h": 720, "title": "3b · Linking to a page someone can't see"},
-    "RemoveMember.dc.html": {"x": 2400, "y": 2280, "w": 1120, "h": 720, "title": "3c · Removing someone from a space"}
+    "RemoveMember.dc.html": {"x": 2400, "y": 2280, "w": 1120, "h": 720, "title": "3c · Removing someone from a space"},
+    "SlackSidebar.dc.html": {"x": 0, "y": 3420, "w": 1120, "h": 720, "title": "4a · Slack-style: spaces you join, with activity"},
+    "BrowseSpaces.dc.html": {"x": 1200, "y": 3420, "w": 1120, "h": 720, "title": "4b · Browsing and joining open spaces"},
+    "DirectSpace.dc.html": {"x": 2400, "y": 3420, "w": 1120, "h": 720, "title": "4c · Direct: pages between two people"},
+    "GuestView.dc.html": {"x": 3600, "y": 3420, "w": 1120, "h": 720, "title": "4d · A guest who sees one space"}
   },
-  "order": ["Main.dc.html", "SpaceCreate.dc.html", "ShareDialog.dc.html", "SamView.dc.html", "MoveConfirm.dc.html", "LinkWarning.dc.html", "RemoveMember.dc.html"],
+  "order": ["Main.dc.html", "SpaceCreate.dc.html", "ShareDialog.dc.html", "SamView.dc.html", "MoveConfirm.dc.html", "LinkWarning.dc.html", "RemoveMember.dc.html", "SlackSidebar.dc.html", "BrowseSpaces.dc.html", "DirectSpace.dc.html", "GuestView.dc.html"],
   "notes": {
     "t1": {"x": 0, "y": -300, "text": "1 · Spaces: sidebar sections, each with its own members", "kind": "title1", "maxW": 2320},
     "t2": {"x": 0, "y": 840, "text": "2 · Sharing one page from a space with someone outside it", "kind": "title1", "maxW": 2320},
-    "t3": {"x": 0, "y": 1980, "text": "3 · The moments that need care", "kind": "title1", "maxW": 3520}
+    "t3": {"x": 0, "y": 1980, "text": "3 · The moments that need care", "kind": "title1", "maxW": 3520},
+    "t4": {"x": 0, "y": 3120, "text": "4 · Slack-style: open and private spaces you join, direct spaces, guests", "kind": "title1", "maxW": 4720}
   },
   "designSystems": []
 }
