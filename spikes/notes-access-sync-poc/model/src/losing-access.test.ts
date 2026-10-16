@@ -4,7 +4,7 @@ import { pageLevels, type Workspace } from "./access.ts";
 import type { Person } from "./people.ts";
 import { buildTree } from "./tree.ts";
 import {
-  createPage, movePage, movesToPrivate, privateSection, readMeta, setPersonAccess, setWorkspaceAccess,
+  copyPageContent, createPage, movePage, movesToPrivate, privateSection, readMeta, setPersonAccess, setWorkspaceAccess,
   type PageDocs,
 } from "./workspace.ts";
 
@@ -48,6 +48,23 @@ function sync(x: Device, y: Device) {
     Y.applyUpdate(a, Y.encodeStateAsUpdate(b, Y.encodeStateVector(a)));
   }
 }
+
+describe("keeping edits to a lost page as a new Private page", () => {
+  it("copies the blocks, and none of the lost page's metadata or access", () => {
+    const device = new Device();
+    const lost = createPage(device, device.tree(), { title: "Pancakes", section: NIA });
+    const lostDoc = device.get(lost)!;
+    setPersonAccess(lostDoc, "max", "edit");
+    const paragraph = new Y.XmlElement("paragraph");
+    paragraph.insert(0, [new Y.XmlText("Flour, eggs, a pinch of salt")]);
+    lostDoc.getXmlFragment("content").insert(0, [paragraph]);
+
+    const kept = createPage(device, device.tree(), { title: "Pancakes", section: MAX });
+    copyPageContent(lostDoc, device.get(kept)!);
+    expect(device.get(kept)!.getXmlFragment("content").toString()).toBe("<paragraph>Flour, eggs, a pinch of salt</paragraph>");
+    expect(readMeta(kept, device.get(kept)!)).toMatchObject({ section: MAX, access: undefined });
+  });
+});
 
 // Story 44: moving a page to Private removes everyone else's access to it.
 describe("moving a page to Private", () => {

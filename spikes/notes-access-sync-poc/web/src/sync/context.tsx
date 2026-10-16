@@ -39,10 +39,9 @@ export function useTree(pages: LocalPages): Tree {
 
 /**
  * This person's level on a page, from their page index (the server works it out from the whole
- * tree, which this device may only partly hold). A page not in the index yet is one this device
- * created, so it has Full access.
+ * tree, which this device may only partly hold). See `LocalPages.levelOf` for pages missing from it.
  */
 export function useLevel(pages: LocalPages, pageId: string): AccessLevel {
-  const levels = useSyncExternalStore(pages.subscribe, pages.getLevels);
-  return levels.get(pageId) ?? "full";
+  useSyncExternalStore(pages.subscribe, pages.getLevels);
+  return pages.levelOf(pageId);
 }

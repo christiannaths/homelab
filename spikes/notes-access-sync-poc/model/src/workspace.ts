@@ -248,6 +248,20 @@ export function movePage(
   return true;
 }
 
+/**
+ * Copies a page's content (its blocks, not its metadata or access) into another page's document,
+ * after what is already there. Used to keep edits made to a page this person lost access to as a
+ * new Private page (#21).
+ */
+export function copyPageContent(from: Y.Doc, to: Y.Doc): void {
+  const blocks = from
+    .getXmlFragment("content")
+    .toArray()
+    .flatMap((node) => (node instanceof Y.XmlElement || node instanceof Y.XmlText ? [node.clone()] : []));
+  const target = to.getXmlFragment("content");
+  to.transact(() => target.insert(target.length, blocks));
+}
+
 export function renamePage(doc: Y.Doc, title: string): void {
   metaMap(doc).set("title", title);
 }
