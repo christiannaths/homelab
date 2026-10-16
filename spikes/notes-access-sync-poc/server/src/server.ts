@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canEdit, documentAccess, indexDocName, isRefusal, parseDocName, reviewUpdate, writeIndex,
+  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, reviewUpdate, writeIndex,
   type Person, type Refusal, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import {
@@ -92,9 +92,11 @@ const server = new Server<ConnectionContext>({
       refusals.push({ personId: person, documentName, reason });
       throw { reason };
     }
-    // A page opened read-only whose person can now edit it: let the update through.
-    if (connection.readOnly && parseDocName(documentName)?.kind === "page") {
-      connection.readOnly = !canEdit(documentAccess(workspace, person, documentName, levels));
+    // A page (or a database's properties) opened read-only whose person can now change some of
+    // it: the review above has accepted the update, so let it through. Can edit content counts,
+    // because it may change a database's rows (#20).
+    if (connection.readOnly && (ref?.kind === "page" || ref?.kind === "schema")) {
+      connection.readOnly = !canEditContent(documentAccess(workspace, person, documentName, levels));
     }
   },
 
@@ -183,7 +185,7 @@ function teamspaceRefusal(id: string, document: Y.Doc, update: Uint8Array, perso
 }
 
 /**
- * Closes `personId`'s open connections to page documents they can no longer open, with the reason
+ * Closes `personId`'s open connections to page documents (and databases' properties) they can no longer open, with the reason
  * "access-revoked", so a page restricted or unshared on the server stops reaching a device that
  * already had it. The device's other documents stay open on the same socket. What the device then
  * does with its local copy is #21's to decide. It asks the catalog's *current* levels, not the
@@ -193,7 +195,9 @@ function closeRevoked(personId: string): void {
   const workspace = catalog.workspace();
   const levels = catalog.levels(personId);
   for (const [documentName, document] of server.hocuspocus.documents) {
-    if (parseDocName(documentName)?.kind !== "page") continue;
+    // A database's properties go with the last of its rows (or the database) the person loses (#20).
+    const kind = parseDocName(documentName)?.kind;
+    if (kind !== "page" && kind !== "schema") continue;
     if (documentAccess(workspace, personId, documentName, levels) !== "none") continue;
     for (const connection of document.getConnections()) {
       if (connection.context.person.id === personId) connection.close({ code: 4403, reason: "access-revoked" });

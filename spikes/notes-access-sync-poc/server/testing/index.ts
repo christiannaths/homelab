@@ -10,6 +10,10 @@
 //   await client.share(pageId, personId, "view"); await client.shareWithWorkspace(pageId, "edit");
 //   await client.move(pageId, parentId, { section }); client.level(pageId); client.access(pageId);
 //   client.closedReason(name); client.refusals(name);
+//   const db = await client.createDatabase("Chores", { Points: "number" });   // { id, properties: { Points: <id> } }
+//   const row = await client.addRow(db.id, "Dishes", { [db.properties.Points]: 3 }, "body");
+//   await client.setCell(row, propId, 4); await client.setView(db.id, { filter }); await client.renameProperty(db.id, propId, name);
+//   client.table(db.id); client.row(row); client.view(db.id); client.properties(db.id);
 //   await client.disconnect(); await client.connect(); await client.reconnect();   // offline, back online
 //   await server.refusals();                                        // every update the server refused
 //   await client.close(); await server.stop();
@@ -28,9 +32,13 @@ import {
   createTeamspace, readTeamspace, readTeamspaceIndex, setTeamspaceAccess, setTeamspaceMember, setTeamspaceSettings, teamspaceDocName,
   teamspaceSection, type Teamspace, type TeamspaceKind, type TeamspaceRole,
 } from "@homelab/notes-access-sync-poc-model";
+import {
+  addProperty, addRow, createDatabase, databaseTable, readCells, readProperties, readView, renameProperty, schemaDocName,
+  setCell, setView, type CellValue, type PropertyType, type TableRow, type ViewSettings,
+} from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
-export { indexDocName, pageDocName, privateSection, teamspaceDocName };
+export { indexDocName, pageDocName, privateSection, schemaDocName, teamspaceDocName };
 
 const serverDir = path.resolve(import.meta.dirname, "..");
 const defaultWebRoot = path.resolve(serverDir, "../web/dist");
@@ -256,6 +264,9 @@ export class TestClient {
         ...readIndex(index.doc).map((id) => this.open(pageDocName(id))),
         ...[...readTeamspaceIndex(index.doc).keys()].map((id) => this.open(teamspaceDocName(id))),
       ]);
+      // A database's properties: for each database received, and each row (which names its database).
+      const databases = this.pages().flatMap((p) => (p.kind === "database" ? [p.id] : p.kind === "row" && p.parentId ? [p.parentId] : []));
+      await Promise.all([...new Set(databases)].map((id) => this.open(schemaDocName(id))));
     }
     return this.received();
   }
@@ -413,6 +424,97 @@ export class TestClient {
     const index = this.doc(indexDocName(this.person.id));
     if (!index) throw new Error("index not received");
     indexMap(index).set(pageId, level);
+  }
+
+  /**
+   * Creates a database (#20) with `properties` (name → type), in this person's Private section
+   * unless `parentId` or `section` says otherwise, and waits for the server to accept it. Returns
+   * its id and its property ids by name.
+   */
+  async createDatabase(
+    title: string,
+    properties: Record<string, PropertyType> = {},
+    opts: { parentId?: string | null; section?: string } = {},
+  ): Promise<{ id: string; properties: Record<string, string> }> {
+    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: (id) => this.entry(pageDocName(id)).doc };
+    const id = createDatabase(docs, this.tree(), {
+      title, parentId: opts.parentId ?? null, section: opts.section ?? privateSection(this.person.id),
+    });
+    const page = await this.open(pageDocName(id));
+    if (page.status !== "synced") throw new Error(`database denied: ${page.reason}`);
+    const schema = this.entry(schemaDocName(id)).doc;
+    const ids = Object.fromEntries(Object.entries(properties).map(([name, type]) => [name, addProperty(schema, name, type)]));
+    const result = await this.open(schemaDocName(id));
+    if (result.status !== "synced") throw new Error(`database properties denied: ${result.reason}`);
+    await this.settled();
+    return { id, properties: ids };
+  }
+
+  /**
+   * Adds a row to a received database, with its cells (property id → value) and an optional body,
+   * as one update. The server decides whether it sticks. Returns the row's id.
+   */
+  async addRow(databaseId: string, title: string, cells: Record<string, CellValue> = {}, body = ""): Promise<string> {
+    this.receivedPage(databaseId);
+    const draft = new Y.Doc();
+    const id = addRow({ get: (pageId) => this.doc(pageDocName(pageId)), create: () => draft }, this.tree(), databaseId, { title, cells });
+    if (body) writeParagraph(draft, body);
+    Y.applyUpdate(this.entry(pageDocName(id)).doc, Y.encodeStateAsUpdate(draft));
+    draft.destroy();
+    await this.open(pageDocName(id));
+    return id;
+  }
+
+  /** Sets a cell of a received row (null clears it). */
+  async setCell(rowId: string, propertyId: string, value: CellValue | null): Promise<void> {
+    setCell(this.receivedPage(rowId), propertyId, value);
+  }
+
+  /** Changes a received database's table view (sort, filter). */
+  async setView(databaseId: string, changes: Partial<ViewSettings>): Promise<void> {
+    setView(this.receivedPage(databaseId), changes);
+  }
+
+  /** Adds a property to a database whose properties this device received. Returns its id. */
+  async addProperty(databaseId: string, name: string, type: PropertyType): Promise<string> {
+    return addProperty(this.receivedSchema(databaseId), name, type);
+  }
+
+  /** Renames a property of a database whose properties this device received. */
+  async renameProperty(databaseId: string, propertyId: string, name: string): Promise<void> {
+    renameProperty(this.receivedSchema(databaseId), propertyId, name);
+  }
+
+  /** A received database's view settings. */
+  view(databaseId: string): ViewSettings {
+    return readView(this.receivedPage(databaseId));
+  }
+
+  /** The names of a database's properties, in order, as this device holds them. */
+  properties(databaseId: string): string[] {
+    return readProperties(this.receivedSchema(databaseId)).map((p) => p.name);
+  }
+
+  /** A received database as its table shows it on this device: each row's title and cells by property name. */
+  table(databaseId: string): TableRow[] {
+    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => new Y.Doc() };
+    return databaseTable(docs, this.tree(), databaseId, this.receivedSchema(databaseId));
+  }
+
+  /** A received row, as its page shows it: its title and its cells by property name. */
+  row(rowId: string): TableRow {
+    const doc = this.receivedPage(rowId);
+    const meta = readMeta(rowId, doc)!;
+    const cells = readCells(doc);
+    const line: TableRow = { title: meta.title };
+    for (const p of readProperties(this.receivedSchema(meta.parentId ?? ""))) line[p.name] = cells[p.id];
+    return line;
+  }
+
+  private receivedSchema(databaseId: string): Y.Doc {
+    const doc = this.doc(schemaDocName(databaseId));
+    if (!doc) throw new Error(`the properties of database ${databaseId} were not received`);
+    return doc;
   }
 
   /** Creates a teamspace owned by this person, waits for the server to accept it, and returns its id. */

@@ -1,5 +1,7 @@
 import * as Y from "yjs";
-import { canEdit, canShare, documentAccess, pageLevels, refuseUpdate, type Workspace } from "./access.ts";
+import {
+  canEdit, canEditContent, canShare, documentAccess, pageLevels, refuseUpdate, type Workspace,
+} from "./access.ts";
 import type { AccessLevel } from "./levels.ts";
 import type { PageMeta } from "./tree.ts";
 import { previewUpdate } from "./updates.ts";
@@ -15,9 +17,12 @@ import { parseDocName, readMeta } from "./workspace.ts";
  *   Private section or under a page they can only view.
  * - "teamspace-change-refused", "last-owner": a teamspace change the teamspace rules refuse
  *   (`refuseTeamspaceChange`, #17).
+ * - "structure-refused": Can edit content changing a database's structure: its properties, its
+ *   views, or its page's title or place (#20).
  */
 export const REFUSALS = [
   "read-only", "access-change-refused", "placement-refused", "teamspace-change-refused", "last-owner",
+  "structure-refused",
 ] as const;
 
 export type Refusal = (typeof REFUSALS)[number];
@@ -72,15 +77,15 @@ export function reviewUpdate(
   try {
     if (touched.size === 0) return null;
     if (level !== null) {
-      const refused = asRefusal(refuseUpdate(level, touched));
+      const refused = asRefusal(refuseUpdate(level, touched, ref?.kind === "schema" ? "schema" : before?.kind));
       if (refused || !mayMove) return refused;
       const after = readMeta(before.id, copy);
       return after ? reviewMove(workspace, personId, level, before, after) : null;
     }
     const meta = ref?.kind === "page" ? readMeta(ref.id, copy) : null;
     const placed = meta ? placementLevel(workspace, personId, meta) : "none";
-    if (!canEdit(placed)) return "placement-refused";
-    return asRefusal(refuseUpdate(placed, touched));
+    if (!meta || !mayPlace(workspace, meta, placed)) return "placement-refused";
+    return asRefusal(refuseUpdate(placed, touched, meta.kind));
   } finally {
     copy.destroy();
   }
@@ -105,8 +110,11 @@ export function reviewMove(
   before: PageMeta,
   after: PageMeta,
 ): Refusal | null {
+  // A page's kind is set when it is created: turning a row into a page (or back) would move it
+  // out of its database (#20).
+  if (before.kind !== after.kind) return "placement-refused";
   if (before.parentId === after.parentId && before.section === after.section) return null;
-  if (!canEdit(placementLevel(workspace, personId, after))) return "placement-refused";
+  if (!mayPlace(workspace, after, placementLevel(workspace, personId, after))) return "placement-refused";
   if (canShare(level)) return null;
   const moved: Workspace = { ...workspace, pages: workspace.pages.map((p) => (p.id === after.id ? after : p)) };
   for (const person of workspace.people) {
@@ -118,15 +126,26 @@ export function reviewMove(
 }
 
 /**
- * A cheap first look, without copying the document: could `update` write a `parentId` or
- * `section` key? Only then can it move a page, so other updates from Full access are accepted
+ * Whether a page placed as `meta` says, where its creator or mover has `placed`, may go there:
+ * Can edit, or for a row of a database the server holds, Can edit content (#20: Can edit content
+ * may add rows).
+ */
+function mayPlace(workspace: Workspace, meta: PageMeta, placed: AccessLevel): boolean {
+  if (canEdit(placed)) return true;
+  const parent = meta.kind === "row" ? workspace.pages.find((p) => p.id === meta.parentId) : undefined;
+  return parent?.kind === "database" && canEditContent(placed);
+}
+
+/**
+ * A cheap first look, without copying the document: could `update` write a `parentId`,
+ * `section` or `kind` key? Only then can it move a page, so other updates from Full access are accepted
  * without a copy. The encoding leaves a map entry's key out when the entry follows an earlier one
  * (its `origin`), so the key is read from that earlier entry in `doc`. Anything it can't tell
  * (an origin `doc` lacks or has garbage-collected) counts as a possible move and gets the full
  * check, as does an XML attribute with the same name.
  */
 function writesPlacement(doc: Y.Doc, update: Uint8Array): boolean {
-  const isPlacementKey = (key: string | null) => key === "parentId" || key === "section";
+  const isPlacementKey = (key: string | null) => key === "parentId" || key === "section" || key === "kind";
   return Y.decodeUpdate(update).structs.some((s) => {
     if (!(s instanceof Y.Item)) return false;
     if (s.parentSub !== null) return isPlacementKey(s.parentSub);
