@@ -16,14 +16,14 @@ Requires **Node.js 26+** (the server uses the built-in `node:sqlite`). With nvm,
 
 ```sh
 npm install
-npm run build
-npm start                 # http://localhost:3000, data in ./data
+npx nx start notes-server  # builds, then serves http://localhost:3000, data in apps/notes/data
 ```
-Development (hot reload): `npm run dev:server` and `npm run dev:web` (http://localhost:5173). The service worker only exists in the production build.
+Development (hot reload): `npx nx dev notes-server` and `npx nx dev notes-web` (http://localhost:5173). The service worker only exists in the production build.
 
 With Docker:
 ```sh
-docker compose up -d --build   # data persisted in ./data
+cd apps/notes
+docker compose up -d --build   # data persisted in apps/notes/data
 ```
 
 For Safari/iOS to install the app and keep data offline, it must be served over **HTTPS with a trusted certificate**. Two options:
@@ -35,6 +35,7 @@ For Safari/iOS to install the app and keep data offline, it must be served over 
 npm run typecheck
 npm test                  # unit tests (Vitest): tree, ordering, database views, CRDT convergence
 npm run test:e2e          # builds, then runs Playwright against real server processes
+npm run boundaries        # module boundary check (see ADR 15)
 ```
 The end-to-end tests cover:
 - live co-editing and presence
@@ -42,6 +43,18 @@ The end-to-end tests cover:
 - offline edits merging when the device reconnects
 - edits made while the server is down, and data surviving server restarts
 - sync and startup timings with 200+ documents
+
+## Repo layout
+The repo is an [Nx](https://nx.dev) monorepo meant to hold several homelab apps ([ADR 15](docs/adr/0015-nx-monorepo.md)). LocalNotion is the first, as the `notes` app.
+
+```
+apps/notes/web       React PWA            (Nx project notes-web)
+apps/notes/server    sync and web server  (notes-server)
+apps/notes/e2e       Playwright tests     (notes-e2e)
+packages/            code shared by more than one app
+tools/               repo scripts
+```
+Run one project's task with `npx nx <target> <project>`, every project's with `npx nx run-many -t <target>`, and `npx nx graph` to see how projects depend on each other.
 
 ## Install on your devices
 - **macOS** (Safari 17+): open the site, then *File → Add to Dock*.

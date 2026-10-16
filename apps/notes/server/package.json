@@ -1,7 +1,17 @@
 {
-  "name": "@localnotion/server",
+  "name": "@localnotion/notes-server",
   "private": true,
   "type": "module",
+  "nx": {
+    "name": "notes-server",
+    "tags": [
+      "scope:notes",
+      "platform:node"
+    ],
+    "implicitDependencies": [
+      "notes-web"
+    ]
+  },
   "scripts": {
     "dev": "tsx watch --no-experimental-webstorage src/index.ts",
     "build": "tsc -p tsconfig.json",

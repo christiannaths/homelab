@@ -3,7 +3,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const root = path.resolve(import.meta.dirname, "..");
+// The Notes app directory (apps/notes).
+const root = path.resolve(import.meta.dirname, "../..");
 let nextPort = 3200;
 
 export class TestServer {
@@ -20,7 +21,7 @@ export class TestServer {
   }
 
   async start(): Promise<void> {
-    this.proc = spawn("node", ["--no-experimental-webstorage", "apps/server/dist/index.js"], {
+    this.proc = spawn("node", ["--no-experimental-webstorage", "server/dist/index.js"], {
       cwd: root,
       env: { ...process.env, PORT: String(this.port), DATA_DIR: this.dataDir },
       stdio: ["ignore", "pipe", "pipe"],

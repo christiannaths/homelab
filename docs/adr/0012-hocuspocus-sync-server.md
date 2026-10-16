@@ -12,10 +12,10 @@ Hocuspocus relays Yjs updates ([ADR 2](0002-yjs-stores-shared-data.md)) between 
 - **Hocuspocus 4** stays the sync server.
 - Its per-connection pending-document and queue limits are raised. They are anti-abuse settings for public servers, and the sync endpoint is private and authenticated ([ADR 11](0011-local-password-accounts.md)).
 - **Authentication runs once per connection:** the session is checked on the first document, and the result is reused for that connection's other documents.
-- The opt-in large-workspace test (`SLOW=1`, `tests/sync-scale.spec.ts`) is the regression gate for this decision.
+- The opt-in large-workspace test (`SLOW=1`, `apps/notes/e2e/tests/sync-scale.spec.ts`) is the regression gate for this decision.
 
 ## Evidence
-- `tests/sync-scale.spec.ts` with 2,000 pages (2,001 docs), headless Chromium, localhost:
+- `apps/notes/e2e/tests/sync-scale.spec.ts` with 2,000 pages (2,001 docs), headless Chromium, localhost:
 
   | Scenario | Time |
   |---|---|

@@ -20,6 +20,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [12](0012-hocuspocus-sync-server.md) | Hocuspocus is the sync server | 1, 2, 6, 11 | Accepted |
 | [13](0013-notion-style-access.md) | Access follows Notion's model of teamspaces and page sharing | 1, 11, 12 | Proposed |
 | [14](0014-notion-page-access-levels.md) | Page access levels mirror Notion's | 12, 13 | Proposed |
+| [15](0015-nx-monorepo.md) | The repo is an Nx monorepo of independent apps | 5 | Accepted |
 
 ## Format and style
 
