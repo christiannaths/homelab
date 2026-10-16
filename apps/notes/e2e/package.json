@@ -1,5 +1,5 @@
 {
-  "name": "@localnotion/notes-e2e",
+  "name": "@homelab/notes-e2e",
   "private": true,
   "type": "module",
   "nx": {

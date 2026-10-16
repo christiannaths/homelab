@@ -44,9 +44,8 @@ These are deliberately **not** locked in. **Human** means a product decision or 
 
 | Topic | Where it stands | What would settle it | Who |
 |---|---|---|---|
-| **The app contract:** what every app must provide (one container, a `/data` volume, a health endpoint, environment-only config) | Notes already works this way ([ADR 4](../../apps/notes/docs/adr/0004-homelab-instance.md)), but as a Notes decision | An ADR, plus an Nx generator that scaffolds an app following it | AI, then human review |
+| **The app contract:** what every app must provide (one container, a `/data` volume, a health endpoint, environment-only config) | Notes already works this way ([ADR 4](../../apps/notes/docs/adr/0004-homelab-instance.md)), but as a Notes decision | An ADR | AI, then human review |
 | **Deployment:** choosing apps, pointing at a host, running one deploy script | Each app has its own `compose.yaml` | A deploy script and its config file, tested against a VM | AI, then human |
 | **TLS modes:** a real domain with DNS-01, a private CA, or Tailscale | Documented for Notes only ([ADR 3](../../apps/notes/docs/adr/0003-pwa-client.md)) | The deploy script supporting each mode, checked on an iPhone | AI, then human |
 | **Sign-in across apps (SSO)** | Notes uses local password accounts ([ADR 11](../../apps/notes/docs/adr/0011-local-password-accounts.md)) | Building our own `accounts` app on `oidc-provider`, or adopting Authelia | Human (decision), then AI |
 | **Where images are built** for `amd64` and `arm64` | Built locally | CI pushing to a registry such as GHCR, or building on the host | Human |
-| **The repo's name** | Still `localnotion`, with the `@localnotion/` package scope | Rename on GitHub, then rename the scope | Human |

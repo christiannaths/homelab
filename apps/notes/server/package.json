@@ -1,5 +1,5 @@
 {
-  "name": "@localnotion/notes-server",
+  "name": "@homelab/notes-server",
   "private": true,
   "type": "module",
   "nx": {

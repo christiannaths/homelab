@@ -1,64 +1,28 @@
-# LocalNotion
+# Homelab
 
-A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: every device keeps a full copy of the workspace. **Multiplayer**: edits and cursors sync live between users.
+Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and apps never depend on each other ([ADR 15](docs/adr/0015-nx-monorepo.md)).
 
-> Status: **prototype spikes.** Settled decisions are recorded as ADRs, including what's deliberately *not* decided yet: [`apps/notes/docs/adr/`](apps/notes/docs/adr/README.md) for LocalNotion, and [`docs/adr/`](docs/adr/README.md) for the whole repo. [`apps/notes/docs/research/`](apps/notes/docs/research) holds the landscape survey, requirements, architecture sketch and spike findings, and [`apps/notes/docs/specs/`](apps/notes/docs/specs) the feature specs.
+## Apps
+| App | What it is |
+|---|---|
+| [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace |
 
-## How it works (so far)
-- **Client**: a React PWA (Vite). Every page is a [Yjs](https://yjs.dev) document, edited with [BlockNote](https://www.blocknotejs.org) and stored in IndexedDB. A service worker caches the app, so it opens with no network.
-- **Server**: Node + [Hocuspocus](https://tiptap.dev/docs/hocuspocus) relays updates over one WebSocket and stores each document in SQLite. It also serves the built app.
-- Clients sync the **whole workspace** in the background, so every page is available offline.
-- **Nested pages** with drag-and-drop reordering, plus trash. Concurrent moves that would form a cycle are repaired the same way on every device.
-- **Databases** with text, number, select, checkbox and date properties, a virtualized table view (sort and filter), and rows that open as pages.
-
-## Run it
-Requires **Node.js 26+** (the server uses the built-in `node:sqlite`). With [mise](https://mise.jdx.dev), run `mise install` in the repo root (it reads `mise.toml`); with nvm, run `nvm install` (it reads `.nvmrc`).
+## Setup
+Requires **Node.js 26+**. With [mise](https://mise.jdx.dev), run `mise install` in the repo root (it reads `mise.toml`); with nvm, run `nvm install` (it reads `.nvmrc`). Then:
 
 ```sh
 npm install
-npx nx start notes-server  # builds, then serves http://localhost:3000, data in apps/notes/data
+npm run check             # module boundaries, typecheck and unit tests for every project
+npm run build
+npm run test:e2e          # every app's end-to-end tests
 ```
-Development (hot reload): `npx nx dev notes-server` and `npx nx dev notes-web` (http://localhost:5173). The service worker only exists in the production build.
+Run one project's task with `npx nx <target> <project>` (for example `npx nx start notes-server`), every project's with `npx nx run-many -t <target>`, and `npx nx graph` to see how projects depend on each other.
 
-With Docker:
-```sh
-cd apps/notes
-docker compose up -d --build   # data persisted in apps/notes/data
+## Layout
 ```
-
-For Safari/iOS to install the app and keep data offline, it must be served over **HTTPS with a trusted certificate**. Two options:
-- `tailscale serve --bg 3000`
-- Caddy with a DNS-01 challenge
-
-## Tests
-```sh
-npm run typecheck
-npm test                  # unit tests (Vitest): tree, ordering, database views, CRDT convergence
-npm run test:e2e          # builds, then runs Playwright against real server processes
-npm run boundaries        # module boundary check (see ADR 15)
-```
-The end-to-end tests cover:
-- live co-editing and presence
-- a cold start with no network
-- offline edits merging when the device reconnects
-- edits made while the server is down, and data surviving server restarts
-- sync and startup timings with 200+ documents
-
-## Repo layout
-The repo is an [Nx](https://nx.dev) monorepo meant to hold several homelab apps ([ADR 15](docs/adr/0015-nx-monorepo.md)). LocalNotion is the first, as the `notes` app.
-
-```
-apps/notes/web       React PWA            (Nx project notes-web)
-apps/notes/server    sync and web server  (notes-server)
-apps/notes/e2e       Playwright tests     (notes-e2e)
-apps/notes/docs      Notes ADRs, specs and research
+apps/<app>/          one app: npm workspace packages (web, server, e2e), its Dockerfile and its docs
 packages/            code shared by more than one app
-docs/                repo-wide docs: platform ADRs and the ADR format
-tools/               repo scripts
+docs/adr/            platform ADRs, which hold for every app, and the ADR format
+tools/               repo scripts (TypeScript, run directly by Node)
 ```
-Run one project's task with `npx nx <target> <project>`, every project's with `npx nx run-many -t <target>`, and `npx nx graph` to see how projects depend on each other.
-
-## Install on your devices
-- **macOS** (Safari 17+): open the site, then *File → Add to Dock*.
-- **iOS**: open the site in Safari, then *Share → Add to Home Screen*.
-- The **Diagnostics** page in the sidebar shows sync status, storage persistence, quota, and load-test buttons.
+Each app's decisions, specs and research live in `apps/<app>/docs/`.

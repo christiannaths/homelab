@@ -6,7 +6,7 @@ Matt Pocock's skills (`mattpocock/skills`) are installed in `.agents/skills/` (r
 
 ### Issue tracker
 
-Issues are tracked in this repo's GitHub Issues (`christiannaths/localnotion`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in this repo's GitHub Issues (`christiannaths/homelab`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -14,4 +14,4 @@ The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Platform ADRs are in `docs/adr/`, and each app keeps its own in `apps/<app>/docs/adr/` (for example `apps/notes/docs/adr/`). See `docs/agents/domain.md`.
