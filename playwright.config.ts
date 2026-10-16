@@ -9,5 +9,10 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
-  use: { ...devices["Desktop Chrome"], trace: "retain-on-failure" },
+  use: {
+    ...devices["Desktop Chrome"],
+    trace: "retain-on-failure",
+    // Optional: point at an already-installed Chromium instead of `npx playwright install`.
+    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined },
+  },
 });

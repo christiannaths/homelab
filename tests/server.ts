@@ -18,7 +18,7 @@ export class TestServer {
   }
 
   async start(): Promise<void> {
-    this.proc = spawn("node", ["--disable-warning=ExperimentalWarning", "apps/server/dist/index.js"], {
+    this.proc = spawn("node", ["--no-experimental-webstorage", "apps/server/dist/index.js"], {
       cwd: root,
       env: { ...process.env, PORT: String(this.port), DATA_DIR: this.dataDir },
       stdio: "inherit",

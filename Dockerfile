@@ -1,4 +1,4 @@
-FROM node:22-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:22-slim
+FROM node:26-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
 COPY package.json package-lock.json ./
@@ -20,4 +20,6 @@ COPY --from=build /app/apps/server/dist apps/server/dist
 COPY --from=build /app/apps/web/dist apps/web/dist
 VOLUME /data
 EXPOSE 3000
-CMD ["node", "--disable-warning=ExperimentalWarning", "apps/server/dist/index.js"]
+# --no-experimental-webstorage: Node 26 warns when lib0 (a Yjs dependency) probes the
+# server-side localStorage global. We never use it, so turn it off.
+CMD ["node", "--no-experimental-webstorage", "apps/server/dist/index.js"]

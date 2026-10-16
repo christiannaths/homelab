@@ -6,7 +6,7 @@
 
 **Stack used:**
 - Client: React 19 + Vite 8 + vite-plugin-pwa (Workbox), BlockNote 0.56 (`@blocknote/core/yjs`), Yjs 13.6, y-indexeddb, `@hocuspocus/provider` 4.7
-- Server: Hocuspocus 4.7 + `node:sqlite` (no native dependencies)
+- Server: Hocuspocus 4.7 + `node:sqlite` (no native dependencies), on Node.js 26
 
 ## Results (headless Chromium on Linux, server on localhost)
 

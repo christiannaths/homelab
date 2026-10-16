@@ -10,6 +10,8 @@ A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: ever
 - Clients sync the **whole workspace** in the background, so every page is available offline.
 
 ## Run it
+Requires **Node.js 26+** (the server uses the built-in `node:sqlite`). With nvm, run `nvm install` in the repo root (it reads `.nvmrc`).
+
 ```sh
 npm install
 npm run build
