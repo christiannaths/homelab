@@ -11,7 +11,7 @@ Full offline support is a core requirement. An offline mode added to a server-fi
 ## Decision
 - **Every read and write goes to the local copy first.** The UI never waits on the network to show or change anything.
 - The network is used only to exchange changes with other devices. The server is one more participant that relays and backs up changes, and never has to approve an edit before it appears.
-- **Each device keeps the whole workspace**, not only the pages it has opened: everything in it. Any page opens offline, including one the device has never opened before.
+- **Each device keeps the whole workspace**, not only the pages it has opened. Any page opens offline, including one the device has never opened before.
 - Being offline is a normal state. The UI shows it as a status ("Offline · saved locally"), never as an error. Connection loss is detected immediately from the browser's `offline` and `online` events, not left to a socket timeout.
 
 ## Evidence
