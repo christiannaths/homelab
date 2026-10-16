@@ -149,6 +149,15 @@ export class TestServer {
     return res.json();
   }
 
+  /** Removes a person from the workspace, as `actor` (who must be an owner). */
+  async removePerson(person: Pick<Person, "id">, actor: Person): Promise<void> {
+    const res = await fetch(`${this.url}/api/people/${person.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${actor.id}` },
+    });
+    if (!res.ok) throw new Error(`removePerson failed (${res.status}): ${await res.text()}`);
+  }
+
   /** Every open document connection, with the person it belongs to. */
   async connections(): Promise<ServerConnection[]> {
     return (await fetch(`${this.url}/api/connections`)).json();
@@ -169,7 +178,8 @@ interface Entry {
   doc: Y.Doc;
   provider: HocuspocusProvider;
   result: Promise<OpenResult>;
-  status?: OpenResult["status"];
+  /** "lost": received, then taken away (access revoked, or refused when the device reconnected). */
+  status?: OpenResult["status"] | "lost";
   scope?: string;
   /** Why the server closed this document's connection, if it did (Hocuspocus passes only the reason on). */
   closedReason?: string;
@@ -201,11 +211,12 @@ export class TestClient {
   /** Starts a provider for `name` (once), so a page this device creates can be written before it syncs. */
   private entry(name: string): Entry {
     const existing = this.entries.get(name);
-    if (existing && existing.closedReason === undefined) return existing;
-    // The server closed this document (access revoked). Opening it again keeps the local copy, as
-    // a device with storage would, and asks the server afresh with a new provider.
+    if (existing && existing.closedReason === undefined && existing.status !== "lost") return existing;
+    // The server closed this document, or the device lost it. Opening it again asks the server
+    // afresh with a new provider: a lost document starts from nothing (the device deleted it), any
+    // other keeps its local copy, as a device with storage would.
     if (existing) existing.provider.destroy();
-    const doc = existing?.doc ?? new Y.Doc();
+    const doc = existing && existing.status !== "lost" ? existing.doc : new Y.Doc();
     let settle!: (r: OpenResult) => void;
     const result = new Promise<OpenResult>((resolve) => (settle = resolve));
     const provider = new HocuspocusProvider({
@@ -221,12 +232,15 @@ export class TestClient {
         settle({ status: "synced", doc, scope: entry.scope ?? "read-write" });
       },
       onAuthenticationFailed: ({ reason }) => {
+        // Refused on reconnecting, after it had been received: access was lost while offline.
+        if (entry.status === "synced") return this.lose(entry);
         entry.status = "denied";
         settle({ status: "denied", reason });
       },
       onClose: ({ event }) => {
         if (event.reason) entry.closedReason = event.reason;
-        if (isRefusal(event.reason) && this.entries.get(name) === entry) this.recover(name, event.reason);
+        if (event.reason === "access-revoked") this.lose(entry);
+        else if (isRefusal(event.reason) && this.entries.get(name) === entry) this.recover(name, event.reason);
       },
       // Each provider gets its own address on the socket, so a document can be reopened right
       // after its old provider is destroyed (explore.md §3: otherwise the server may still be
@@ -280,6 +294,24 @@ export class TestClient {
   /** Names of the documents the server refused, sorted. */
   denied(): string[] {
     return this.namesWith("denied");
+  }
+
+  /** Names of the documents this device received and then deleted because access was lost, sorted. */
+  lost(): string[] {
+    return this.namesWith("lost");
+  }
+
+  /**
+   * What the web app does when it loses a document: it deletes its copy. The server revoked it
+   * (`access-revoked` on a live connection), or refused it when the device reconnected.
+   */
+  private lose(entry: Entry): void {
+    entry.status = "lost";
+    // Not from inside the provider's own callback.
+    queueMicrotask(() => {
+      entry.provider.destroy();
+      entry.doc.destroy();
+    });
   }
 
   /** A received document, or undefined. */
@@ -374,7 +406,11 @@ export class TestClient {
     writeParagraph(this.receivedPage(pageId), text);
   }
 
-  /** Moves a received page under `parentId` (null: the top level of `section`). The server decides whether it sticks. */
+  /**
+   * Moves a received page under `parentId` (null: the top level of `section`, by default the
+   * page's own). Moving it to a Private section removes everyone else's access (`movesToPrivate`).
+   * The server decides whether it sticks.
+   */
   async move(pageId: string, parentId: string | null, opts: { index?: number; section?: string } = {}): Promise<void> {
     const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => new Y.Doc() };
     this.receivedPage(pageId);
@@ -628,11 +664,14 @@ export class TestClient {
     await waitFor(() => String(this.socket.status) === "disconnected", timeoutMs, "socket did not close");
   }
 
-  /** Comes back online and waits until every document it holds has synced again. */
+  /**
+   * Comes back online and waits until every document it holds has synced again, or was refused
+   * and deleted because access was lost meanwhile (#21).
+   */
   async connect(timeoutMs = 10_000): Promise<void> {
     void this.socket.connect();
     await waitFor(
-      () => [...this.entries.values()].every((e) => e.status === "denied" || e.provider.synced),
+      () => [...this.entries.values()].every((e) => e.status === "denied" || e.status === "lost" || e.provider.synced),
       timeoutMs,
       "documents did not sync again",
     );
@@ -649,7 +688,7 @@ export class TestClient {
     this.socket.destroy();
   }
 
-  private namesWith(status: OpenResult["status"]): string[] {
+  private namesWith(status: Entry["status"]): string[] {
     return [...this.entries].filter(([, e]) => e.status === status).map(([name]) => name).sort();
   }
 }

@@ -26,3 +26,20 @@ export function addPerson(
   if (actor?.role !== "owner") return { ok: false, reason: "Only a workspace owner can add people." };
   return { ok: true, person: { id: input.id, name, role: input.role } };
 }
+
+/**
+ * Decides whether `actor` may remove the person `personId` from the workspace (story 45). Only an
+ * owner may, and the workspace always keeps at least one owner. Removing someone takes away every
+ * page they could open: their devices delete the workspace's pages at their next sync. Their own
+ * Private pages stay on the server, readable by nobody (transferring them is Enterprise-only in
+ * Notion, and out of scope).
+ */
+export function removePerson(people: readonly Person[], actor: Person | null, personId: string): AddPersonResult {
+  if (actor?.role !== "owner") return { ok: false, reason: "Only a workspace owner can remove people." };
+  const person = people.find((p) => p.id === personId);
+  if (!person) return { ok: false, reason: "No such person." };
+  if (person.role === "owner" && people.filter((p) => p.role === "owner").length === 1) {
+    return { ok: false, reason: "The workspace needs at least one owner." };
+  }
+  return { ok: true, person };
+}
