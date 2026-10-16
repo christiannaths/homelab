@@ -1,11 +1,12 @@
 {
-  "name": "@homelab/notes-web",
+  "name": "@homelab/notes-block-editing-collaboration-poc-web",
   "private": true,
   "type": "module",
   "nx": {
-    "name": "notes-web",
+    "name": "notes-block-editing-collaboration-poc-web",
     "tags": [
-      "scope:notes",
+      "scope:notes-block-editing-collaboration-poc",
+      "spike",
       "platform:browser"
     ]
   },

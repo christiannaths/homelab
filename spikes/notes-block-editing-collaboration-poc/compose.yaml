@@ -2,7 +2,7 @@ services:
   notes:
     build:
       context: ../..
-      dockerfile: apps/notes/Dockerfile
+      dockerfile: spikes/notes-block-editing-collaboration-poc/Dockerfile
     restart: unless-stopped
     ports:
       - "3000:3000"
