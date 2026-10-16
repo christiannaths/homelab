@@ -1,6 +1,5 @@
 import {
-  pageLevels, readMeta, visiblePageIds,
-  type AccessLevel, type PageMeta, type Person, type Workspace,
+  pageLevels, readMeta, type AccessLevel, type PageMeta, type Person, type Workspace,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
@@ -15,7 +14,7 @@ export class PageCatalog {
   private workspaceCache: Workspace | null = null;
   private levelsCache = new Map<string, Map<string, AccessLevel>>();
   /** The page index each person was last given, so only changed indexes are rewritten. */
-  private readonly indexes = new Map<string, Set<string>>();
+  private readonly indexes = new Map<string, ReadonlyMap<string, AccessLevel>>();
 
   constructor(people: readonly Person[]) {
     this.people = people;
@@ -32,7 +31,8 @@ export class PageCatalog {
 
   /**
    * Records a page document's latest metadata. Returns true if the change can affect who may open
-   * which page (a new page, or a new parent or section), so the page indexes need refreshing.
+   * which page at which level (a new page, a new parent or section, or a change to the access set
+   * on it), so the page indexes need refreshing.
    */
   update(id: string, doc: Y.Doc): boolean {
     const meta = readMeta(id, doc);
@@ -40,7 +40,11 @@ export class PageCatalog {
     const before = this.pages.get(id);
     this.pages.set(id, meta);
     this.workspaceCache = null;
-    const structural = !before || before.parentId !== meta.parentId || before.section !== meta.section;
+    const structural =
+      !before ||
+      before.parentId !== meta.parentId ||
+      before.section !== meta.section ||
+      JSON.stringify(before.access) !== JSON.stringify(meta.access);
     if (structural) this.levelsCache.clear();
     return structural;
   }
@@ -66,19 +70,19 @@ export class PageCatalog {
   }
 
   /** The people whose page index no longer matches what they can open, with what it should list. */
-  staleIndexes(): { personId: string; ids: Set<string> }[] {
-    const out: { personId: string; ids: Set<string> }[] = [];
+  staleIndexes(): { personId: string; levels: Map<string, AccessLevel> }[] {
+    const out: { personId: string; levels: Map<string, AccessLevel> }[] = [];
     for (const person of this.people) {
-      const ids = visiblePageIds(this.workspace(), person.id);
+      const levels = this.levels(person.id);
       const written = this.indexes.get(person.id);
-      if (written && written.size === ids.size && [...ids].every((id) => written.has(id))) continue;
-      out.push({ personId: person.id, ids });
+      if (written && written.size === levels.size && [...levels].every(([id, l]) => written.get(id) === l)) continue;
+      out.push({ personId: person.id, levels });
     }
     return out;
   }
 
-  /** Marks `personId`'s page index as written with `ids`. */
-  indexWritten(personId: string, ids: Set<string>): void {
-    this.indexes.set(personId, ids);
+  /** Marks `personId`'s page index as written with `levels`. */
+  indexWritten(personId: string, levels: ReadonlyMap<string, AccessLevel>): void {
+    this.indexes.set(personId, levels);
   }
 }

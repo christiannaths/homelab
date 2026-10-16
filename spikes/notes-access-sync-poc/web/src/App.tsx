@@ -37,7 +37,7 @@ export function App({ me, onSwitchPerson }: { me: Person; onSwitchPerson: () => 
 
   let content;
   if (route === "#/people") content = <PeopleView me={me} />;
-  else if (node) content = <PageView key={node.page.id} page={node.page} pages={pages} identity={identity} />;
+  else if (node) content = <PageView key={node.page.id} page={node.page} pages={pages} identity={identity} me={me} />;
   else
     content = (
       <div className="empty">

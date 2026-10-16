@@ -7,6 +7,8 @@
 //   const client = await connectAs(server, max);                    // a Node client connected as Max
 //   await client.syncAll();                                         // ["index:<max id>", "page:…"]
 //   client.received(); client.denied(); client.pageTitles(); client.sidebar();
+//   await client.share(pageId, personId, "view"); await client.shareWithWorkspace(pageId, "edit");
+//   client.level(pageId); client.access(pageId); client.closedReason(name);
 //   await client.close(); await server.stop();
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -15,8 +17,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  buildTree, createPage, indexDocName, pageDocName, parseDocName, privateSection, readIndex, readMeta,
-  sidebarSections, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
+  buildTree, createPage, indexDocName, pageDocName, parseDocName, privateSection, readIndex, readIndexLevels,
+  readMeta, setPersonAccess, setWorkspaceAccess, sidebarSections,
+  type AccessLevel, type PageAccess, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
@@ -138,6 +141,8 @@ interface Entry {
   result: Promise<OpenResult>;
   status?: OpenResult["status"];
   scope?: string;
+  /** Why the server closed this document's connection, if it did (Hocuspocus passes only the reason on). */
+  closedReason?: string;
 }
 
 /**
@@ -183,6 +188,9 @@ export class TestClient {
       onAuthenticationFailed: ({ reason }) => {
         entry.status = "denied";
         settle({ status: "denied", reason });
+      },
+      onClose: ({ event }) => {
+        if (event.reason) entry.closedReason = event.reason;
       },
     });
     const entry: Entry = { doc, provider, result };
@@ -276,6 +284,43 @@ export class TestClient {
     if (page.status !== "synced") throw new Error(`page denied: ${page.reason}`);
     if (body) writeParagraph(page.doc, body);
     return id;
+  }
+
+  /** Appends a paragraph to a received page. */
+  async writeText(pageId: string, text: string): Promise<void> {
+    writeParagraph(this.receivedPage(pageId), text);
+  }
+
+  /** Invites `personId` to a received page at `level` (null: Restore inherited access). The server decides whether it sticks. */
+  async share(pageId: string, personId: string, level: AccessLevel | null): Promise<void> {
+    setPersonAccess(this.receivedPage(pageId), personId, level);
+  }
+
+  /** Sets a received page's general access for everyone in the workspace (null: inherit it). */
+  async shareWithWorkspace(pageId: string, level: AccessLevel | null): Promise<void> {
+    setWorkspaceAccess(this.receivedPage(pageId), level);
+  }
+
+  /** The access set on a received page itself, as this device holds it. */
+  access(pageId: string): PageAccess | undefined {
+    return readMeta(pageId, this.receivedPage(pageId))?.access;
+  }
+
+  /** This person's level on a page, as their page index says. */
+  level(pageId: string): AccessLevel | undefined {
+    const index = this.doc(indexDocName(this.person.id));
+    return index && readIndexLevels(index).get(pageId);
+  }
+
+  /** Why the server closed a document's connection, or undefined. */
+  closedReason(name: string): string | undefined {
+    return this.entries.get(name)?.closedReason;
+  }
+
+  private receivedPage(pageId: string): Y.Doc {
+    const doc = this.doc(pageDocName(pageId));
+    if (!doc) throw new Error(`page ${pageId} was not received`);
+    return doc;
   }
 
   /** Waits until the server has acknowledged every local change. */

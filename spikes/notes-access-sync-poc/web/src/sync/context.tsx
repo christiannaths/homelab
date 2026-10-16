@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { buildTree, type Tree } from "@homelab/notes-access-sync-poc-model";
+import { buildTree, type AccessLevel, type Tree } from "@homelab/notes-access-sync-poc-model";
 import type { LocalPages } from "./pages";
 import type { DocEntry, SyncManager } from "./SyncManager";
 
@@ -35,4 +35,14 @@ export function useLocalReady(entry: DocEntry | undefined): boolean {
 export function useTree(pages: LocalPages): Tree {
   const metas = useSyncExternalStore(pages.subscribe, pages.getSnapshot);
   return useMemo(() => buildTree(metas), [metas]);
+}
+
+/**
+ * This person's level on a page, from their page index (the server works it out from the whole
+ * tree, which this device may only partly hold). A page not in the index yet is one this device
+ * created, so it has Full access.
+ */
+export function useLevel(pages: LocalPages, pageId: string): AccessLevel {
+  const levels = useSyncExternalStore(pages.subscribe, pages.getLevels);
+  return levels.get(pageId) ?? "full";
 }

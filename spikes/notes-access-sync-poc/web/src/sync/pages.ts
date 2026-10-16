@@ -1,6 +1,6 @@
 import {
-  indexDocName, indexMap, metaMap, pageDocName, parseDocName, readMeta,
-  type PageDocs, type PageMeta,
+  accessMap, indexDocName, indexMap, metaMap, pageDocName, parseDocName, readIndexLevels, readMeta,
+  type AccessLevel, type PageDocs, type PageMeta,
 } from "@homelab/notes-access-sync-poc-model";
 import type * as Y from "yjs";
 import type { DocEntry, SyncManager } from "./SyncManager";
@@ -19,6 +19,7 @@ export class LocalPages implements PageDocs {
   private readonly watched = new Set<string>();
   private readonly listeners = new Set<() => void>();
   private snapshot: PageMeta[] = [];
+  private levels: ReadonlyMap<string, AccessLevel> = new Map();
   private notifyScheduled = false;
 
   constructor(
@@ -31,7 +32,11 @@ export class LocalPages implements PageDocs {
   /** Starts following the index and opening stored pages. Returns a function that stops following the index. */
   start(): () => void {
     const ids = indexMap(this.index.doc);
-    const follow = () => ids.forEach((_, id) => this.watch(id));
+    const follow = () => {
+      ids.forEach((_, id) => this.watch(id));
+      this.levels = readIndexLevels(this.index.doc);
+      this.changed();
+    };
     follow();
     ids.observe(follow);
     void this.manager.storedNames().then((names) => {
@@ -64,18 +69,23 @@ export class LocalPages implements PageDocs {
   /** The metadata of every page document on this device whose metadata has arrived. */
   getSnapshot = (): PageMeta[] => this.snapshot;
 
+  /** This person's level on each page, as the server last wrote it into their page index. */
+  getLevels = (): ReadonlyMap<string, AccessLevel> => this.levels;
+
   private watch(id: string): DocEntry {
     const entry = this.manager.open(pageDocName(id));
     if (this.watched.has(id)) return entry;
     this.watched.add(id);
-    const meta = metaMap(entry.doc);
+
     const update = () => {
       const m = readMeta(id, entry.doc);
       if (m) this.metas.set(id, m);
       else this.metas.delete(id);
       this.changed();
     };
-    meta.observe(update);
+    // A page's metadata includes the access set on it (for the Share menu and the sidebar sections).
+    metaMap(entry.doc).observe(update);
+    accessMap(entry.doc).observe(update);
     update();
     return entry;
   }

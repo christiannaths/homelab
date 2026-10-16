@@ -1,3 +1,4 @@
+import type { PageAccess } from "./levels.ts";
 import { compareOrder } from "./order.ts";
 
 export type PageKind = "page" | "database";
@@ -17,6 +18,8 @@ export interface PageMeta {
   order: string;
   createdAt: number;
   deletedAt?: number;
+  /** Access set on this page itself (invites, overrides, general access). Absent = inherits everything. */
+  access?: PageAccess;
 }
 
 export interface TreeNode {
