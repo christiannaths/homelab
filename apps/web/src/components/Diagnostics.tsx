@@ -4,7 +4,10 @@ import { blocksToYDoc } from "@blocknote/core/yjs";
 import * as Y from "yjs";
 import { loadToken } from "../identity";
 import { useSyncManager, useSyncSnapshot } from "../sync/context";
-import { createPage, pageDocName } from "../sync/workspace";
+import { addProperty, addRow, addSelectOption, TITLE } from "../model/database";
+import { freshKeys } from "../model/order";
+import type { Tree } from "../model/tree";
+import { createDatabase, createPage, databaseDocName, pageDocName } from "../sync/workspace";
 
 interface EnvInfo {
   persisted: boolean | null;
@@ -31,7 +34,7 @@ async function readEnv(): Promise<EnvInfo> {
 
 const fmt = (ms?: number) => (ms === undefined ? "—" : `${Math.round(ms)} ms`);
 
-export function Diagnostics({ workspace }: { workspace: Y.Doc }) {
+export function Diagnostics({ workspace, tree }: { workspace: Y.Doc; tree: Tree }) {
   const manager = useSyncManager();
   const s = useSyncSnapshot();
   const [env, setEnv] = useState<EnvInfo | null>(null);
@@ -58,13 +61,46 @@ export function Diagnostics({ workspace }: { workspace: Y.Doc }) {
     ];
     const content = Y.encodeStateAsUpdate(blocksToYDoc(editor, blocks, "content"));
     manager.resetTimings();
+    const orders = freshKeys(count, tree.roots.at(-1)?.page.order ?? null);
     workspace.transact(() => {
       for (let i = 0; i < count; i++) {
-        const id = createPage(workspace, `Test page ${i + 1}`);
+        const id = createPage(workspace, tree, { title: `Test page ${i + 1}`, order: orders[i] });
         Y.applyUpdate(manager.open(pageDocName(id)).doc, content);
       }
     });
     setSeeding(`Created ${count} pages in ${Math.round(performance.now() - started)} ms`);
+  }
+
+  function seedDatabase(rowCount: number) {
+    setSeeding(`Creating a database with ${rowCount} rows…`);
+    const started = performance.now();
+    const id = createDatabase(workspace, tree, (name) => manager.open(name).doc, {
+      title: `Test database (${rowCount.toLocaleString()} rows)`,
+    });
+    const db = manager.open(databaseDocName(id)).doc;
+    const status = addProperty(db, "Status", "select");
+    const options = ["Backlog", "In progress", "Done"].map((n) => addSelectOption(db, status, n));
+    const points = addProperty(db, "Points", "number");
+    const done = addProperty(db, "Done", "checkbox");
+    const due = addProperty(db, "Due", "date");
+    const notes = addProperty(db, "Notes", "text");
+    const orders = freshKeys(rowCount);
+    db.transact(() => {
+      for (let i = 0; i < rowCount; i++) {
+        const day = String((i % 28) + 1).padStart(2, "0");
+        const rowId = addRow(db, {
+          [TITLE]: `Task ${i + 1}`,
+          [status]: options[i % 3],
+          [points]: (i * 7919) % 100,
+          [done]: i % 3 === 2 ? true : null,
+          [due]: `2026-${String((i % 12) + 1).padStart(2, "0")}-${day}`,
+          [notes]: i % 5 === 0 ? `Note for task ${i + 1}` : null,
+        });
+        db.getMap<Y.Map<unknown>>("rows").get(rowId)!.set("_order", orders[i]);
+      }
+    });
+    setSeeding(`Created a database with ${rowCount} rows in ${Math.round(performance.now() - started)} ms`);
+    location.hash = `#/page/${id}`;
   }
 
   return (
@@ -114,7 +150,10 @@ export function Diagnostics({ workspace }: { workspace: Y.Doc }) {
       <h2>Load test</h2>
       <p>
         <button onClick={() => seed(100)} disabled={seeding?.endsWith("…")} data-testid="seed-100">Create 100 test pages</button>{" "}
-        <button onClick={() => seed(500)} disabled={seeding?.endsWith("…")}>Create 500 test pages</button>
+        <button onClick={() => seed(500)} disabled={seeding?.endsWith("…")}>Create 500 test pages</button>{" "}
+        <button onClick={() => seedDatabase(5000)} disabled={seeding?.endsWith("…")} data-testid="seed-db">
+          Create test database (5,000 rows)
+        </button>
       </p>
       {seeding && <p data-testid="seed-status">{seeding}</p>}
       <p className="muted">Reload the app (online or offline) to measure startup time with the current number of documents.</p>

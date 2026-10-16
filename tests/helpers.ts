@@ -40,3 +40,32 @@ export function editorText(page: Page): Promise<string> {
     return clone.textContent ?? "";
   });
 }
+
+export function treeRow(page: Page, title: string) {
+  return page.getByTestId("tree-row").filter({ hasText: title });
+}
+
+/** The sidebar as "depth:title" lines, in display order. */
+export async function treeShape(page: Page): Promise<string[]> {
+  return page.getByTestId("tree-row").evaluateAll((rows) =>
+    rows.map((r) => `${(r as HTMLElement).dataset.depth}:${r.querySelector(".tree-link")?.lastChild?.textContent ?? ""}`),
+  );
+}
+
+/** Drags a sidebar item onto another: into it, or just before/after it. */
+export async function dragTreeItem(page: Page, source: string, target: string, where: "inside" | "before" | "after") {
+  const s = (await treeRow(page, source).locator(".tree-link").boundingBox())!;
+  const t = (await treeRow(page, target).boundingBox())!;
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2 + 12, { steps: 4 });
+  const y = where === "inside" ? t.y + t.height / 2 : where === "before" ? t.y + 3 : t.y + t.height - 3;
+  await page.mouse.move(t.x + t.width / 2, y, { steps: 10 });
+  await page.mouse.up();
+}
+
+export async function createTitledPage(page: Page, title: string): Promise<void> {
+  await page.getByTestId("new-page").click();
+  await page.getByTestId("page-title").fill(title);
+  await expect(treeRow(page, title)).toBeVisible();
+}

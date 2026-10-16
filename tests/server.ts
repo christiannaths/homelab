@@ -9,6 +9,8 @@ let nextPort = 3200;
 export class TestServer {
   readonly url: string;
   private proc: ChildProcess | null = null;
+  /** Server output, kept so tests can assert on warnings (e.g. dropped connections). */
+  readonly logs: string[] = [];
 
   constructor(
     readonly port = nextPort++,
@@ -21,8 +23,14 @@ export class TestServer {
     this.proc = spawn("node", ["--no-experimental-webstorage", "apps/server/dist/index.js"], {
       cwd: root,
       env: { ...process.env, PORT: String(this.port), DATA_DIR: this.dataDir },
-      stdio: "inherit",
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    for (const stream of [this.proc.stdout!, this.proc.stderr!]) {
+      stream.on("data", (chunk: Buffer) => {
+        process.stdout.write(chunk);
+        this.logs.push(...chunk.toString().split("\n").filter(Boolean));
+      });
+    }
     for (let i = 0; i < 100; i++) {
       try {
         if ((await fetch(`${this.url}/api/health`)).ok) return;

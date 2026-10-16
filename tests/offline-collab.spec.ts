@@ -22,7 +22,7 @@ test("two users see each other's edits live", async ({ browser }) => {
   const hash = await createPage(alice, "Shared plan", "Hello from Alice");
 
   // The new page appears in Bob's sidebar, and its content arrives.
-  await expect(bob.getByTestId("page-list")).toContainText("Shared plan");
+  await expect(bob.getByTestId("page-tree")).toContainText("Shared plan");
   await bob.goto(`${server.url}/${hash}`);
   await expect(editor(bob)).toContainText("Hello from Alice");
 
@@ -49,7 +49,7 @@ test("app cold-starts with no network and offline edits merge on reconnect", asy
   // The device goes offline, then the app is closed and reopened: it must boot from the service worker + IndexedDB.
   await aliceCtx.setOffline(true);
   await alice.reload();
-  await expect(alice.getByTestId("page-list")).toContainText("Trip notes");
+  await expect(alice.getByTestId("page-tree")).toContainText("Trip notes");
   await expect(alice.getByTestId("sync-badge")).toHaveText(/Offline/);
   await expect(editor(alice)).toContainText("Packed passport.");
 
@@ -76,7 +76,7 @@ test("app cold-starts with no network and offline edits merge on reconnect", asy
     await p.goto(`${server.url}/${hash}`);
     await expect.poll(() => editorText(p)).toBe("Bob: Packed passport. Bought adapters offline.");
   }
-  await expect(bob.getByTestId("page-list")).toContainText("Offline-only page");
+  await expect(bob.getByTestId("page-tree")).toContainText("Offline-only page");
 });
 
 test("edits made while the server is down sync after it restarts, and data survives restarts", async ({ browser }) => {
