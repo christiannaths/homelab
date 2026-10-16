@@ -3,8 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canShare, documentAccess, indexDocName, parseDocName, refuseUpdate, removePerson, touchedRoots, writeIndex,
-  type AccessLevel, type Person, type Role,
+  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, removePerson, reviewUpdate,
+  writeIndex, type AccessLevel, type Person, type Refusal, type Role,
+} from "@homelab/notes-access-sync-poc-model";
+import {
+  readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 import { PageCatalog } from "./catalog.ts";
@@ -25,6 +28,14 @@ for (const name of store.names("page:")) {
   const state = store.load(name);
   if (ref?.kind === "page" && state) catalog.loadStored(ref.id, state);
 }
+for (const name of store.names("teamspace:")) {
+  const ref = parseDocName(name);
+  const state = store.load(name);
+  if (ref?.kind === "teamspace" && state) catalog.loadStoredTeamspace(ref.teamspaceId, state);
+}
+
+/** Every update refused since the server started, for tests and diagnostics (GET /api/refusals). */
+const refusals: { personId: string; documentName: string; reason: Refusal }[] = [];
 
 /** What the server keeps about each connection: the person it belongs to. */
 export interface ConnectionContext {
@@ -60,17 +71,33 @@ const server = new Server<ConnectionContext>({
     return { person };
   },
 
-  // Hocuspocus calls this before applying any sync message. A page document's `access` map may
-  // only be changed with Full access, so updates from connections below Full (and above view,
-  // whose connections are read-only and refused by Hocuspocus itself) are checked against what
-  // they would change. Throwing closes that document's connection with the reason, and the
-  // update is not applied. The level is looked up now, not at open, so it follows access changes.
+  // Hocuspocus calls this before applying any sync message, read-only connections included. Every
+  // update (SyncStep2 on each (re)connect, and live updates) is reviewed against the person's
+  // level now, not at open, so it follows access changes; new pages are reviewed where they are
+  // placed. A refused update is not applied, and throwing closes this document's connection (only
+  // this one: the socket and the person's other documents stay up) with the reason. The device
+  // takes that reason as "throw your copy away and sync it again" (#18), so it never resends the
+  // update. Hocuspocus's own read-only handling would instead drop it silently, and the device
+  // would stay diverged and resend it on every reconnect.
   async beforeSync({ type, payload, document, documentName, connection, context }) {
-    if (type === 0 || connection.readOnly || parseDocName(documentName)?.kind !== "page") return;
-    const level = documentAccess(catalog.workspace(), context.person.id, documentName, catalog.levels(context.person.id));
-    if (canShare(level)) return;
-    const reason = refuseUpdate(level, touchedRoots(document, payload));
-    if (reason) throw { reason };
+    if (type === 0) return; // SyncStep1 only asks for what the device lacks.
+    const person = context.person.id;
+    const workspace = catalog.workspace();
+    const levels = catalog.levels(person);
+    const ref = parseDocName(documentName);
+    const reason =
+      reviewUpdate(workspace, person, documentName, document, payload, levels) ??
+      (ref?.kind === "teamspace" ? teamspaceRefusal(ref.teamspaceId, document, payload, context.person) : null);
+    if (reason) {
+      refusals.push({ personId: person, documentName, reason });
+      throw { reason };
+    }
+    // A page (or a database's properties) opened read-only whose person can now change some of
+    // it: the review above has accepted the update, so let it through. Can edit content counts,
+    // because it may change a database's rows (#20).
+    if (connection.readOnly && (ref?.kind === "page" || ref?.kind === "schema")) {
+      connection.readOnly = !canEditContent(documentAccess(workspace, person, documentName, levels));
+    }
   },
 
   // Keep the catalog current, and the page indexes with it. Title and content edits don't change
@@ -78,6 +105,7 @@ const server = new Server<ConnectionContext>({
   async onChange({ documentName, document }) {
     const ref = parseDocName(documentName);
     if (ref?.kind === "page" && catalog.update(ref.id, document)) refreshIndexes();
+    if (ref?.kind === "teamspace" && catalog.updateTeamspace(ref.teamspaceId, document)) refreshIndexes();
   },
 
   async onLoadDocument({ documentName, document }) {
@@ -120,6 +148,13 @@ function refreshIndexes(): Promise<void> {
       catalog.indexWritten(personId, levels);
       applyAccessChanges(personId);
     }
+    for (const { personId, levels } of catalog.staleTeamspaceIndexes()) {
+      const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
+      await connection.transact((doc) => writeTeamspaceIndex(doc, levels));
+      await connection.disconnect({ unloadImmediately: false }); // see above
+      catalog.teamspaceIndexWritten(personId, levels);
+      applyAccessChanges(personId); // a teamspace they left or were taken out of
+    }
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;
 }
@@ -128,13 +163,46 @@ function refreshIndexes(): Promise<void> {
 const readOnlyAt = (level: AccessLevel) => level === "view" || level === "comment";
 
 /**
+ * Adds a new workspace member (not a guest) to every default teamspace, whatever its kind, as an
+ * ordinary member entry they can later leave. The server writes it, like the indexes.
+ */
+async function joinDefaultTeamspaces(person: Person): Promise<void> {
+  if (person.role === "guest") return;
+  for (const teamspace of catalog.workspace().teamspaces ?? []) {
+    if (!teamspace.isDefault) continue;
+    const connection = await server.hocuspocus.openDirectConnection(teamspaceDocName(teamspace.id));
+    await connection.transact((doc) => {
+      setTeamspaceMember(doc, person.id, "member");
+    });
+    catalog.updateTeamspace(teamspace.id, connection.document!);
+    await connection.disconnect();
+  }
+}
+
+/**
+ * Refuses a change to a teamspace document that `person` may not make (`refuseTeamspaceChange`),
+ * comparing the server's copy with what the update would make of it. Throwing closes that
+ * document's connection with the reason, and the update is not applied, as for page updates.
+ */
+function teamspaceRefusal(id: string, document: Y.Doc, update: Uint8Array, person: Person): Refusal | null {
+  const before = readTeamspace(id, document);
+  const after = teamspaceAfterUpdate(id, document, update);
+  if (!after) return before ? "teamspace-change-refused" : null;
+  const reason = refuseTeamspaceChange(catalog.workspace().people, before, after, person);
+  return reason === null ? null : isRefusal(reason) ? reason : "teamspace-change-refused";
+}
+
+/**
  * Brings `personId`'s open connections in line with their current access, so an access change
  * takes effect on a device that is already connected (#16, #21):
- * - A document they can no longer open (a page, or every document once they are removed from the
- *   workspace) is closed with the reason "access-revoked". The device deletes its copy (#21). The
+ * - A document they can no longer open is closed with the reason "access-revoked", and the
+ *   device deletes its copy (#21). That covers pages, a database's properties (`schema:`, which
+ *   go with the last of its rows or the database the person loses, #20), a teamspace they left,
+ *   and every document, their index included, once they are removed from the workspace. The
  *   device's other documents stay open on the same socket.
- * - Otherwise the connection becomes read-only or read-write to match the level now, so an
- *   upgrade from Can view lets edits through without reconnecting, and a downgrade stops them.
+ * - Otherwise the connection becomes read-only or read-write to match the level now, as
+ *   `onAuthenticate` would open it, so a downgrade to Can view is read-only at once (#18's review
+ *   refuses its updates either way, and an upgrade is let through there too).
  * It asks the catalog's *current* levels, not the ones just written: a page created while the
  * index was being written must not count as revoked.
  */
@@ -187,6 +255,7 @@ function connections(): { personId: string; documentName: string }[] {
  * - DELETE /api/people/:id → removes a person (the caller must be an owner); their open
  *                            documents are closed with "access-revoked"
  * - GET  /api/connections  → which person each open document connection belongs to
+ * - GET  /api/refusals     → every update refused since the server started, oldest first
  */
 async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? "/", "http://localhost");
@@ -196,6 +265,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
   if (route === "GET /api/health") return sendJson(res, 200, { ok: true, documents: store.count() });
   if (route === "GET /api/people") return sendJson(res, 200, store.people());
   if (route === "GET /api/connections") return sendJson(res, 200, connections());
+  if (route === "GET /api/refusals") return sendJson(res, 200, refusals);
   if (route === "POST /api/people") {
     const body = (await readJson(req)) as { name?: unknown; role?: unknown };
     const role = body.role === "owner" || body.role === "guest" ? body.role : "member";
@@ -210,6 +280,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
     if (!result.ok) return sendJson(res, people.length && !actor ? 401 : 403, { error: result.reason });
     store.addPerson(result.person);
     catalog.setPeople(store.people());
+    await joinDefaultTeamspaces(result.person);
     await refreshIndexes();
     return sendJson(res, 201, result.person);
   }

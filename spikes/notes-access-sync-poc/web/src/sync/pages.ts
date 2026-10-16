@@ -18,7 +18,7 @@ import type { DocEntry, SyncManager } from "./SyncManager";
  * here too. When the index itself is lost, the person is no longer in the workspace.
  */
 export class LocalPages implements PageDocs {
-  readonly index: DocEntry;
+  private readonly indexName: string;
   private readonly metas = new Map<string, PageMeta>();
   private readonly watched = new Set<string>();
   /** Pages the index has listed since the app started: one missing from it now was lost. */
@@ -38,19 +38,36 @@ export class LocalPages implements PageDocs {
       onRemoved: () => void;
     },
   ) {
-    this.index = manager.open(indexDocName(personId));
+    this.indexName = indexDocName(personId);
+    manager.open(this.indexName);
   }
 
-  /** Starts following the index and opening stored pages. Returns a function that stops. */
+  /** This person's page index document (replaced by a fresh copy if the server refuses an update to it). */
+  get index(): DocEntry {
+    // Once the person is removed, don't open it again: the device is being wiped.
+    if (this.removed && this.lastIndex) return this.lastIndex;
+    return (this.lastIndex = this.manager.open(this.indexName));
+  }
+
+  private lastIndex?: DocEntry;
+  private removed = false;
+
+  /**
+   * Starts following the index and opening stored pages, re-follows any document the sync
+   * manager replaces after a refused update (#18), and drops pages it deletes after losing
+   * access (#21). Returns a function that stops following.
+   */
   start(): () => void {
-    const ids = indexMap(this.index.doc);
-    const follow = () => {
-      ids.forEach((_, id) => (this.indexed.add(id), this.watch(id)));
-      this.levels = readIndexLevels(this.index.doc);
-      this.changed();
-    };
-    follow();
-    ids.observe(follow);
+    let unfollow = this.followIndex();
+    const offReset = this.manager.onReset((name) => {
+      const ref = parseDocName(name);
+      if (name === this.indexName) {
+        unfollow();
+        unfollow = this.followIndex();
+      } else if (ref?.kind === "page" && this.watched.delete(ref.id)) {
+        this.watch(ref.id);
+      }
+    });
     void this.manager.storedNames().then((names) => {
       for (const name of names) {
         const ref = parseDocName(name);
@@ -58,7 +75,11 @@ export class LocalPages implements PageDocs {
       }
     });
     const offLost = this.manager.onLost(({ name, unsynced }) => {
-      if (name === this.index.name) return this.events.onRemoved();
+      if (name === this.indexName) {
+        if (!this.removed) this.events.onRemoved();
+        this.removed = true;
+        return;
+      }
       const ref = parseDocName(name);
       if (ref?.kind !== "page") return;
       this.watched.delete(ref.id);
@@ -67,9 +88,23 @@ export class LocalPages implements PageDocs {
       if (unsynced) this.events.onLostEdits(ref.id, unsynced);
     });
     return () => {
-      ids.unobserve(follow);
+      unfollow();
+      offReset();
       offLost();
     };
+  }
+
+  private followIndex(): () => void {
+    const doc = this.index.doc;
+    const ids = indexMap(doc);
+    const follow = () => {
+      ids.forEach((_, id) => (this.indexed.add(id), this.watch(id)));
+      this.levels = readIndexLevels(doc);
+      this.changed();
+    };
+    follow();
+    ids.observe(follow);
+    return () => ids.unobserve(follow);
   }
 
   get(id: string): Y.Doc | undefined {

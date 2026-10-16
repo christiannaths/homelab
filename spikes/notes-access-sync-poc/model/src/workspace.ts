@@ -16,24 +16,44 @@ import { isInSubtree, type PageKind, type PageMeta, type Tree, type TreeNode } f
  */
 export const pageDocName = (id: string) => `page:${id}`;
 export const indexDocName = (personId: string) => `index:${personId}`;
+/** One document per teamspace (#17): its name, kind, default levels and members. See `teamspaces.ts`. */
+export const teamspaceDocName = (id: string) => `teamspace:${id}`;
 
-export type DocRef = { kind: "page"; id: string } | { kind: "index"; personId: string };
+/**
+ * One document per database (#20) holding its properties (names, types, order): what showing any
+ * of its rows needs, and nothing else, so it also reaches people given a single row. The
+ * database's views live in its page document, each row in a page document of its own. See `database.ts`.
+ */
+export const schemaDocName = (databaseId: string) => `schema:${databaseId}`;
+
+export type DocRef =
+  | { kind: "page"; id: string }
+  | { kind: "schema"; databaseId: string }
+  | { kind: "index"; personId: string }
+  | { kind: "teamspace"; teamspaceId: string };
 
 export function parseDocName(name: string): DocRef | null {
-  const [, kind, rest] = name.match(/^(page|index):(.+)$/) ?? [];
+  const [, kind, rest] = name.match(/^(page|index|teamspace|schema):(.+)$/) ?? [];
   if (kind === "page") return { kind, id: rest };
+  if (kind === "schema") return { kind, databaseId: rest };
   if (kind === "index") return { kind, personId: rest };
+  if (kind === "teamspace") return { kind, teamspaceId: rest };
   return null;
 }
 
-/** A person's Private section. Teamspaces add `teamspace:<id>` later. */
+/** A person's Private section. */
 export const privateSection = (personId: string) => `private:${personId}`;
 
-export type SectionRef = { kind: "private"; personId: string };
+/** A teamspace's section (#17): its top-level pages start from the teamspace's default levels. */
+export const teamspaceSection = (teamspaceId: string) => `teamspace:${teamspaceId}`;
+
+export type SectionRef = { kind: "private"; personId: string } | { kind: "teamspace"; teamspaceId: string };
 
 export function parseSection(section: string): SectionRef | null {
-  const [, personId] = section.match(/^private:(.+)$/) ?? [];
-  return personId ? { kind: "private", personId } : null;
+  const [, kind, id] = section.match(/^(private|teamspace):(.+)$/) ?? [];
+  if (kind === "private") return { kind, personId: id };
+  if (kind === "teamspace") return { kind, teamspaceId: id };
+  return null;
 }
 
 /** A page document's metadata: one key per field, so a rename and a move merge (ADR 7 rule 4). */
@@ -65,15 +85,26 @@ export function setWorkspaceAccess(doc: Y.Doc, level: AccessLevel | null): void 
 export function readAccess(doc: Y.Doc): PageAccess | undefined {
   const people: Record<string, AccessLevel> = {};
   let workspace: AccessLevel | undefined;
+  let teamspace: AccessLevel | undefined;
   for (const [key, value] of accessMap(doc)) {
     if (!isAccessLevel(value)) continue;
     if (key === WORKSPACE_KEY) workspace = value;
+    else if (key === TEAMSPACE_KEY) teamspace = value;
     else if (key.startsWith(PERSON_KEY)) people[key.slice(PERSON_KEY.length)] = value;
   }
   const access: PageAccess = {};
   if (Object.keys(people).length) access.people = people;
   if (workspace !== undefined) access.workspace = workspace;
-  return access.people || access.workspace ? access : undefined;
+  if (teamspace !== undefined) access.teamspace = teamspace;
+  return Object.keys(access).length ? access : undefined;
+}
+
+const TEAMSPACE_KEY = "teamspace";
+
+/** In a teamspace, sets the level its members get on this page and below (#17). `null` restores the teamspace's default. */
+export function setTeamspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
+  if (level === null) accessMap(doc).delete(TEAMSPACE_KEY);
+  else accessMap(doc).set(TEAMSPACE_KEY, level);
 }
 
 /** A page index document: page id → this person's level on it. */

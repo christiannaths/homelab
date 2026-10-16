@@ -160,7 +160,7 @@ describe("sync boundary", () => {
       await expect.poll(() => sharer.pageText(plan)).toBe("Tomatoes\nBasil");
 
       await editor.share(plan, gus.id, "full");
-      await expect.poll(() => editor.closedReason(pageDocName(plan))).toBe("access-change-refused");
+      await expect.poll(() => editor.refusals(pageDocName(plan))).toEqual(["access-change-refused"]);
       const guest = await connect(server, gus);
       expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
       expect(await guest.open(pageDocName(plan))).toEqual({ status: "denied", reason: "no-access" });
@@ -183,11 +183,6 @@ describe("sync boundary", () => {
     const device = await connect(server, nia);
     const index = await device.open(indexDocName(nia.id));
     expect(index).toMatchObject({ status: "synced", scope: "readonly" });
-  });
-
-  it("lets a guest open no new top-level page", async () => {
-    const device = await connect(server, gus);
-    expect(await device.open(pageDocName("guest-made-this"))).toEqual({ status: "denied", reason: "no-access" });
   });
 
   it("knows which person each connection belongs to", async () => {
