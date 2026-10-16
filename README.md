@@ -2,7 +2,7 @@
 
 A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: every device keeps a full copy of the workspace. **Multiplayer**: edits and cursors sync live between users.
 
-> Status: **prototype spike.** See [`research/`](research) for the landscape survey, requirements, architecture and the spike's findings.
+> Status: **prototype spikes.** Settled decisions are recorded in [`docs/adr/`](docs/adr), including what's deliberately *not* decided yet. [`research/`](research) holds the landscape survey, requirements, architecture sketch and spike findings.
 
 ## How it works (so far)
 - **Client**: a React PWA (Vite). Every page is a [Yjs](https://yjs.dev) document, edited with [BlockNote](https://www.blocknotejs.org) and stored in IndexedDB. A service worker caches the app, so it opens with no network.
