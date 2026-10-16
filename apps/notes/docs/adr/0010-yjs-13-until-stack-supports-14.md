@@ -11,7 +11,7 @@ Yjs 14 is in release candidates. BlockNote ([ADR 8](0008-blocknote-and-mantine.m
 ## Decision
 - **Yjs 13** is used across the client, the server and the tests.
 - The upgrade is revisited only when **every** Yjs-dependent part in use (sync server, device storage, editor binding) supports 14. The upgrade is then a planned migration with its own ADR, tested against real stored data, never a casual dependency bump.
-- A standing issue, [#4](https://github.com/christiannaths/localnotion/issues/4), tracks the revisit. It lists the gate and the migration steps, and goes back into the development queue periodically so the upgrade is re-attempted.
+- A standing issue, [#4](https://github.com/christiannaths/homelab/issues/4), tracks the revisit. It lists the gate and the migration steps, and goes back into the development queue periodically so the upgrade is re-attempted.
 
 ## Evidence
 - The installed packages declare Yjs 13 only: `@hocuspocus/server` and `@hocuspocus/provider` 4.7.1 (`yjs ^13.6.8`), and `y-indexeddb` 9.0.12 (`yjs ^13.0.0`).
