@@ -1,4 +1,4 @@
-# 10. BlockNote is the page editor, using only its MPL-licensed packages
+# 9. BlockNote is the page editor, using only its MPL-licensed packages
 
 - Status: Accepted
 - Date: 2026-10-16

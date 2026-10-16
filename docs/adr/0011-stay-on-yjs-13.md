@@ -1,4 +1,4 @@
-# 12. Stay on Yjs 13 until the stack supports Yjs 14
+# 11. Stay on Yjs 13 until the stack supports Yjs 14
 
 - Status: Accepted
 - Date: 2026-10-16
@@ -12,4 +12,4 @@ Yjs 14 is in release candidates. BlockNote already ships entry points for both (
 
 ## Consequences
 - Yjs dependency upgrades stay within 13.x.
-- New code keeps Yjs use behind our own model and sync modules (ADR 11), which keeps a future migration contained.
+- New code keeps Yjs use behind our own model and sync modules (ADR 10), which keeps a future migration contained.

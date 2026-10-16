@@ -1,4 +1,4 @@
-# 3. Yjs is the CRDT for all shared data
+# 2. Yjs is the CRDT for all shared data
 
 - Status: Accepted
 - Date: 2026-10-16
@@ -10,7 +10,7 @@ Offline edits from several devices must merge automatically and the same way eve
 - **All synced data is stored in Yjs documents:** page content, the page tree, database schemas, rows, cells and views.
 - No second source of truth sits beside Yjs, such as relational tables that clients sync.
 - The server stores and relays Yjs updates, and never needs a different data format.
-- We're on **Yjs 13** (ADR 12). The move to Yjs 14 is a planned migration, not a change of direction.
+- We're on **Yjs 13** (ADR 11). The move to Yjs 14 is a planned migration, not a change of direction.
 
 ## Why Yjs
 - It has the most mature editor bindings (ProseMirror/Tiptap/BlockNote), and live cursors and presence are built in.
@@ -22,6 +22,6 @@ Offline edits from several devices must merge automatically and the same way eve
 - PR #2: Vitest convergence tests with two Y.Docs edited independently and then merged. They cover page moves, cycles, concurrent inserts, and concurrent edits to cells in the same row.
 
 ## Consequences
-- Every feature's data must be designed as Yjs shared types, with its merge behaviour decided up front (ADR 9).
+- Every feature's data must be designed as Yjs shared types, with its merge behaviour decided up front (ADR 8).
 - Plain Yjs data isn't queryable on the server. Server-side search or indexing would have to decode documents.
 - Yjs history grows over time. Compaction and snapshots will be needed eventually.

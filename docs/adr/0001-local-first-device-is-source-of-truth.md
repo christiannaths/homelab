@@ -1,4 +1,4 @@
-# 2. Local-first: the device holds the real data, the server is a relay and backup
+# 1. Local-first: the device holds the real data, the server is a relay and backup
 
 - Status: Accepted
 - Date: 2026-10-16
@@ -25,6 +25,6 @@ Full offline support is a core requirement. A "works offline" mode bolted onto a
   - a 5,000-row database reloads offline in ~0.5 s
 
 ## Consequences
-- Storage on each device grows with the whole workspace. That's acceptable at homelab scale (ADR 5).
-- Permissions are enforced when changes sync, not when they're made (ADRs 13, 14 and 16).
+- Storage on each device grows with the whole workspace. That's acceptable at homelab scale (ADR 4).
+- Permissions are enforced when changes sync, not when they're made (ADRs 12, 13 and 15).
 - How docs are held in memory and stored on the device can change (see "Not decided yet"), but the rule that every device holds everything does not.

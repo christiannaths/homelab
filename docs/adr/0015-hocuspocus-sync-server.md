@@ -1,16 +1,16 @@
-# 16. Keep Hocuspocus as the sync server
+# 15. Keep Hocuspocus as the sync server
 
 - Status: Accepted
 - Date: 2026-10-16
 
 ## Context
 - **Hocuspocus** relays Yjs updates between devices and the server's storage. It authenticates **each document** a connection opens.
-- With whole-workspace sync (ADR 2), its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnected large workspaces in a loop (PR #1).
+- With whole-workspace sync (ADR 1), its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnected large workspaces in a loop (PR #1).
 - The alternative was a small custom sync server on the standard Yjs protocol.
 
 ## Decision
 - **Keep Hocuspocus 4.**
-- Raise its per-connection pending-document and queue limits. They're anti-abuse settings for public servers, and the sync endpoint is private and authenticated (ADRs 13, 14).
+- Raise its per-connection pending-document and queue limits. They're anti-abuse settings for public servers, and the sync endpoint is private and authenticated (ADRs 12, 13).
 - Authenticate **once per connection**: check the session and workspace membership on the first document, then reuse the result for that connection's other documents.
 - The opt-in large-workspace test (`SLOW=1`, `tests/sync-scale.spec.ts`) is the regression gate for this decision.
 

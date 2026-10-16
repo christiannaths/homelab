@@ -1,4 +1,4 @@
-# 8. How data is split across Yjs documents
+# 7. How data is split across Yjs documents
 
 - Status: Accepted
 - Date: 2026-10-16
@@ -8,7 +8,7 @@ How data is split across Yjs documents decides what syncs together, what can be 
 
 ## Decision
 - **Workspace doc** (`workspace:default`): the page tree. `pages` is a `Y.Map<pageId, Y.Map>` holding `title`, `kind` (`page` | `database`), `parentId`, `order`, `createdAt` and `deletedAt`. Each page is a nested `Y.Map`, so concurrent edits to different fields of the same page merge.
-- **Page doc** (`page:<id>`): one per page. Its rich text is a `Y.XmlFragment` named `content`, owned by the editor (ADR 10).
+- **Page doc** (`page:<id>`): one per page. Its rich text is a `Y.XmlFragment` named `content`, owned by the editor (ADR 9).
 - **Database doc** (`db:<id>`): one per database. It holds `schema`, `rows` and `views`.
   - Every row's cells live in this one doc, so views (sort, filter, group) are **computed on the device** with no server queries.
   - Each row is its own `Y.Map`, with one key per cell, so concurrent edits to different cells merge. A cell holds a scalar and is last-writer-wins.
@@ -21,5 +21,5 @@ How data is split across Yjs documents decides what syncs together, what can be 
 - Unit tests show concurrent cell edits merge, and e2e tests show row bodies sync to other devices for offline use.
 
 ## Consequences
-- A database's size is limited by keeping one doc in memory. Thousands of rows is the design target (ADR 5). Much larger tables would need splitting rows across docs, which would be a new ADR.
+- A database's size is limited by keeping one doc in memory. Thousands of rows is the design target (ADR 4). Much larger tables would need splitting rows across docs, which would be a new ADR.
 - Cell text is last-writer-wins, not character-merged. Collaborative text belongs in page bodies.

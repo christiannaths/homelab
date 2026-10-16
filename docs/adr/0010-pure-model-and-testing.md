@@ -1,4 +1,4 @@
-# 11. A pure data-model layer, tested at two levels
+# 10. A pure data-model layer, tested at two levels
 
 - Status: Accepted
 - Date: 2026-10-16
@@ -8,7 +8,7 @@ The riskiest logic (merging, ordering, cycle repair, view computation) is easy t
 
 ## Decision
 - The data model lives in **plain TypeScript with no React or DOM** (`apps/web/src/model/`, plus the doc helpers in `apps/web/src/sync/`). UI components call it and don't re-implement it.
-- **Unit tests (Vitest)** cover the model directly, including the convergence tests required by ADR 9.
+- **Unit tests (Vitest)** cover the model directly, including the convergence tests required by ADR 8.
 - **End-to-end tests (Playwright)** run against the production build and real server processes. Each test gets its own server and data directory, so tests can stop and restart the server and switch browsers offline. Performance-sensitive paths print timings.
 - Things the sandbox can't automate (Safari/WebKit, iOS install, touch gestures) go in the PR as manual steps, and stay "not verified" until someone runs them.
 

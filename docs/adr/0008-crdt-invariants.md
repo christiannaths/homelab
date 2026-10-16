@@ -1,4 +1,4 @@
-# 9. CRDT rules every feature must follow
+# 8. CRDT rules every feature must follow
 
 - Status: Accepted
 - Date: 2026-10-16

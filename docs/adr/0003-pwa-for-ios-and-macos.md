@@ -1,4 +1,4 @@
-# 4. The client is a PWA, installed on macOS and iOS
+# 3. The client is a PWA, installed on macOS and iOS
 
 - Status: Accepted
 - Date: 2026-10-16
