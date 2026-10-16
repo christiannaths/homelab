@@ -183,6 +183,56 @@ describe("rejecting edits", () => {
     });
   });
 
+  describe("moving a page", () => {
+    let garden: string;
+    let beds: string;
+    let seeds: string;
+    let owner: TestClient;
+    let device: TestClient;
+    beforeAll(async () => {
+      ({ id: garden, owner, device } = await sharedWithNia("Garden", "Spring", "edit"));
+      beds = await owner.createPage("Beds", "Raised", garden);
+      seeds = await owner.createPage("Seeds", "Tomatoes", garden);
+      await owner.settled();
+      await waitFor(async () => (await device.syncAll()).includes(pageDocName(seeds)));
+    });
+    const parentOn = (client: TestClient, id: string) => client.pages().find((p) => p.id === id)?.parentId;
+
+    it("out of a shared page into the mover's own Private section is refused below Full access, and the device recovers", async () => {
+      await device.move(seeds, null, { section: privateSection(nia.id) });
+      await expect.poll(() => device.refusals(pageDocName(seeds))).toEqual(["access-change-refused"]);
+      await expect.poll(() => parentOn(device, seeds)).toBe(garden);
+      await device.settled();
+      expect(parentOn(owner, seeds)).toBe(garden);
+      const maxPhone = await connect(max);
+      await expect.poll(() => maxPhone.syncAll()).toContain(pageDocName(seeds));
+    });
+
+    it("inside the same shared page is accepted from Can edit, as nobody's access changes", async () => {
+      await device.move(seeds, beds);
+      await device.settled();
+      await expect.poll(() => parentOn(owner, seeds)).toBe(beds);
+      expect(device.refusals(pageDocName(seeds))).toEqual(["access-change-refused"]);
+    });
+
+    it("into someone else's Private section is refused even from Full access", async () => {
+      await owner.move(beds, null, { section: privateSection(nia.id) });
+      await expect.poll(() => owner.refusals(pageDocName(beds))).toEqual(["placement-refused"]);
+      await expect.poll(() => parentOn(owner, beds)).toBe(garden);
+      expect(parentOn(device, beds)).toBe(garden);
+    });
+
+    it("of the mover's own page into a page shared with them at Can edit is accepted, and reaches the sharer", async () => {
+      const mine = await device.createPage("Compost", "Turn weekly");
+      await device.settled();
+      await device.move(mine, garden);
+      await device.settled();
+      await expect.poll(() => owner.syncAll()).toContain(pageDocName(mine));
+      expect(owner.pageText(mine)).toBe("Turn weekly");
+      expect(device.refusals(pageDocName(mine))).toEqual([]);
+    });
+  });
+
   it("nothing refused was stored: after a restart, no device receives any of it", async () => {
     await Promise.all(clients.splice(0).map((c) => c.close()));
     await server.stop();

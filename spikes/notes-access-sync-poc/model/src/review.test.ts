@@ -59,3 +59,57 @@ describe("placing a new page", () => {
     expect(reviewUpdate(workspace, "nia", pageDocName("x"), new Y.Doc(), Y.encodeStateAsUpdate(doc))).toBe("placement-refused");
   });
 });
+
+describe("moving a page", () => {
+  // Max's Private section: Trip (Nia: Can edit) with subpages Packing and Hotels, Menu (Nia: Can
+  // view) and Plan (Nia: Full access). Nia's Private section: Notes.
+  const ws: Workspace = {
+    people,
+    pages: [
+      ...workspace.pages,
+      page("packing", { parentId: "trip" }),
+      page("hotels", { parentId: "trip", order: "a1" }),
+      page("plan", { access: { people: { nia: "full" } } }),
+      page("notes", { section: privateSection("nia") }),
+    ],
+  };
+  const NIA = privateSection("nia");
+  const MAX = privateSection("max");
+
+  /** `personId` moves page `id` (as the server holds it) to `to`, in one update. */
+  function move(personId: string, id: string, to: Partial<PageMeta>) {
+    const before = ws.pages.find((p) => p.id === id)!;
+    const server = new Y.Doc();
+    Y.applyUpdate(server, newPage(before, before.access?.people as Record<string, "full" | "edit">));
+    const device = new Y.Doc();
+    Y.applyUpdate(device, Y.encodeStateAsUpdate(server));
+    const sv = Y.encodeStateVector(device);
+    device.transact(() => {
+      for (const [key, value] of Object.entries(to)) metaMap(device).set(key, value);
+    });
+    return reviewUpdate(ws, personId, pageDocName(id), server, Y.encodeStateAsUpdate(device, sv));
+  }
+
+  it("is accepted from Can edit when nobody's access changes: a new place inside the same shared page, or a new order", () => {
+    expect(move("nia", "packing", { parentId: "hotels" })).toBeNull();
+    expect(move("nia", "packing", { order: "a2" })).toBeNull();
+  });
+
+  it("is refused from Can edit when it would change who can open the page, such as into the mover's own Private section", () => {
+    expect(move("nia", "packing", { parentId: null, section: NIA })).toBe("access-change-refused");
+    expect(move("nia", "packing", { parentId: "notes" })).toBe("access-change-refused");
+  });
+
+  it("is refused to a place the mover couldn't create a page in", () => {
+    expect(move("nia", "packing", { parentId: "menu" })).toBe("placement-refused");
+    expect(move("max", "packing", { parentId: null, section: NIA })).toBe("placement-refused");
+    expect(move("max", "packing", { parentId: "notes" })).toBe("placement-refused");
+  });
+
+  it("is accepted from Full access, which may change who can open the page", () => {
+    expect(move("max", "packing", { parentId: null, section: MAX })).toBeNull();
+    expect(move("nia", "plan", { parentId: null, section: NIA })).toBeNull();
+    // Nia's own page, moved under a page she can edit: Max gains access, which her Full access allows.
+    expect(move("nia", "notes", { parentId: "trip" })).toBeNull();
+  });
+});

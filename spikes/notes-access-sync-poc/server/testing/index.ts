@@ -8,7 +8,8 @@
 //   await client.syncAll();                                         // ["index:<max id>", "page:…"]
 //   client.received(); client.denied(); client.pageTitles(); client.sidebar();
 //   await client.share(pageId, personId, "view"); await client.shareWithWorkspace(pageId, "edit");
-//   client.level(pageId); client.access(pageId); client.closedReason(name); client.refusals(name);
+//   await client.move(pageId, parentId, { section }); client.level(pageId); client.access(pageId);
+//   client.closedReason(name); client.refusals(name);
 //   await client.disconnect(); await client.connect(); await client.reconnect();   // offline, back online
 //   await server.refusals();                                        // every update the server refused
 //   await client.close(); await server.stop();
@@ -20,7 +21,7 @@ import path from "node:path";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
   buildTree, createPage, isRefusal, indexDocName, indexMap, pageDocName, parseDocName, privateSection, readIndex,
-  readIndexLevels, readMeta, renamePage, setPersonAccess, setWorkspaceAccess, sidebarSections,
+  movePage, readIndexLevels, readMeta, renamePage, setPersonAccess, setWorkspaceAccess, sidebarSections,
   type AccessLevel, type PageAccess, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
@@ -338,6 +339,15 @@ export class TestClient {
   /** Appends a paragraph to a received page. */
   async writeText(pageId: string, text: string): Promise<void> {
     writeParagraph(this.receivedPage(pageId), text);
+  }
+
+  /** Moves a received page under `parentId` (null: the top level of `section`). The server decides whether it sticks. */
+  async move(pageId: string, parentId: string | null, opts: { index?: number; section?: string } = {}): Promise<void> {
+    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => new Y.Doc() };
+    this.receivedPage(pageId);
+    if (!movePage(docs, this.tree(), pageId, parentId, opts.index ?? Number.MAX_SAFE_INTEGER, opts.section)) {
+      throw new Error("move: not a valid move on this device's tree");
+    }
   }
 
   /** Renames a received page. */
