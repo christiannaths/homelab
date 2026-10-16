@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Share a space</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1E3A8A}
+.pg{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:6px;font-size:14px}
+.box{width:18px;height:18px;border-radius:4px;flex:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+.on{background:#1D4ED8}
+.off{border:1.5px solid #A8A59E;background:#fff}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:8px;font-size:14px}
+.radio{width:18px;height:18px;border-radius:50%;flex:none;margin-top:1px;box-sizing:border-box}
+.h{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#5F5D58}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex:none}
+</style>
+</helmet>
+<div style="width:1120px;height:720px;position:relative;font-family:'IBM Plex Sans',sans-serif;color:#2B2A27;overflow:hidden;border-radius:10px;border:1px solid #DAD8D2;box-sizing:border-box;background:#fff">
+  <div style="position:absolute;inset:0;display:flex"><div style="width:268px;background:#F7F6F3"></div></div>
+  <div style="position:absolute;inset:0;background:rgba(20,20,19,0.38)"></div>
+  <div role="dialog" aria-label="Share space Party for Sam" style="position:absolute;left:140px;top:28px;width:840px;height:664px;background:#fff;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,0.25);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:22px 26px 16px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid #E6E4DF">
+      <h2 style="margin:0;font-size:20px;font-weight:600">Share space “Party for Sam”</h2>
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:#FFF8EE;border-radius:8px"><span class="av" style="background:#B45309">S</span><span style="flex:1;font-size:14px">Sam</span><span style="font-size:13px;color:#5F5D58">Can edit</span></div>
+    </div>
+    <div style="flex:1;display:flex;min-height:0">
+      <section style="flex:1;padding:18px 22px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #E6E4DF;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="h">Pages Sam can see</span><span style="font-size:13px;color:#5F5D58">3 of 6</span></div>
+        <div class="pg" style="margin-top:6px"><span class="box on"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg></span>Overview</div>
+        <div class="pg"><span class="box on"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg></span>Guest list</div>
+        <div class="pg" style="background:#F7F6F3"><span class="box off"></span>Gift ideas<span style="margin-left:auto;font-size:12px;color:#5F5D58">and 2 subpages</span></div>
+        <div class="pg" style="padding-left:38px;color:#5F5D58"><span class="box off" style="opacity:.5"></span>From Alex</div>
+        <div class="pg" style="padding-left:38px;color:#5F5D58"><span class="box off" style="opacity:.5"></span>From Jo</div>
+        <div class="pg"><span class="box on"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg></span>Menu</div>
+        <div style="margin-top:auto;font-size:13px;line-height:1.5;color:#4B4945">Every page starts ticked. Unticking a page hides its subpages too.</div>
+      </section>
+      <section style="width:360px;flex:none;padding:18px 22px;display:flex;flex-direction:column;gap:6px">
+        <span class="h">New pages in this space</span>
+        <div class="opt"><span class="radio" style="border:1.5px solid #A8A59E"></span><span><strong style="font-weight:500">Visible to Sam</strong><br><span style="font-size:13px;color:#5F5D58">Sam sees new pages straight away</span></span></div>
+        <div class="opt" style="background:#F5F8FF;outline:2px solid #1D4ED8;outline-offset:-2px"><span class="radio" style="border:5px solid #1D4ED8"></span><span><strong style="font-weight:500">Hidden from Sam</strong><br><span style="font-size:13px;color:#5F5D58">Tick them here later to share</span></span></div>
+        <div class="opt"><span class="radio" style="border:1.5px solid #A8A59E"></span><span><strong style="font-weight:500">Ask whoever creates it</strong><br><span style="font-size:13px;color:#5F5D58">A prompt when a new page is made</span></span></div>
+        <div style="margin-top:8px;font-size:13px;line-height:1.5;color:#4B4945;background:#F7F6F3;border-radius:8px;padding:12px 14px">A new subpage always follows its parent: a page added under Guest list is visible to Sam, and one under Gift ideas isn't.</div>
+      </section>
+    </div>
+    <div style="padding:14px 26px;border-top:1px solid #E6E4DF;display:flex;align-items:center;gap:10px">
+      <span style="font-size:13px;color:#5F5D58">Sam will see the space name and its member list.</span>
+      <button type="button" style="margin-left:auto;height:38px;padding:0 16px;border-radius:6px;border:1px solid #D6D3CC;background:#fff;font:inherit;font-size:14px;color:#2B2A27">Cancel</button>
+      <button type="button" style="height:38px;padding:0 16px;border-radius:6px;border:none;background:#1D4ED8;font:inherit;font-size:14px;font-weight:500;color:#fff">Share 3 pages</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

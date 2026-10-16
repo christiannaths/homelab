@@ -42,6 +42,22 @@ Feedback on screen 2b: a flat "Shared with me" list loses context. Pages from di
 | 5a | `PartialSpace.dc.html` | Sam's sidebar shows each space Sam has pages in, labelled "Some pages", with only those pages. Parents Sam can't open appear greyed out to keep the structure. |
 | 5b | `ShareContext.dc.html` | When the space's name is itself secret (e.g. "Sam's surprise 40th"), the sharer can choose "On its own", which hides the space. |
 
+## Refinement: share a space or share a page
+
+Feedback on row 5:
+- An automatic "everyone" space means anyone with an account sees it, even someone given a single page.
+- Asking "how should this appear?" on every share is awkward.
+
+Instead, there are two ways to share, and which one you use decides how the share looks to the recipient.
+
+| Screen | File | Shows |
+|---|---|---|
+| 6a | `InvitePerson.dc.html` | Inviting someone means choosing which spaces they join. There's no automatic "everyone" space; "Household" is an ordinary space. |
+| 6b | `ShareSpace.dc.html` | **Share space:** pick people, then untick the pages they shouldn't see (all start ticked). Choose what happens to new pages: visible, hidden, or ask whoever creates them. New subpages follow their parent. |
+| 6c | `SharePage.dc.html` | **Share page:** that page and its subpages on their own. The space and its name stay hidden. The dialog points to "The whole space…" for sharing with context. |
+| 6d | `RecipientView.dc.html` | Sam's sidebar: Household (a member), Party for Sam ("3 of 6 pages"), and "Pages shared with you", each marked with who shared it. |
+| 6e | `NewPagePrompt.dc.html` | With "Ask whoever creates it", a new page shows a "Should Sam see this?" bar and stays hidden until answered. Members see a crossed-out eye on hidden pages. |
+
 ## Open questions raised
 
 1. Is per-page Share needed, or are spaces enough?

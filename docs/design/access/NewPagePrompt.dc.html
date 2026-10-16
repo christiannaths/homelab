@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New page prompt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1D4ED8}a:hover{color:#1E3A8A}
+.item{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;font-size:14px;color:#2B2A27}
+.sec{display:flex;align-items:center;justify-content:space-between;padding:0 10px;height:26px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5F5D58}
+.tag{text-transform:none;letter-spacing:0;font-weight:500;font-size:11px;padding:1px 6px;border-radius:4px;background:#EAE8E3;color:#4B4945}
+.hid{margin-left:auto;color:#8A8780;display:flex}
+.av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex:none}
+</style>
+</helmet>
+<div style="width:1120px;height:720px;display:flex;flex-direction:column;background:#FFFFFF;font-family:'IBM Plex Sans',sans-serif;color:#2B2A27;overflow:hidden;border-radius:10px;border:1px solid #DAD8D2;box-sizing:border-box">
+  <div style="height:36px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;background:#EFEEEA;border-bottom:1px solid #E1DFD9">
+    <div style="width:12px;height:12px;border-radius:50%;background:#D6D3CC"></div>
+    <div style="width:12px;height:12px;border-radius:50%;background:#D6D3CC"></div>
+    <div style="width:12px;height:12px;border-radius:50%;background:#D6D3CC"></div>
+    <div style="flex:1;text-align:center;font-size:13px;color:#5F5D58">LocalNotion · signed in as Alex</div>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <nav style="width:280px;flex:none;background:#F7F6F3;border-right:1px solid #E6E4DF;padding:14px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div class="sec"><span>Party for Sam</span><span class="tag">Shared with Sam</span></div>
+        <div class="item">Overview</div>
+        <div class="item">Guest list</div>
+        <div class="item">Gift ideas<span class="hid" title="Hidden from Sam"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="Hidden from Sam" role="img"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/><path d="M2.5 13.5l11-11"/></svg></span></div>
+        <div class="item">Menu</div>
+        <div class="item" style="background:#E8E6E1;font-weight:500">Seating plan<span style="margin-left:auto;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:#FDECD3;color:#7C3A06">New</span></div>
+      </div>
+      <div style="margin:auto 6px 0;font-size:12px;line-height:1.5;color:#5F5D58">Members see a crossed-out eye on pages hidden from Sam, so it's always clear what's shared.</div>
+    </nav>
+    <main style="flex:1;padding:28px 56px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div style="font-size:13px;color:#5F5D58">Party for Sam <span aria-hidden="true">/</span> Seating plan</div>
+      <div role="region" aria-label="Sharing for this new page" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:10px;border:1px solid #F3D9B1;background:#FFF8EE">
+        <span class="av" style="background:#B45309">S</span>
+        <span style="flex:1;font-size:14px;line-height:1.5;color:#3F3D39">This space is partly shared with Sam. <strong>Should Sam see “Seating plan”?</strong></span>
+        <button type="button" style="height:34px;padding:0 14px;border-radius:6px;border:1px solid #D6D3CC;background:#fff;font:inherit;font-size:14px;color:#2B2A27">Keep hidden</button>
+        <button type="button" style="height:34px;padding:0 14px;border-radius:6px;border:none;background:#1D4ED8;font:inherit;font-size:14px;font-weight:500;color:#fff">Show to Sam</button>
+      </div>
+      <h1 style="margin:10px 0 0;font-size:32px;font-weight:600">Seating plan</h1>
+      <div style="font-size:15px;color:#8A8780">Start typing…</div>
+      <div style="margin-top:auto;font-size:13px;line-height:1.5;color:#4B4945;background:#F7F6F3;border-radius:8px;padding:12px 14px">This is the “Ask whoever creates it” option from 6b. Until Alex answers, the page stays hidden from Sam: the safe default.</div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1120,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
