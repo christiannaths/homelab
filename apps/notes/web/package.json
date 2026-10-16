@@ -1,10 +1,17 @@
 {
-  "name": "@localnotion/web",
+  "name": "@localnotion/notes-web",
   "private": true,
   "type": "module",
+  "nx": {
+    "name": "notes-web",
+    "tags": [
+      "scope:notes",
+      "platform:browser"
+    ]
+  },
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/icons.mjs && vite build",
+    "build": "node scripts/icons.ts && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
@@ -27,6 +34,8 @@
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",

@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 6](0006-sqlite-server-storage.md), [ADR 9](0009-pure-model-and-tests.md), [ADR 11](0011-local-password-accounts.md)
+- Dependency of: [ADR 6](../../apps/notes/docs/adr/0006-sqlite-server-storage.md), [ADR 9](../../apps/notes/docs/adr/0009-pure-model-and-tests.md), [ADR 11](../../apps/notes/docs/adr/0011-local-password-accounts.md), [ADR 15](0015-nx-monorepo.md)
 
 ## Context
 The client and the server share data-model code and Yjs, and a very small team maintains the project.
@@ -12,8 +12,8 @@ The client and the server share data-model code and Yjs, and a very small team m
 - **TypeScript** is used for the client, the server and the tests.
 - **Node.js 26** (LTS from 2026-10-28) is the minimum version. It is enforced by `engines` and `devEngines` (so `npm install` fails on older Node), `.nvmrc`, a version check at server startup, and the Docker base image.
 - **npm**, the package manager bundled with Node, is used in its default `node_modules` layout. Dependencies' install scripts run only when approved in `allowScripts` (`npm approve-scripts`).
-- **One repo uses npm workspaces:** `apps/web` and `apps/server`. Shared code moves into a workspace package when the server needs it.
-- Dependencies that compile native code are avoided in favour of what Node provides, for example `node:sqlite` ([ADR 6](0006-sqlite-server-storage.md)).
+- **One repo uses npm workspaces**, laid out as described in [ADR 15](0015-nx-monorepo.md).
+- Dependencies that compile native code are avoided in favour of what Node provides, for example `node:sqlite` ([ADR 6](../../apps/notes/docs/adr/0006-sqlite-server-storage.md)).
 
 ## Evidence
 - Node 25 reached end of life on 2026-06-01, and Node 22.12 lacks `node:sqlite`. Requiring Node 26 fixed the startup crash reported against PR #1.

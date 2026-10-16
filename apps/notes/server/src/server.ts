@@ -7,7 +7,7 @@ import { DocumentStore } from "./store.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT ?? 3000);
-const dataDir = path.resolve(process.env.DATA_DIR ?? path.join(here, "../../../data"));
+const dataDir = path.resolve(process.env.DATA_DIR ?? path.join(here, "../../data"));
 const webRoot = path.resolve(process.env.WEB_ROOT ?? path.join(here, "../../web/dist"));
 // Spike-level auth: if set, clients must present this shared token. Real accounts come later.
 const sharedToken = process.env.LOCALNOTION_TOKEN;

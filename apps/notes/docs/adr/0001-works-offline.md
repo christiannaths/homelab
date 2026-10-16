@@ -15,12 +15,12 @@ Full offline support is a core requirement. An offline mode added to a server-fi
 - Being offline is a normal state. The UI shows it as a status ("Offline · saved locally"), never as an error. Connection loss is detected immediately from the browser's `offline` and `online` events, not left to a socket timeout.
 
 ## Evidence
-- PR #1 (`research/04-spike-findings.md`):
+- PR #1 ([`research/04-spike-findings.md`](../research/04-spike-findings.md)):
   - The app starts with no network.
   - Offline edits merge with concurrent online edits.
   - Edits made while the server is down sync later.
   - A new device gets everything from the server; 501 docs sync in about 1.3 s.
-- PR #2 (`research/05-spike-2-findings.md`):
+- PR #2 ([`research/05-spike-2-findings.md`](../research/05-spike-2-findings.md)):
   - Conflicting offline page moves converge.
   - Row bodies are available offline on a second device.
   - A 5,000-row database reloads offline in about 0.5 s.

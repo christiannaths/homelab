@@ -13,21 +13,25 @@
     }
   },
   "workspaces": [
-    "apps/*"
+    "apps/*/*",
+    "packages/*",
+    "tools"
   ],
   "scripts": {
-    "dev:server": "npm run dev -w @localnotion/server",
-    "dev:web": "npm run dev -w @localnotion/web",
-    "build": "npm run build -w @localnotion/web && npm run build -w @localnotion/server",
-    "start": "npm run start -w @localnotion/server",
-    "typecheck": "npm run typecheck --workspaces",
-    "test:e2e": "npm run build && playwright test",
-    "test": "npm test -w @localnotion/web"
+    "build": "nx run-many -t build",
+    "typecheck": "nx run-many -t typecheck",
+    "test": "nx run-many -t test",
+    "test:e2e": "nx run-many -t e2e",
+    "boundaries": "node tools/check-boundaries.ts",
+    "check": "npm run boundaries && nx run-many -t typecheck test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1"
+    "nx": "^23.3.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true
+  },
+  "overrides": {
+    "undici": "7.30.1"
   }
 }
