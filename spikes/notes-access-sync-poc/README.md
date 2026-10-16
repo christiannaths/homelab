@@ -26,6 +26,13 @@ On a new workspace the app asks for the first person, who becomes the workspace 
 - **Pages in a teamspace** have the section `teamspace:<id>`. Top-level pages start from the teamspace's defaults: members get the members' level, and on an open teamspace everyone else in the workspace gets the non-member level as general access (as in Notion: there is no "None", and members who haven't joined still open its pages). A page can override the members' level for itself and its subpages (the page's `access` key `teamspace`), and a change to the teamspace's default reaches every page that doesn't.
 - **Changes are checked on the server** before they are applied (`refuseTeamspaceChange`): anyone may join an open teamspace, members add people to closed and private ones, only teamspace owners change settings and roles, only workspace owners make a teamspace default (any kind), and the last owner can't leave. New members are added to every default teamspace by the server.
 
+## Overrides and hidden parents (#16)
+- **A per-person entry on a subpage overrides what that person inherits**, for the subpage and everything below it: a higher level expands, a lower one restricts, "none" hides the subtree, and deleting the entry is Restore inherited access. General access overrides the same way.
+- **Most permissive wins across sources.** A per-person No access only replaces that person's own entry: it doesn't beat general access (or, later, teamspace access), as in Notion and ADR 14. The Private section's member always keeps Full access.
+- **When a person loses a page on the server, the server closes their open connections to it** (reason `access-revoked`), so a restricted page stops reaching a device that already had it. What the device does with its local copy is #21.
+- **A page someone can open below one they can't** arrives alone: their device builds its tree from what it received, so the page is top-level there (in Shared), and the breadcrumb (`breadcrumb()`) starts at it. The hidden parent's document and title never arrive. Its **id** does, as the page's `parentId`: the page's editors write it, and it is a random UUID.
+- **The Share menu lists inherited entries** with the page they come from (`shareEntries()`), built from the pages the device holds. Entries inherited from above a hidden parent can't be listed, and the menu says so.
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh
