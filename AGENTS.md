@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Tool versions are pinned in `mise.toml` (Node 26). Run `mise install` once, then run commands through mise (`mise exec -- npm test`) if the shell's Node is older.
+Node 26 is pinned in `.nvmrc` and `mise.toml`. Cloud sessions get it from the SessionStart hook (`.claude/hooks/session-start.sh`, via nvm); locally, run `mise install` or `nvm install`.
 
 ## Agent skills
 
