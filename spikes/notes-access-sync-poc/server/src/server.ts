@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canShare, documentAccess, indexDocName, parseDocName, refuseUpdate, touchedRoots, writeIndex,
-  type Person, type Role,
+  addPerson, canEdit, documentAccess, indexDocName, isRefusal, parseDocName, reviewUpdate, writeIndex,
+  type Person, type Refusal, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import {
   readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
@@ -33,6 +33,9 @@ for (const name of store.names("teamspace:")) {
   const state = store.load(name);
   if (ref?.kind === "teamspace" && state) catalog.loadStoredTeamspace(ref.teamspaceId, state);
 }
+
+/** Every update refused since the server started, for tests and diagnostics (GET /api/refusals). */
+const refusals: { personId: string; documentName: string; reason: Refusal }[] = [];
 
 /** What the server keeps about each connection: the person it belongs to. */
 export interface ConnectionContext {
@@ -68,20 +71,31 @@ const server = new Server<ConnectionContext>({
     return { person };
   },
 
-  // Hocuspocus calls this before applying any sync message. A page document's `access` map may
-  // only be changed with Full access, so updates from connections below Full (and above view,
-  // whose connections are read-only and refused by Hocuspocus itself) are checked against what
-  // they would change. Throwing closes that document's connection with the reason, and the
-  // update is not applied. The level is looked up now, not at open, so it follows access changes.
+  // Hocuspocus calls this before applying any sync message, read-only connections included. Every
+  // update (SyncStep2 on each (re)connect, and live updates) is reviewed against the person's
+  // level now, not at open, so it follows access changes; new pages are reviewed where they are
+  // placed. A refused update is not applied, and throwing closes this document's connection (only
+  // this one: the socket and the person's other documents stay up) with the reason. The device
+  // takes that reason as "throw your copy away and sync it again" (#18), so it never resends the
+  // update. Hocuspocus's own read-only handling would instead drop it silently, and the device
+  // would stay diverged and resend it on every reconnect.
   async beforeSync({ type, payload, document, documentName, connection, context }) {
-    if (type === 0 || connection.readOnly) return;
+    if (type === 0) return; // SyncStep1 only asks for what the device lacks.
+    const person = context.person.id;
+    const workspace = catalog.workspace();
+    const levels = catalog.levels(person);
     const ref = parseDocName(documentName);
-    if (ref?.kind === "teamspace") return checkTeamspaceChange(ref.teamspaceId, document, payload, context.person);
-    if (ref?.kind !== "page") return;
-    const level = documentAccess(catalog.workspace(), context.person.id, documentName, catalog.levels(context.person.id));
-    if (canShare(level)) return;
-    const reason = refuseUpdate(level, touchedRoots(document, payload));
-    if (reason) throw { reason };
+    const reason =
+      reviewUpdate(workspace, person, documentName, document, payload, levels) ??
+      (ref?.kind === "teamspace" ? teamspaceRefusal(ref.teamspaceId, document, payload, context.person) : null);
+    if (reason) {
+      refusals.push({ personId: person, documentName, reason });
+      throw { reason };
+    }
+    // A page opened read-only whose person can now edit it: let the update through.
+    if (connection.readOnly && parseDocName(documentName)?.kind === "page") {
+      connection.readOnly = !canEdit(documentAccess(workspace, person, documentName, levels));
+    }
   },
 
   // Keep the catalog current, and the page indexes with it. Title and content edits don't change
@@ -160,15 +174,12 @@ async function joinDefaultTeamspaces(person: Person): Promise<void> {
  * comparing the server's copy with what the update would make of it. Throwing closes that
  * document's connection with the reason, and the update is not applied, as for page updates.
  */
-function checkTeamspaceChange(id: string, document: Y.Doc, update: Uint8Array, person: Person): void {
+function teamspaceRefusal(id: string, document: Y.Doc, update: Uint8Array, person: Person): Refusal | null {
   const before = readTeamspace(id, document);
   const after = teamspaceAfterUpdate(id, document, update);
-  if (!after) {
-    if (before) throw { reason: "teamspace-change-refused" };
-    return;
-  }
+  if (!after) return before ? "teamspace-change-refused" : null;
   const reason = refuseTeamspaceChange(catalog.workspace().people, before, after, person);
-  if (reason) throw { reason };
+  return reason === null ? null : isRefusal(reason) ? reason : "teamspace-change-refused";
 }
 
 /**
@@ -224,6 +235,7 @@ function connections(): { personId: string; documentName: string }[] {
  * - POST /api/people       → { name, role }; the first person becomes the owner, after that the
  *                            caller (Authorization: Bearer <person id>) must be an owner
  * - GET  /api/connections  → which person each open document connection belongs to
+ * - GET  /api/refusals     → every update refused since the server started, oldest first
  */
 async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? "/", "http://localhost");
@@ -233,6 +245,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
   if (route === "GET /api/health") return sendJson(res, 200, { ok: true, documents: store.count() });
   if (route === "GET /api/people") return sendJson(res, 200, store.people());
   if (route === "GET /api/connections") return sendJson(res, 200, connections());
+  if (route === "GET /api/refusals") return sendJson(res, 200, refusals);
   if (route === "POST /api/people") {
     const body = (await readJson(req)) as { name?: unknown; role?: unknown };
     const role = body.role === "owner" || body.role === "guest" ? body.role : "member";

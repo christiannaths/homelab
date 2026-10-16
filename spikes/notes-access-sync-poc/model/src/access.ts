@@ -160,8 +160,8 @@ export const canEdit = (level: AccessLevel): boolean => atLeast(level, "edit");
  * whole update when this returns a reason.
  * - Below Can edit, any change is refused ("read-only").
  * - Below Full access, a change to `access` is refused ("access-change-refused").
- * #18 decides how a refused device gets back in step, and extends this for Can edit content
- * (databases), which needs paths below the top level.
+ * The server applies it to every update through `reviewUpdate` (review.ts). Can edit content
+ * (databases) will need paths below the top level.
  */
 export function refuseUpdate(level: AccessLevel, touched: ReadonlySet<string>): string | null {
   if (touched.size === 0) return null;

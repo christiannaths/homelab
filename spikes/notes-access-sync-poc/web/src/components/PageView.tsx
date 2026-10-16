@@ -59,7 +59,8 @@ export function PageView({ page, pages, tree, identity, me }: Props) {
       </div>
       {canShare(level) && <SharePanel page={page} doc={entry.doc} me={me} pages={metas} />}
       {ready ? (
-        <Editor key={entry.name} entry={entry} identity={identity} editable={editable} />
+        // A fresh copy after a refused update (#18) gets a fresh editor.
+        <Editor key={`${entry.name}#${entry.generation}`} entry={entry} identity={identity} editable={editable} />
       ) : (
         <p className="muted">Loading…</p>
       )}

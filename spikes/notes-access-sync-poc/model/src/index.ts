@@ -6,4 +6,5 @@ export * from "./tree.ts";
 export * from "./workspace.ts";
 export * from "./updates.ts";
 export * from "./overrides.ts";
+export * from "./review.ts";
 export * from "./teamspaces.ts";

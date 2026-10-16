@@ -1,5 +1,6 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
-import { IndexeddbPersistence } from "y-indexeddb";
+import { isRefusal } from "@homelab/notes-access-sync-poc-model";
+import { clearDocument, IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 
 export type ConnectionState = "connecting" | "connected" | "disconnected";
@@ -15,6 +16,8 @@ export interface DocEntry {
   syncedAt?: number;
   synced: boolean;
   unsyncedChanges: number;
+  /** How many times this document was thrown away and synced again after a refused update. */
+  generation: number;
 }
 
 export interface SyncSnapshot {
@@ -38,6 +41,7 @@ export class SyncManager {
   readonly startedAt = performance.now();
   private entries = new Map<string, DocEntry>();
   private listeners = new Set<() => void>();
+  private resetListeners = new Set<(name: string) => void>();
   private connection: ConnectionState = "connecting";
   private snapshotCache: SyncSnapshot | null = null;
   private notifyScheduled = false;
@@ -74,12 +78,19 @@ export class SyncManager {
     if (existing) return existing;
 
     const doc = new Y.Doc();
-    const local = new IndexeddbPersistence(`notes-access:${this.personId}:${name}`, doc);
+    const local = new IndexeddbPersistence(this.storeName(name), doc);
     const provider = new HocuspocusProvider({
       websocketProvider: this.socket,
       name,
       document: doc,
       token: this.personId,
+      // Each provider gets its own address on the socket, so a document can be reopened right
+      // after its old provider is destroyed (otherwise the server may still be closing the old
+      // one and ignore the new one's authentication).
+      sessionAwareness: true,
+      onClose: ({ event }) => {
+        if (isRefusal(event.reason) && this.entries.get(name) === entry) void this.recover(entry);
+      },
       onSynced: () => {
         entry.synced = true;
         entry.syncedAt ??= performance.now() - this.startedAt;
@@ -98,6 +109,7 @@ export class SyncManager {
       local,
       synced: false,
       unsyncedChanges: 0,
+      generation: 0,
       whenLocal: local.whenSynced.then(() => {
         entry.localLoadedAt = performance.now() - this.startedAt;
         this.notify();
@@ -108,6 +120,35 @@ export class SyncManager {
     provider.attach();
     this.notify();
     return entry;
+  }
+
+  /**
+   * Gets a document back in step after the server refused an update to it (#18). The server
+   * applied none of the update and closed this document's connection; the rest of the socket is
+   * untouched. A Yjs update can't be taken back, so the local copy, in memory and in IndexedDB,
+   * is thrown away and the document is opened again from the server's state. Nothing refused is
+   * left anywhere to be sent again, on this connection or the next. Changes made here that the
+   * server hadn't acknowledged yet go with it (#21 decides whether to offer them back).
+   */
+  private async recover(entry: DocEntry): Promise<void> {
+    await entry.local.destroy(); // stop writing to IndexedDB, and close it so it can be deleted
+    entry.provider.destroy();
+    entry.doc.destroy();
+    await clearDocument(this.storeName(entry.name));
+    this.entries.delete(entry.name);
+    this.open(entry.name).generation = entry.generation + 1;
+    for (const l of this.resetListeners) l(entry.name);
+    this.notify();
+  }
+
+  /** Calls `listener` with a document's name each time it is replaced by a fresh copy. */
+  onReset(listener: (name: string) => void): () => void {
+    this.resetListeners.add(listener);
+    return () => this.resetListeners.delete(listener);
+  }
+
+  private storeName(name: string): string {
+    return `notes-access:${this.personId}:${name}`;
   }
 
   /** Names of the documents this person already has in IndexedDB on this device. */

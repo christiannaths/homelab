@@ -77,7 +77,7 @@ describe("teamspaces", () => {
       const owner = await connect(olive);
       await owner.syncAll();
       await owner.join(house);
-      await expect.poll(() => owner.closedReason(teamspaceDocName(house))).toBe("teamspace-change-refused");
+      await expect.poll(() => owner.refusals(teamspaceDocName(house))).toEqual(["teamspace-change-refused"]);
 
       const maxDevice = await connect(max);
       await maxDevice.syncAll();
@@ -158,7 +158,7 @@ describe("teamspaces", () => {
       const maxDevice = await connect(max);
       const shed = await maxDevice.createTeamspace("Shed", "open");
       await maxDevice.setTeamspace(shed, { isDefault: true });
-      await expect.poll(() => maxDevice.closedReason(teamspaceDocName(shed))).toBe("teamspace-change-refused");
+      await expect.poll(() => maxDevice.refusals(teamspaceDocName(shed))).toEqual(["teamspace-change-refused"]);
       const other = await connect(max);
       await other.syncAll();
       expect(other.teamspace(shed)?.isDefault).toBe(false);
@@ -202,7 +202,7 @@ describe("teamspaces", () => {
 
     it("the last owner can't leave, but can once there is another owner", async () => {
       await maxDevice.leave(studio);
-      await expect.poll(() => maxDevice.closedReason(teamspaceDocName(studio))).toBe("last-owner");
+      await expect.poll(() => maxDevice.refusals(teamspaceDocName(studio))).toEqual(["last-owner"]);
       const phone = await connect(max);
       await expect.poll(() => phone.syncAll()).toContain(teamspaceDocName(studio));
       expect(phone.teamspace(studio)?.members[max.id]).toBe("owner");

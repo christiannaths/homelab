@@ -14,7 +14,7 @@ import type { DocEntry, SyncManager } from "./SyncManager";
  * the server hasn't indexed yet) is still there after a reload.
  */
 export class LocalPages implements PageDocs {
-  readonly index: DocEntry;
+  private readonly indexName: string;
   private readonly metas = new Map<string, PageMeta>();
   private readonly watched = new Set<string>();
   private readonly listeners = new Set<() => void>();
@@ -26,25 +26,52 @@ export class LocalPages implements PageDocs {
     private readonly manager: SyncManager,
     personId: string,
   ) {
-    this.index = manager.open(indexDocName(personId));
+    this.indexName = indexDocName(personId);
+    manager.open(this.indexName);
   }
 
-  /** Starts following the index and opening stored pages. Returns a function that stops following the index. */
+  /** This person's page index document (replaced by a fresh copy if the server refuses an update to it). */
+  get index(): DocEntry {
+    return this.manager.open(this.indexName);
+  }
+
+  /**
+   * Starts following the index and opening stored pages, and re-follows any document the sync
+   * manager replaces after a refused update. Returns a function that stops following.
+   */
   start(): () => void {
-    const ids = indexMap(this.index.doc);
-    const follow = () => {
-      ids.forEach((_, id) => this.watch(id));
-      this.levels = readIndexLevels(this.index.doc);
-      this.changed();
-    };
-    follow();
-    ids.observe(follow);
+    let unfollow = this.followIndex();
+    const offReset = this.manager.onReset((name) => {
+      const ref = parseDocName(name);
+      if (name === this.indexName) {
+        unfollow();
+        unfollow = this.followIndex();
+      } else if (ref?.kind === "page" && this.watched.delete(ref.id)) {
+        this.watch(ref.id);
+      }
+    });
     void this.manager.storedNames().then((names) => {
       for (const name of names) {
         const ref = parseDocName(name);
         if (ref?.kind === "page") this.watch(ref.id);
       }
     });
+    return () => {
+      unfollow();
+      offReset();
+    };
+  }
+
+  private followIndex(): () => void {
+    const doc = this.index.doc;
+    const ids = indexMap(doc);
+    const follow = () => {
+      ids.forEach((_, id) => this.watch(id));
+      this.levels = readIndexLevels(doc);
+      this.changed();
+    };
+    follow();
+    ids.observe(follow);
     return () => ids.unobserve(follow);
   }
 
