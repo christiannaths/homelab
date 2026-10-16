@@ -8,6 +8,8 @@ A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: ever
 - **Client**: a React PWA (Vite). Every page is a [Yjs](https://yjs.dev) document, edited with [BlockNote](https://www.blocknotejs.org) and stored in IndexedDB. A service worker caches the app, so it opens with no network.
 - **Server**: Node + [Hocuspocus](https://tiptap.dev/docs/hocuspocus) relays updates over one WebSocket and stores each document in SQLite. It also serves the built app.
 - Clients sync the **whole workspace** in the background, so every page is available offline.
+- **Nested pages** with drag-and-drop reordering, plus trash. Concurrent moves that would form a cycle are repaired the same way on every device.
+- **Databases** with text, number, select, checkbox and date properties, a virtualized table view (sort and filter), and rows that open as pages.
 
 ## Run it
 Requires **Node.js 26+** (the server uses the built-in `node:sqlite`). With nvm, run `nvm install` in the repo root (it reads `.nvmrc`).
@@ -31,6 +33,7 @@ For Safari/iOS to install the app and keep data offline, it must be served over 
 ## Tests
 ```sh
 npm run typecheck
+npm test                  # unit tests (Vitest): tree, ordering, database views, CRDT convergence
 npm run test:e2e          # builds, then runs Playwright against real server processes
 ```
 The end-to-end tests cover:

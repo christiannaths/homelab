@@ -1,7 +1,12 @@
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type * as Y from "yjs";
+import {
+  readRows, readSchema, readView, rowsMap, schemaMap, viewsMap,
+  type Property, type Row, type ViewConfig,
+} from "../model/database";
+import { buildTree, type Tree } from "../model/tree";
 import type { DocEntry, SyncManager } from "./SyncManager";
-import { readPages, type PageMeta } from "./workspace";
+import { pagesMap, readPages } from "./workspace";
 
 export const SyncContext = createContext<SyncManager | null>(null);
 
@@ -31,14 +36,44 @@ export function useLocalReady(entry: DocEntry | undefined): boolean {
   return ready;
 }
 
-export function usePages(doc: Y.Doc): PageMeta[] {
-  const [pages, setPages] = useState(() => readPages(doc));
+/** Re-reads `read(doc)` whenever any of the given shared types change. */
+function useYState<T>(doc: Y.Doc, types: (doc: Y.Doc) => Y.AbstractType<any>[], read: (doc: Y.Doc) => T): T {
+  const [state, setState] = useState(() => read(doc));
   useEffect(() => {
-    const update = () => setPages(readPages(doc));
+    const update = () => setState(read(doc));
     update();
-    const map = doc.getMap("pages");
-    map.observeDeep(update);
-    return () => map.unobserveDeep(update);
+    const observed = types(doc);
+    for (const t of observed) t.observeDeep(update);
+    return () => {
+      for (const t of observed) t.unobserveDeep(update);
+    };
+    // `types` and `read` are module-level functions, so only `doc` can change.
   }, [doc]);
-  return pages;
+  return state;
+}
+
+const workspaceTypes = (doc: Y.Doc) => [pagesMap(doc)];
+
+export function useTree(doc: Y.Doc): Tree {
+  const pages = useYState(doc, workspaceTypes, readPages);
+  return useMemo(() => buildTree(pages), [pages]);
+}
+
+export interface DatabaseState {
+  schema: Property[];
+  rows: Row[];
+  view: ViewConfig;
+  /** Time spent re-reading the database doc on the last change. */
+  readMs: number;
+}
+
+const databaseTypes = (doc: Y.Doc) => [schemaMap(doc), rowsMap(doc), viewsMap(doc)];
+const readDatabase = (doc: Y.Doc): DatabaseState => {
+  const started = performance.now();
+  const state = { schema: readSchema(doc), rows: readRows(doc), view: readView(doc) };
+  return { ...state, readMs: performance.now() - started };
+};
+
+export function useDatabase(doc: Y.Doc): DatabaseState {
+  return useYState(doc, databaseTypes, readDatabase);
 }

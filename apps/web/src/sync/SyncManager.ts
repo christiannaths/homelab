@@ -55,6 +55,10 @@ export class SyncManager {
         this.notify();
       },
     });
+    // React to the OS's network state right away. Otherwise a dead socket is only
+    // noticed after the provider's message timeout (~30s).
+    addEventListener("offline", () => this.socket.disconnect());
+    addEventListener("online", () => this.socket.connect());
   }
 
   open(name: string): DocEntry {

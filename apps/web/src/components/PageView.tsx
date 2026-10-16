@@ -1,13 +1,15 @@
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
+import type { Block } from "@blocknote/core";
 import { withCollaboration } from "@blocknote/core/yjs";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import type * as Y from "yjs";
 import type { Identity } from "../identity";
+import type { PageMeta } from "../model/tree";
 import { useLocalReady, useSyncManager } from "../sync/context";
 import type { DocEntry } from "../sync/SyncManager";
-import { pageDocName, renamePage, trashPage, type PageMeta } from "../sync/workspace";
+import { pageDocName, renamePage, trashPage } from "../sync/workspace";
 
 interface Props {
   page: PageMeta;
@@ -33,6 +35,7 @@ export function PageView({ page, workspace, identity }: Props) {
         <button
           className="trash"
           title="Move to trash"
+          data-testid="trash-page"
           onClick={() => {
             trashPage(workspace, page.id);
             location.hash = "#/";
@@ -46,7 +49,25 @@ export function PageView({ page, workspace, identity }: Props) {
   );
 }
 
-function Editor({ entry, identity }: { entry: DocEntry; identity: Identity }) {
+/** True if the document has anything beyond the single empty paragraph a new editor starts with. */
+export function hasContent(blocks: Block<any, any, any>[]): boolean {
+  return blocks.some(
+    (b) =>
+      b.type !== "paragraph" ||
+      (Array.isArray(b.content) && b.content.length > 0) ||
+      b.children.length > 0,
+  );
+}
+
+export function Editor({
+  entry,
+  identity,
+  onChange,
+}: {
+  entry: DocEntry;
+  identity: Identity;
+  onChange?: (blocks: Block<any, any, any>[]) => void;
+}) {
   const editor = useCreateBlockNote(
     withCollaboration({
       collaboration: {
@@ -60,7 +81,7 @@ function Editor({ entry, identity }: { entry: DocEntry; identity: Identity }) {
   );
   return (
     <div data-testid="editor">
-      <BlockNoteView editor={editor} theme="light" />
+      <BlockNoteView editor={editor} theme="light" onChange={onChange && (() => onChange(editor.document))} />
     </div>
   );
 }
