@@ -31,6 +31,13 @@ On a new workspace the app asks for the first person, who becomes the workspace 
 - **What this changes in ADR 12:** "authentication runs once per connection" no longer holds. Authorization is **per document**: `onAuthenticate` runs for each document a connection opens (Hocuspocus does this anyway) and decides open, read-only or refused from the access rules; and **per update**: every update is checked against the person's current level before it is applied, so the server is no longer a plain relay of whatever an authenticated connection sends. The session check itself (who the person is) can still be done once per connection and cached.
 - **Cost on the server:** one copy of the document per update checked, only for connections below Full access, and for new pages. #22 should measure it on large pages.
 
+## Overrides and hidden parents (#16)
+- **A per-person entry on a subpage overrides what that person inherits**, for the subpage and everything below it: a higher level expands, a lower one restricts, "none" hides the subtree, and deleting the entry is Restore inherited access. General access overrides the same way.
+- **Most permissive wins across sources.** A per-person No access only replaces that person's own entry: it doesn't beat general access (or, later, teamspace access), as in Notion and ADR 14. The Private section's member always keeps Full access.
+- **When a person loses a page on the server, the server closes their open connections to it** (reason `access-revoked`), so a restricted page stops reaching a device that already had it. What the device does with its local copy is #21.
+- **A page someone can open below one they can't** arrives alone: their device builds its tree from what it received, so the page is top-level there (in Shared), and the breadcrumb (`breadcrumb()`) starts at it. The hidden parent's document and title never arrive. Its **id** does, as the page's `parentId`: the page's editors write it, and it is a random UUID.
+- **The Share menu lists inherited entries** with the page they come from (`shareEntries()`), built from the pages the device holds. Entries inherited from above a hidden parent can't be listed, and the menu says so.
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh

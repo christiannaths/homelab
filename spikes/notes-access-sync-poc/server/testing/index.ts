@@ -19,8 +19,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  buildTree, createPage, isRefusal, indexDocName, indexMap, pageDocName, parseDocName, privateSection, readIndex, readIndexLevels,
-  readMeta, setPersonAccess, setWorkspaceAccess, sidebarSections,
+  buildTree, createPage, isRefusal, indexDocName, indexMap, pageDocName, parseDocName, privateSection, readIndex,
+  readIndexLevels, readMeta, renamePage, setPersonAccess, setWorkspaceAccess, sidebarSections,
   type AccessLevel, type PageAccess, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
@@ -187,8 +187,11 @@ export class TestClient {
   /** Starts a provider for `name` (once), so a page this device creates can be written before it syncs. */
   private entry(name: string): Entry {
     const existing = this.entries.get(name);
-    if (existing) return existing;
-    const doc = new Y.Doc();
+    if (existing && existing.closedReason === undefined) return existing;
+    // The server closed this document (access revoked). Opening it again keeps the local copy, as
+    // a device with storage would, and asks the server afresh with a new provider.
+    if (existing) existing.provider.destroy();
+    const doc = existing?.doc ?? new Y.Doc();
     let settle!: (r: OpenResult) => void;
     const result = new Promise<OpenResult>((resolve) => (settle = resolve));
     const provider = new HocuspocusProvider({
@@ -335,6 +338,11 @@ export class TestClient {
   /** Appends a paragraph to a received page. */
   async writeText(pageId: string, text: string): Promise<void> {
     writeParagraph(this.receivedPage(pageId), text);
+  }
+
+  /** Renames a received page. */
+  async rename(pageId: string, title: string): Promise<void> {
+    renamePage(this.receivedPage(pageId), title);
   }
 
   /** Invites `personId` to a received page at `level` (null: Restore inherited access). The server decides whether it sticks. */

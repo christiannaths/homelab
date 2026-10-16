@@ -128,9 +128,29 @@ function refreshIndexes(): Promise<void> {
       await connection.transact((doc) => writeIndex(doc, levels));
       await connection.disconnect();
       catalog.indexWritten(personId, levels);
+      closeRevoked(personId);
     }
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;
+}
+
+/**
+ * Closes `personId`'s open connections to page documents they can no longer open, with the reason
+ * "access-revoked", so a page restricted or unshared on the server stops reaching a device that
+ * already had it. The device's other documents stay open on the same socket. What the device then
+ * does with its local copy is #21's to decide. It asks the catalog's *current* levels, not the
+ * ones just written: a page created while the index was being written must not count as revoked.
+ */
+function closeRevoked(personId: string): void {
+  const workspace = catalog.workspace();
+  const levels = catalog.levels(personId);
+  for (const [documentName, document] of server.hocuspocus.documents) {
+    if (parseDocName(documentName)?.kind !== "page") continue;
+    if (documentAccess(workspace, personId, documentName, levels) !== "none") continue;
+    for (const connection of document.getConnections()) {
+      if (connection.context.person.id === personId) connection.close({ code: 4403, reason: "access-revoked" });
+    }
+  }
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): true {
