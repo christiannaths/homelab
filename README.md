@@ -2,7 +2,7 @@
 
 A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: every device keeps a full copy of the workspace. **Multiplayer**: edits and cursors sync live between users.
 
-> Status: **prototype spikes.** Settled decisions are recorded in [`docs/adr/`](docs/adr), including what's deliberately *not* decided yet. [`research/`](research) holds the landscape survey, requirements, architecture sketch and spike findings.
+> Status: **prototype spikes.** Settled decisions are recorded as ADRs, including what's deliberately *not* decided yet: [`apps/notes/docs/adr/`](apps/notes/docs/adr/README.md) for LocalNotion, and [`docs/adr/`](docs/adr/README.md) for the whole repo. [`apps/notes/docs/research/`](apps/notes/docs/research) holds the landscape survey, requirements, architecture sketch and spike findings, and [`apps/notes/docs/specs/`](apps/notes/docs/specs) the feature specs.
 
 ## How it works (so far)
 - **Client**: a React PWA (Vite). Every page is a [Yjs](https://yjs.dev) document, edited with [BlockNote](https://www.blocknotejs.org) and stored in IndexedDB. A service worker caches the app, so it opens with no network.
@@ -51,7 +51,9 @@ The repo is an [Nx](https://nx.dev) monorepo meant to hold several homelab apps 
 apps/notes/web       React PWA            (Nx project notes-web)
 apps/notes/server    sync and web server  (notes-server)
 apps/notes/e2e       Playwright tests     (notes-e2e)
+apps/notes/docs      Notes ADRs, specs and research
 packages/            code shared by more than one app
+docs/                repo-wide docs: platform ADRs and the ADR format
 tools/               repo scripts
 ```
 Run one project's task with `npx nx <target> <project>`, every project's with `npx nx run-many -t <target>`, and `npx nx graph` to see how projects depend on each other.

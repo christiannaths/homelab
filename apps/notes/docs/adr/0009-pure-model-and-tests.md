@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 5](0005-typescript-node-26-npm.md), [ADR 7](0007-crdt-rules.md)
+- Depends on: [ADR 5](../../../../docs/adr/0005-typescript-node-26-npm.md), [ADR 7](0007-crdt-rules.md)
 - Dependency of: [ADR 10](0010-yjs-13-until-stack-supports-14.md)
 
 ## Context

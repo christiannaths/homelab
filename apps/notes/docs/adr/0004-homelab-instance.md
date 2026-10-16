@@ -15,7 +15,7 @@ LocalNotion is meant for private, self-hosted instances. Each instance serves a 
 - All data lives in one data directory (`DATA_DIR`). Backing up that directory backs up the instance.
 
 ## Evidence
-- Stated requirements (`research/02-requirements.md`).
+- Stated requirements ([`research/02-requirements.md`](../research/02-requirements.md)).
 - PR #1: the Docker image builds and runs on `node:26-slim`, serving the app and sync from one process.
 
 ## Consequences

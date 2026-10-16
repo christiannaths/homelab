@@ -1,25 +1,14 @@
-# Architecture Decision Records
+# Architecture Decision Records: platform
 
-Decisions that are **locked in** for LocalNotion, based on the requirements and the evidence from the first two spikes (PR #1: offline sync; PR #2: page tree and databases).
+Decisions that hold for **every app** in this repo: the toolchain, the repo layout and, later, how apps are built and deployed. Each app records its own decisions in `apps/<app>/docs/adr/`:
+
+- **Notes** (LocalNotion): [`apps/notes/docs/adr/`](../../apps/notes/docs/adr/README.md)
 
 An ADR is written only once a decision is settled. Open questions go in **Not decided yet** below. An accepted ADR is not edited to change its decision: a new ADR supersedes it.
 
 | # | Decision | Depends on | Status |
 |---|---|---|---|
-| [1](0001-works-offline.md) | The app works fully offline | 4 | Accepted |
-| [2](0002-yjs-stores-shared-data.md) | Yjs stores all shared data | 1 | Accepted |
-| [3](0003-pwa-client.md) | The client is a PWA installed on macOS and iOS | 1 | Accepted |
-| [4](0004-homelab-instance.md) | Each instance is a self-hosted homelab server for a few trusted users | none | Accepted |
 | [5](0005-typescript-node-26-npm.md) | The code is TypeScript on Node.js 26, in npm workspaces | none | Accepted |
-| [6](0006-sqlite-server-storage.md) | The server stores document state in SQLite | 4, 5 | Accepted |
-| [7](0007-crdt-rules.md) | Every feature follows five CRDT rules | 2 | Accepted |
-| [8](0008-blocknote-and-mantine.md) | BlockNote is the page editor, and Mantine is the UI library | 2 | Accepted |
-| [9](0009-pure-model-and-tests.md) | The data model is pure TypeScript, tested by unit and end-to-end tests | 5, 7 | Accepted |
-| [10](0010-yjs-13-until-stack-supports-14.md) | Yjs stays on version 13 until the whole stack supports 14 | 2, 8, 9, 12 | Accepted |
-| [11](0011-local-password-accounts.md) | Users sign in with local password accounts | 1, 4, 5, 6 | Accepted |
-| [12](0012-hocuspocus-sync-server.md) | Hocuspocus is the sync server | 1, 2, 6, 11 | Accepted |
-| [13](0013-notion-style-access.md) | Access follows Notion's model of teamspaces and page sharing | 1, 11, 12 | Proposed |
-| [14](0014-notion-page-access-levels.md) | Page access levels mirror Notion's | 12, 13 | Proposed |
 | [15](0015-nx-monorepo.md) | The repo is an Nx monorepo of independent apps | 5 | Accepted |
 
 ## Format and style
@@ -41,24 +30,23 @@ Every ADR uses the same layout:
 ```
 
 - **Title:** the decision itself, as one declarative sentence in the present tense and sentence case, with no colon and no trailing period. For example, "Yjs stores all shared data", not "Using Yjs" or "CRDT choice".
+- **Location:** an ADR that holds for every app goes in `docs/adr/`. One that holds for a single app goes in `apps/<app>/docs/adr/`. When an app's decision turns out to hold for every app, a new platform ADR states it, and the app's ADR then depends on it.
+- **Number:** numbers are unique across the whole repo and never reused or changed, so "ADR 12" always means one decision. A new ADR takes the next free number across every ADR folder (`ls docs/adr apps/*/docs/adr`), so each folder's numbers have gaps.
 - **File name:** `NNNN-` plus a short slug of the title.
 - **Voice:** impersonal and present tense, describing the system as it is ("The server stores…"). No "we", and no contractions. "Must" marks a rule that code review enforces.
 - **Context** is a short prose paragraph: the forces and constraints, without the decision.
-- **Decision**, **Evidence** and **Consequences** are bullet lists. Evidence cites a PR, a test or a `research/` document. When no spike backs a decision yet, Evidence says so.
-- **References:** every mention of another ADR is a link (`[ADR N](file)`). Each ADR referenced in the body also appears in **Depends on** (decisions this one builds on) or **Dependency of** (decisions built on this one), and the two lists mirror each other across ADRs.
+- **Decision**, **Evidence** and **Consequences** are bullet lists. Evidence cites a PR, a test or a research document, and links research documents. When no spike backs a decision yet, Evidence says so.
+- **References:** every mention of another ADR is a link (`[ADR N](file)`), with a relative path when the ADR is in another folder. Each ADR referenced in the body also appears in **Depends on** (decisions this one builds on) or **Dependency of** (decisions built on this one), and the two lists mirror each other across ADRs, including across folders. A platform ADR never depends on an app's ADR.
 
 ## Not decided yet
 
-These are deliberately **not** locked in, and the current implementation is replaceable. Each item lists what would settle it and who does the work: **human** means testing on real devices, or a product decision; **AI** means work that can be automated or built in the sandbox.
+These are deliberately **not** locked in. **Human** means a product decision or testing on real devices; **AI** means work that can be automated or built in the sandbox.
 
 | Topic | Where it stands | What would settle it | Who |
 |---|---|---|---|
-| **Access control:** who can see and edit which pages (private pages, sharing with guests, read-only roles) | Every account can see and edit everything. Proposed in [ADR 13](0013-notion-style-access.md) (Notion's model) and [ADR 14](0014-notion-page-access-levels.md) (access levels); specs in `docs/specs/access/` | A feasibility design for per-person sync under [ADR 1](0001-works-offline.md), including the document split | AI, then human review |
-| **Public read-only publishing of pages and subpages** | Not built | Settled after access control | Human (decision), then AI |
-| **How data is split across Yjs documents** | The prototype uses one workspace doc for the page tree, one doc per page body, and one doc per database holding every row | The final feature list. Access control, sharing individual rows, very large databases, multi-value properties (tags, people, relations) and blocks shared between pages each depend on this split | Human (feature list), then AI |
-| **The PWA works offline on Apple devices** (would reopen [ADR 3](0003-pwa-client.md)) | Loads in Safari on an iPhone. An installed offline start and how long Safari keeps data are unconfirmed | Install on the iPhone and the Mac → Airplane Mode → force-quit → reopen. Then leave it **unopened for 7+ days** and check the data is still there (Diagnostics: persistence flag, storage used) | Human |
-| **Device storage** | `y-indexeddb`, one IndexedDB database per doc; this is the startup bottleneck | Build one shared IndexedDB store and an OPFS SQLite store behind the same interface, with a Diagnostics benchmark. Measure in Chromium, then on an iPhone | AI builds and measures in Chromium; human runs on iPhone |
-| **Keeping every doc in memory** | 2,000 pages use about 307 MB of JS heap in Chromium ([ADR 12](0012-hocuspocus-sync-server.md) gate test) | Run Diagnostics → 4 × "Create 500 test pages" on an iPhone. Report startup time, and whether iOS reloads or closes the app | Human runs; AI designs on-demand loading if it fails |
-| **Phone layout and touch interactions** | The sidebar sits above the content; long-press to drag | PR #2's iPhone checklist (section 8): touch drag and drop, scrolling a large table, the native pickers. Then an AI design pass on the phone layout | Human, then AI |
-| **More database views, attachments, search, page history** | Not built | A design spike for each | AI |
-| **Wrapping as a native app** (Tauri, Capacitor) | Not used | Only if the Apple-device checks above fail | Depends on the Apple-device row |
+| **The app contract:** what every app must provide (one container, a `/data` volume, a health endpoint, environment-only config) | Notes already works this way ([ADR 4](../../apps/notes/docs/adr/0004-homelab-instance.md)), but as a Notes decision | An ADR, plus an Nx generator that scaffolds an app following it | AI, then human review |
+| **Deployment:** choosing apps, pointing at a host, running one deploy script | Each app has its own `compose.yaml` | A deploy script and its config file, tested against a VM | AI, then human |
+| **TLS modes:** a real domain with DNS-01, a private CA, or Tailscale | Documented for Notes only ([ADR 3](../../apps/notes/docs/adr/0003-pwa-client.md)) | The deploy script supporting each mode, checked on an iPhone | AI, then human |
+| **Sign-in across apps (SSO)** | Notes uses local password accounts ([ADR 11](../../apps/notes/docs/adr/0011-local-password-accounts.md)) | Building our own `accounts` app on `oidc-provider`, or adopting Authelia | Human (decision), then AI |
+| **Where images are built** for `amd64` and `arm64` | Built locally | CI pushing to a registry such as GHCR, or building on the host | Human |
+| **The repo's name** | Still `localnotion`, with the `@localnotion/` package scope | Rename on GitHub, then rename the scope | Human |

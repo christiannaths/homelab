@@ -6,7 +6,7 @@
 - Dependency of: [ADR 7](0007-crdt-rules.md), [ADR 8](0008-blocknote-and-mantine.md), [ADR 10](0010-yjs-13-until-stack-supports-14.md), [ADR 12](0012-hocuspocus-sync-server.md)
 
 ## Context
-Offline edits from several devices ([ADR 1](0001-works-offline.md)) must merge automatically and identically everywhere, with no "pick a version" prompts. That requires a CRDT. Yjs, Automerge and Loro were compared in `research/01-foss-landscape.md` and `research/03-architecture.md`.
+Offline edits from several devices ([ADR 1](0001-works-offline.md)) must merge automatically and identically everywhere, with no "pick a version" prompts. That requires a CRDT. Yjs, Automerge and Loro were compared in [`research/01-foss-landscape.md`](../research/01-foss-landscape.md) and [`research/03-architecture.md`](../research/03-architecture.md).
 
 ## Decision
 - **All synced data is stored in Yjs documents:** page content, the page tree, and database schemas, rows, cells and views.
