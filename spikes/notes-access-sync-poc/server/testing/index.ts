@@ -39,6 +39,7 @@ import {
 import * as Y from "yjs";
 
 export { indexDocName, pageDocName, privateSection, schemaDocName, teamspaceDocName };
+export { DEFAULT_LAYOUT, seedWorkspace, type SeededWorkspace, type SeedLayout } from "./seed.ts";
 
 const serverDir = path.resolve(import.meta.dirname, "..");
 const defaultWebRoot = path.resolve(serverDir, "../web/dist");
