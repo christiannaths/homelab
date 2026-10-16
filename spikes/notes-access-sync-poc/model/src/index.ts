@@ -5,3 +5,4 @@ export * from "./people.ts";
 export * from "./tree.ts";
 export * from "./workspace.ts";
 export * from "./updates.ts";
+export * from "./review.ts";

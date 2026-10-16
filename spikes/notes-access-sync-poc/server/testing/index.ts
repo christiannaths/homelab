@@ -8,7 +8,9 @@
 //   await client.syncAll();                                         // ["index:<max id>", "page:…"]
 //   client.received(); client.denied(); client.pageTitles(); client.sidebar();
 //   await client.share(pageId, personId, "view"); await client.shareWithWorkspace(pageId, "edit");
-//   client.level(pageId); client.access(pageId); client.closedReason(name);
+//   client.level(pageId); client.access(pageId); client.closedReason(name); client.refusals(name);
+//   await client.disconnect(); await client.connect(); await client.reconnect();   // offline, back online
+//   await server.refusals();                                        // every update the server refused
 //   await client.close(); await server.stop();
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -17,13 +19,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  buildTree, createPage, indexDocName, pageDocName, parseDocName, privateSection, readIndex, readIndexLevels,
+  buildTree, createPage, isRefusal, indexDocName, indexMap, pageDocName, parseDocName, privateSection, readIndex, readIndexLevels,
   readMeta, setPersonAccess, setWorkspaceAccess, sidebarSections,
   type AccessLevel, type PageAccess, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
-export { indexDocName, pageDocName };
+export { indexDocName, pageDocName, privateSection };
 
 const serverDir = path.resolve(import.meta.dirname, "..");
 const defaultWebRoot = path.resolve(serverDir, "../web/dist");
@@ -37,6 +39,13 @@ async function freePort(): Promise<number> {
       probe.close(() => resolve(port));
     });
   });
+}
+
+/** An update the server refused, and why (a `Refusal` from the model). */
+export interface ServerRefusal {
+  personId: string;
+  documentName: string;
+  reason: string;
 }
 
 /** A connection to a document, as the server sees it. */
@@ -130,12 +139,19 @@ export class TestServer {
   async connections(): Promise<ServerConnection[]> {
     return (await fetch(`${this.url}/api/connections`)).json();
   }
+
+  /** Every update the server refused since it started, oldest first. */
+  async refusals(): Promise<ServerRefusal[]> {
+    return (await fetch(`${this.url}/api/refusals`)).json();
+  }
 }
 
 /** How the server answered a request to open a document. `scope` is "read-write" or "readonly". */
 export type OpenResult = { status: "synced"; doc: Y.Doc; scope: string } | { status: "denied"; reason: string };
 
 interface Entry {
+  /** Settles `result`; a recovered entry passes its successor's result on. */
+  settle: (r: OpenResult) => void;
   doc: Y.Doc;
   provider: HocuspocusProvider;
   result: Promise<OpenResult>;
@@ -153,6 +169,8 @@ interface Entry {
 export class TestClient {
   private readonly socket: HocuspocusProviderWebsocket;
   private readonly entries = new Map<string, Entry>();
+  /** The reasons the server gave for each update it refused, per document, oldest first. */
+  private readonly refused = new Map<string, string[]>();
 
   readonly person: Pick<Person, "id"> & Partial<Person>;
 
@@ -191,12 +209,32 @@ export class TestClient {
       },
       onClose: ({ event }) => {
         if (event.reason) entry.closedReason = event.reason;
+        if (isRefusal(event.reason) && this.entries.get(name) === entry) this.recover(name, event.reason);
       },
+      // Each provider gets its own address on the socket, so a document can be reopened right
+      // after its old provider is destroyed (explore.md §3: otherwise the server may still be
+      // closing the old one and ignore the new one's authentication).
+      sessionAwareness: true,
     });
-    const entry: Entry = { doc, provider, result };
+    const entry: Entry = { doc, provider, result, settle };
     this.entries.set(name, entry);
     provider.attach();
     return entry;
+  }
+
+  /**
+   * The device's recovery from a refused update, the same as the web app's: the server applied
+   * none of it and closed the document, so throw this copy away and open the document again from
+   * the server's state. Nothing refused is left to send again.
+   */
+  private recover(name: string, reason: string): void {
+    this.refused.set(name, [...(this.refused.get(name) ?? []), reason]);
+    const old = this.entries.get(name)!;
+    this.entries.delete(name);
+    old.provider.destroy();
+    old.doc.destroy();
+    // Anyone still waiting for the old copy to open gets the new one.
+    void this.entry(name).result.then(old.settle);
   }
 
   /**
@@ -272,17 +310,25 @@ export class TestClient {
 
   /**
    * Creates a page in a document of its own, with `body` as its first paragraph, and waits for the
-   * server to accept it. Top-level pages go in this person's Private section. Returns its id.
+   * server to answer. Top-level pages go in this person's Private section unless `section` says
+   * otherwise; `access` is set on the page as it is created. The page, its body and its access
+   * reach the server as one update, the page's first. Returns its id.
    */
-  async createPage(title: string, body = "", parentId: string | null = null): Promise<string> {
-    const docs: PageDocs = {
-      get: (id) => this.doc(pageDocName(id)),
-      create: (id) => this.entry(pageDocName(id)).doc,
-    };
-    const id = createPage(docs, this.tree(), { title, parentId, section: privateSection(this.person.id) });
+  async createPage(
+    title: string,
+    body = "",
+    parentId: string | null = null,
+    opts: { section?: string; access?: Record<string, AccessLevel> } = {},
+  ): Promise<string> {
+    const draft = new Y.Doc();
+    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => draft };
+    const id = createPage(docs, this.tree(), { title, parentId, section: opts.section ?? privateSection(this.person.id) });
+    if (body) writeParagraph(draft, body);
+    for (const [personId, level] of Object.entries(opts.access ?? {})) setPersonAccess(draft, personId, level);
+    Y.applyUpdate(this.entry(pageDocName(id)).doc, Y.encodeStateAsUpdate(draft));
+    draft.destroy();
     const page = await this.open(pageDocName(id));
     if (page.status !== "synced") throw new Error(`page denied: ${page.reason}`);
-    if (body) writeParagraph(page.doc, body);
     return id;
   }
 
@@ -312,6 +358,24 @@ export class TestClient {
     return index && readIndexLevels(index).get(pageId);
   }
 
+  /** The reasons the server gave for refusing this device's updates to a document, oldest first. */
+  refusals(name: string): string[] {
+    return this.refused.get(name) ?? [];
+  }
+
+  /** This person's page index as the device holds it: page id → level. */
+  indexEntries(): Record<string, unknown> {
+    const index = this.doc(indexDocName(this.person.id));
+    return index ? indexMap(index).toJSON() : {};
+  }
+
+  /** Writes an entry into this person's page index, as a modified client might. Only the server may. */
+  forgeIndexEntry(pageId: string, level: AccessLevel): void {
+    const index = this.doc(indexDocName(this.person.id));
+    if (!index) throw new Error("index not received");
+    indexMap(index).set(pageId, level);
+  }
+
   /** Why the server closed a document's connection, or undefined. */
   closedReason(name: string): string | undefined {
     return this.entries.get(name)?.closedReason;
@@ -332,6 +396,28 @@ export class TestClient {
     }
   }
 
+  /** Goes offline: the socket closes, and local edits wait for `connect()`. */
+  async disconnect(timeoutMs = 10_000): Promise<void> {
+    this.socket.disconnect();
+    await waitFor(() => String(this.socket.status) === "disconnected", timeoutMs, "socket did not close");
+  }
+
+  /** Comes back online and waits until every document it holds has synced again. */
+  async connect(timeoutMs = 10_000): Promise<void> {
+    void this.socket.connect();
+    await waitFor(
+      () => [...this.entries.values()].every((e) => e.status === "denied" || e.provider.synced),
+      timeoutMs,
+      "documents did not sync again",
+    );
+  }
+
+  /** Drops the connection and makes a new one, which syncs every document again. */
+  async reconnect(): Promise<void> {
+    await this.disconnect();
+    await this.connect();
+  }
+
   async close(): Promise<void> {
     for (const e of this.entries.values()) e.provider.destroy();
     this.socket.destroy();
@@ -348,6 +434,15 @@ export async function connectAs(
   person: Pick<Person, "id"> & Partial<Person>,
 ): Promise<TestClient> {
   return new TestClient(person, server.syncUrl);
+}
+
+/** Waits until `done()` is true, polling; for setup hooks, where `expect.poll` isn't allowed. */
+export async function waitFor(done: () => boolean | Promise<boolean>, timeoutMs = 10_000, message = "timed out"): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await done())) {
+    if (Date.now() > deadline) throw new Error(message);
+    await new Promise((r) => setTimeout(r, 20));
+  }
 }
 
 /** Appends a paragraph shaped the way BlockNote stores one, so the web editor can open it. */

@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canShare, documentAccess, indexDocName, parseDocName, refuseUpdate, touchedRoots, writeIndex,
-  type Person, type Role,
+  addPerson, canEdit, documentAccess, indexDocName, parseDocName, reviewUpdate, writeIndex,
+  type Person, type Refusal, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 import { PageCatalog } from "./catalog.ts";
@@ -25,6 +25,9 @@ for (const name of store.names("page:")) {
   const state = store.load(name);
   if (ref?.kind === "page" && state) catalog.loadStored(ref.id, state);
 }
+
+/** Every update refused since the server started, for tests and diagnostics (GET /api/refusals). */
+const refusals: { personId: string; documentName: string; reason: Refusal }[] = [];
 
 /** What the server keeps about each connection: the person it belongs to. */
 export interface ConnectionContext {
@@ -60,17 +63,28 @@ const server = new Server<ConnectionContext>({
     return { person };
   },
 
-  // Hocuspocus calls this before applying any sync message. A page document's `access` map may
-  // only be changed with Full access, so updates from connections below Full (and above view,
-  // whose connections are read-only and refused by Hocuspocus itself) are checked against what
-  // they would change. Throwing closes that document's connection with the reason, and the
-  // update is not applied. The level is looked up now, not at open, so it follows access changes.
+  // Hocuspocus calls this before applying any sync message, read-only connections included. Every
+  // update (SyncStep2 on each (re)connect, and live updates) is reviewed against the person's
+  // level now, not at open, so it follows access changes; new pages are reviewed where they are
+  // placed. A refused update is not applied, and throwing closes this document's connection (only
+  // this one: the socket and the person's other documents stay up) with the reason. The device
+  // takes that reason as "throw your copy away and sync it again" (#18), so it never resends the
+  // update. Hocuspocus's own read-only handling would instead drop it silently, and the device
+  // would stay diverged and resend it on every reconnect.
   async beforeSync({ type, payload, document, documentName, connection, context }) {
-    if (type === 0 || connection.readOnly || parseDocName(documentName)?.kind !== "page") return;
-    const level = documentAccess(catalog.workspace(), context.person.id, documentName, catalog.levels(context.person.id));
-    if (canShare(level)) return;
-    const reason = refuseUpdate(level, touchedRoots(document, payload));
-    if (reason) throw { reason };
+    if (type === 0) return; // SyncStep1 only asks for what the device lacks.
+    const person = context.person.id;
+    const workspace = catalog.workspace();
+    const levels = catalog.levels(person);
+    const reason = reviewUpdate(workspace, person, documentName, document, payload, levels);
+    if (reason) {
+      refusals.push({ personId: person, documentName, reason });
+      throw { reason };
+    }
+    // A page opened read-only whose person can now edit it: let the update through.
+    if (connection.readOnly && parseDocName(documentName)?.kind === "page") {
+      connection.readOnly = !canEdit(documentAccess(workspace, person, documentName, levels));
+    }
   },
 
   // Keep the catalog current, and the page indexes with it. Title and content edits don't change
@@ -153,6 +167,7 @@ function connections(): { personId: string; documentName: string }[] {
  * - POST /api/people       → { name, role }; the first person becomes the owner, after that the
  *                            caller (Authorization: Bearer <person id>) must be an owner
  * - GET  /api/connections  → which person each open document connection belongs to
+ * - GET  /api/refusals     → every update refused since the server started, oldest first
  */
 async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? "/", "http://localhost");
@@ -162,6 +177,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
   if (route === "GET /api/health") return sendJson(res, 200, { ok: true, documents: store.count() });
   if (route === "GET /api/people") return sendJson(res, 200, store.people());
   if (route === "GET /api/connections") return sendJson(res, 200, connections());
+  if (route === "GET /api/refusals") return sendJson(res, 200, refusals);
   if (route === "POST /api/people") {
     const body = (await readJson(req)) as { name?: unknown; role?: unknown };
     const role = body.role === "owner" || body.role === "guest" ? body.role : "member";
