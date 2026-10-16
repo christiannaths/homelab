@@ -71,6 +71,15 @@ A database is split across documents by who may receive each part, because a sin
 - **Moving a page to Private removes everyone else's access** (story 44): the move deletes the page's own `access` entries in the same transaction (`movesToPrivate`, `movePage`), so it needs Full access, and the app asks first. Explicit invites on its subpages stay. An invite added concurrently on another device survives the merge, as a later decision.
 - **Removing a person** (`DELETE /api/people/:id`, owners only, never the last owner) closes all their connections; their index is refused from then on, so their device deletes everything of theirs and returns to the picker. **Switching person** deletes the previous person's data from the device too (and asks first if anything is unsynced).
 
+## Speed at 2,000 pages (#22)
+The opt-in scale test (`e2e/tests/access-scale.spec.ts`, `SLOW=1`) seeds a 2,272-page workspace straight into the server's storage (`seedWorkspace` in `server/testing/seed.ts`): Private pages for Olive (workspace owner) and Max (member), an open and a private teamspace, two databases with 300 and 100 rows, and pages and rows shared with Max and with a guest, Gus. Each device receives only what its person can open: Olive 1,973 documents (about the 2,001 of the ADR 12 gate), Max 1,252, Gus 31. It times the ADR 12 scenarios for each of them, 3 times each, in headless Chromium, and checks after every phase that the server still holds a connection for every document each device has, that a rename still reaches both devices, and that nothing was refused or dropped.
+- **Per-person sync is as fast as whole-workspace sync** once three web app problems the test found were fixed. They were in code copied from the old spike, which has them too:
+  - **Going offline could leave the device "Synced" for ~36 s.** The socket's closing handshake can't finish without a network, and until it does the provider still says it is connected (about 1 offline switch in 3). It is also why the old spike's gate test fails now and then. `SyncManager.goOffline` finishes the close itself.
+  - **A read-only document could stay "Syncing" forever** after a reload (about 1 reload in 5). If IndexedDB finished loading after the provider had synced, the stored copy went out as an update, and the server answers every update on a read-only connection (the person's index, a page at Can view) with "not applied". Providers are now created once the local copy has loaded, so it goes in the sync handshake instead. The server then also sends only what the device lacks, not every document in full on each start.
+  - **Startup was quadratic.** The sidebar's tree was rebuilt and every row re-rendered each time a page finished loading, and the sync badge recounted every document. Both now publish at most every 100 ms during a burst (warm reload for Olive: 19.7 s before, 5.9 s after).
+- **The access checks cost little.** The server's per-document check scanned every page to find the one asked for. It now uses a lookup (`pageById`), and what remains in the server's profile is Hocuspocus's own per-document work. That work grows with the number of documents a person can open: reconnecting takes 1.7 s for Olive and 0.7 s for Max.
+- **Document count per person decides startup**, not the size of the workspace: a guest with 31 documents starts in 0.5 s. The #14 fallback (a separate `meta:<id>` document beside each page) isn't needed, and it would double the documents to load.
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh
@@ -83,5 +92,6 @@ npx nx start notes-access-sync-poc-server   # http://localhost:3000, data in spi
 ```sh
 npx nx run-many -t typecheck test -p 'tag:scope:notes-access-sync-poc'   # unit and sync-boundary tests
 npx nx e2e notes-access-sync-poc-e2e   # builds the web app, then runs Playwright
+SLOW=1 npx nx e2e notes-access-sync-poc-e2e -- access-scale   # the 2,000-page timing test (~2 min)
 ```
 Set `PLAYWRIGHT_CHROMIUM_PATH` to use an already-installed Chromium.
