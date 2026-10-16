@@ -38,6 +38,15 @@ export async function fetchPeople(): Promise<Person[]> {
   return res.json();
 }
 
+/** Removes a person from the workspace, as `actor` (an owner). Their devices delete the workspace's pages. */
+export async function requestRemovePerson(personId: string, actor: Person): Promise<void> {
+  const res = await fetch(`/api/people/${encodeURIComponent(personId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${actor.id}` },
+  });
+  if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? `Failed (${res.status})`);
+}
+
 /** Adds a person as `actor`. With no actor, only works on an empty workspace (it creates the owner). */
 export async function requestAddPerson(name: string, role: Role, actor: Person | null): Promise<Person> {
   const res = await fetch("/api/people", {

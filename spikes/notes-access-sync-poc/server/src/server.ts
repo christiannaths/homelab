@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, reviewUpdate, writeIndex,
-  type Person, type Refusal, type Role,
+  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, removePerson, reviewUpdate,
+  writeIndex, type AccessLevel, type Person, type Refusal, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import {
   readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
@@ -67,7 +67,7 @@ const server = new Server<ConnectionContext>({
       throw { reason: "no-access" };
     }
     // The server refuses every update on a read-only connection (a person's page index, for now).
-    if (level === "view" || level === "comment") connectionConfig.readOnly = true;
+    if (readOnlyAt(level)) connectionConfig.readOnly = true;
     return { person };
   },
 
@@ -140,19 +140,27 @@ function refreshIndexes(): Promise<void> {
     for (const { personId, levels } of catalog.staleIndexes()) {
       const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
       await connection.transact((doc) => writeIndex(doc, levels));
-      await connection.disconnect();
+      // Keep the document loaded until the debounced store. Unloading it at once raced with the
+      // person's device opening it in the same moment (Hocuspocus 4.7.1 hands the connection the
+      // document it is destroying), so the device was attached to a dead copy and never got
+      // later index changes or closes (#21; seen about 1 run in 8 of the removal test).
+      await connection.disconnect({ unloadImmediately: false });
       catalog.indexWritten(personId, levels);
-      closeRevoked(personId);
+      applyAccessChanges(personId);
     }
     for (const { personId, levels } of catalog.staleTeamspaceIndexes()) {
       const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
       await connection.transact((doc) => writeTeamspaceIndex(doc, levels));
-      await connection.disconnect();
+      await connection.disconnect({ unloadImmediately: false }); // see above
       catalog.teamspaceIndexWritten(personId, levels);
+      applyAccessChanges(personId); // a teamspace they left or were taken out of
     }
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;
 }
+
+/** View and Comment open a document read-only: the server applies none of the person's updates. */
+const readOnlyAt = (level: AccessLevel) => level === "view" || level === "comment";
 
 /**
  * Adds a new workspace member (not a guest) to every default teamspace, whatever its kind, as an
@@ -185,22 +193,28 @@ function teamspaceRefusal(id: string, document: Y.Doc, update: Uint8Array, perso
 }
 
 /**
- * Closes `personId`'s open connections to page documents (and databases' properties) they can no longer open, with the reason
- * "access-revoked", so a page restricted or unshared on the server stops reaching a device that
- * already had it. The device's other documents stay open on the same socket. What the device then
- * does with its local copy is #21's to decide. It asks the catalog's *current* levels, not the
- * ones just written: a page created while the index was being written must not count as revoked.
+ * Brings `personId`'s open connections in line with their current access, so an access change
+ * takes effect on a device that is already connected (#16, #21):
+ * - A document they can no longer open is closed with the reason "access-revoked", and the
+ *   device deletes its copy (#21). That covers pages, a database's properties (`schema:`, which
+ *   go with the last of its rows or the database the person loses, #20), a teamspace they left,
+ *   and every document, their index included, once they are removed from the workspace. The
+ *   device's other documents stay open on the same socket.
+ * - Otherwise the connection becomes read-only or read-write to match the level now, as
+ *   `onAuthenticate` would open it, so a downgrade to Can view is read-only at once (#18's review
+ *   refuses its updates either way, and an upgrade is let through there too).
+ * It asks the catalog's *current* levels, not the ones just written: a page created while the
+ * index was being written must not count as revoked.
  */
-function closeRevoked(personId: string): void {
+function applyAccessChanges(personId: string): void {
   const workspace = catalog.workspace();
   const levels = catalog.levels(personId);
   for (const [documentName, document] of server.hocuspocus.documents) {
-    // A database's properties go with the last of its rows (or the database) the person loses (#20).
-    const kind = parseDocName(documentName)?.kind;
-    if (kind !== "page" && kind !== "schema") continue;
-    if (documentAccess(workspace, personId, documentName, levels) !== "none") continue;
+    const level = documentAccess(workspace, personId, documentName, levels);
     for (const connection of document.getConnections()) {
-      if (connection.context.person.id === personId) connection.close({ code: 4403, reason: "access-revoked" });
+      if (connection.context.person.id !== personId) continue;
+      if (level === "none") connection.close({ code: 4403, reason: "access-revoked" });
+      else connection.readOnly = readOnlyAt(level);
     }
   }
 }
@@ -238,6 +252,8 @@ function connections(): { personId: string; documentName: string }[] {
  * - GET  /api/people       → everyone in the workspace (the list a device picks its person from)
  * - POST /api/people       → { name, role }; the first person becomes the owner, after that the
  *                            caller (Authorization: Bearer <person id>) must be an owner
+ * - DELETE /api/people/:id → removes a person (the caller must be an owner); their open
+ *                            documents are closed with "access-revoked"
  * - GET  /api/connections  → which person each open document connection belongs to
  * - GET  /api/refusals     → every update refused since the server started, oldest first
  */
@@ -267,6 +283,21 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
     await joinDefaultTeamspaces(result.person);
     await refreshIndexes();
     return sendJson(res, 201, result.person);
+  }
+  const removing = req.method === "DELETE" && url.pathname.match(/^\/api\/people\/([^/]+)$/)?.[1];
+  if (removing) {
+    const people = store.people();
+    const actorId = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+    const actor = people.find((p) => p.id === actorId) ?? null;
+    const result = removePerson(people, actor, decodeURIComponent(removing));
+    if (!result.ok) return sendJson(res, !actor ? 401 : result.reason === "No such person." ? 404 : 403, { error: result.reason });
+    store.removePerson(result.person.id);
+    catalog.setPeople(store.people());
+    // Everything they had open is closed now; their devices delete the workspace's pages, and
+    // every later request from them is refused (they are no longer anyone the server knows).
+    applyAccessChanges(result.person.id);
+    await refreshIndexes();
+    return sendJson(res, 200, result.person);
   }
   return sendJson(res, 404, { error: "Not found" });
 }

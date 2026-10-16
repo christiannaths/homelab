@@ -1,8 +1,8 @@
 import type { Person, Role } from "@homelab/notes-access-sync-poc-model";
 import { useEffect, useState } from "react";
-import { fetchPeople, requestAddPerson } from "../identity";
+import { fetchPeople, requestAddPerson, requestRemovePerson } from "../identity";
 
-/** The workspace's people. An owner can add members and guests. */
+/** The workspace's people. An owner can add members and guests, and remove people. */
 export function PeopleView({ me }: { me: Person }) {
   const [people, setPeople] = useState<Person[]>([]);
   const [name, setName] = useState("");
@@ -21,6 +21,26 @@ export function PeopleView({ me }: { me: Person }) {
         {people.map((p) => (
           <li key={p.id} data-testid="person-row">
             {p.name} <span className="muted">{p.role}</span>
+            {me.role === "owner" && p.id !== me.id && (
+              <>
+                {" "}
+                <button
+                  className="link"
+                  data-testid="person-remove"
+                  onClick={async () => {
+                    try {
+                      await requestRemovePerson(p.id, me);
+                      setError(null);
+                      await reload();
+                    } catch (err) {
+                      setError((err as Error).message);
+                    }
+                  }}
+                >
+                  Remove
+                </button>
+              </>
+            )}
           </li>
         ))}
       </ul>
@@ -30,8 +50,11 @@ export function PeopleView({ me }: { me: Person }) {
           onSubmit={async (e) => {
             e.preventDefault();
             try {
-              await requestAddPerson(name, role, me);
-              setName("");
+              const added = name;
+              await requestAddPerson(added, role, me);
+              // Only clear what was submitted: the next name may already be typed in (this raced in
+              // the e2e test, which fills the next name straight after clicking Add).
+              setName((current) => (current === added ? "" : current));
               setError(null);
               await reload();
             } catch (err) {

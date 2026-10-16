@@ -4,7 +4,8 @@ import { withCollaboration } from "@blocknote/core/yjs";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import {
-  breadcrumb, canEdit, canShare, renamePage, type PageMeta, type Person, type Tree,
+  breadcrumb, canEdit, canShare, movePage, movesToPrivate, privateSection, renamePage,
+  type PageMeta, type Person, type Tree,
 } from "@homelab/notes-access-sync-poc-model";
 import { useSyncExternalStore } from "react";
 import { useLevel, useLocalReady } from "../sync/context";
@@ -57,6 +58,22 @@ export function PageView({ page, pages, tree, identity, me }: Props) {
           onChange={(e) => renamePage(entry.doc, e.target.value)}
         />
       </div>
+      {canShare(level) && me.role !== "guest" && movesToPrivate(tree, page.id, null, privateSection(me.id)) && (
+        <div className="page-actions">
+          <button
+            className="link"
+            data-testid="move-to-private"
+            onClick={() => {
+              // Story 44: moving to Private removes everyone else's access, so ask first.
+              const title = page.title || "Untitled";
+              if (!confirm(`Move “${title}” to your Private section? This removes everyone else's access to it.`)) return;
+              movePage(pages, tree, page.id, null, Number.MAX_SAFE_INTEGER, privateSection(me.id));
+            }}
+          >
+            Move to Private
+          </button>
+        </div>
+      )}
       {canShare(level) && <SharePanel page={page} doc={entry.doc} me={me} pages={metas} />}
       {ready ? (
         // A fresh copy after a refused update (#18) gets a fresh editor.

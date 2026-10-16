@@ -6,7 +6,7 @@ import { fetchPeople, requestAddPerson } from "../identity";
  * "Who are you?": the device picks a person from the workspace's list. On a new workspace it
  * asks for the first person instead, who becomes the workspace owner.
  */
-export function PersonPicker({ onPick }: { onPick: (person: Person) => void }) {
+export function PersonPicker({ onPick, notice }: { onPick: (person: Person) => void; notice?: string | null }) {
   const [people, setPeople] = useState<Person[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -43,6 +43,11 @@ export function PersonPicker({ onPick }: { onPick: (person: Person) => void }) {
 
   return (
     <div className="picker">
+      {notice && (
+        <p className="notice" data-testid="removed-notice">
+          {notice}
+        </p>
+      )}
       <h1>Who are you?</h1>
       <ul>
         {people.map((p) => (

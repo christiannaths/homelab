@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addPerson, type Person } from "./people.ts";
+import { addPerson, removePerson, type Person } from "./people.ts";
 
 const owner: Person = { id: "o", name: "Olive", role: "owner" };
 const member: Person = { id: "m", name: "Max", role: "member" };
@@ -34,5 +34,24 @@ describe("addPerson", () => {
 
   it("trims the name", () => {
     expect(addPerson([], null, { id: "a", name: " Ada ", role: "owner" })).toMatchObject({ person: { name: "Ada" } });
+  });
+});
+
+// Story 45: a workspace owner removes a person.
+describe("removePerson", () => {
+  const guest: Person = { id: "g", name: "Gus", role: "guest" };
+  const coOwner: Person = { id: "o2", name: "Oz", role: "owner" };
+
+  it("lets an owner remove a member, a guest or another owner", () => {
+    expect(removePerson([owner, member, guest], owner, "m")).toEqual({ ok: true, person: member });
+    expect(removePerson([owner, member, guest], owner, "g")).toEqual({ ok: true, person: guest });
+    expect(removePerson([owner, coOwner], owner, "o2")).toEqual({ ok: true, person: coOwner });
+  });
+
+  it("refuses anyone but an owner, an unknown person, and removing the last owner", () => {
+    expect(removePerson([owner, member, guest], member, "g").ok).toBe(false);
+    expect(removePerson([owner, member], null, "m").ok).toBe(false);
+    expect(removePerson([owner, member], owner, "nobody").ok).toBe(false);
+    expect(removePerson([owner, member], owner, "o").ok).toBe(false);
   });
 });

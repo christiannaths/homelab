@@ -225,11 +225,31 @@ export function createPage(
 }
 
 /**
+ * True if moving page `id` to `parentId` (or to the top level of `section`) is "moving it to
+ * Private" (story 44), which removes everyone else's access to it, so the app asks first. That is
+ * a move to the top level of a Private section where the page wasn't top-level already (a reorder
+ * keeps its access), or a move from another section to under a page in a Private section.
+ */
+export function movesToPrivate(tree: Tree, id: string, parentId: string | null, section?: string): boolean {
+  const node = tree.byId.get(id);
+  const to = sectionFor(tree, parentId, section ?? node?.section);
+  if (to === null || parseSection(to)?.kind !== "private") return false;
+  if (parentId !== null) return node?.section !== to;
+  return !(node && node.depth === 0 && !node.parentHidden && node.section === to);
+}
+
+/**
  * Moves a page to `index` among `parentId`'s children, or among `section`'s top-level pages.
  * Returns false (and does nothing) for an invalid move: into itself, into its own subtree, or
  * into a database. Concurrent moves on other devices can still create a cycle; `buildTree`
  * derives around it. Only the moved page's document is written: its subpages keep their stale
  * `section`, and take the effective one from their top-level ancestor.
+ *
+ * Moving a page to Private (`movesToPrivate`) also deletes the access set on the page itself, in
+ * the same transaction (#21, story 44), so nobody else keeps it through an invite or general
+ * access. Entries on its subpages stay: an explicit invite on a subpage survives, as in Notion.
+ * Only the entries this device holds are deleted, so an invite added concurrently elsewhere is a
+ * later decision and survives the merge. Deleting `access` needs Full access on the server.
  */
 export function movePage(
   docs: PageDocs,
@@ -248,13 +268,29 @@ export function movePage(
   const to = sectionFor(tree, parentId, section ?? node?.section);
   if (!doc || to === null) return false;
   const order = keyForPosition(docs, tree, parentId, to, index, id);
+  const toPrivate = movesToPrivate(tree, id, parentId, to);
   doc.transact(() => {
     const m = metaMap(doc);
     m.set("parentId", parentId);
     m.set("section", to);
     m.set("order", order);
+    if (toPrivate) for (const key of [...accessMap(doc).keys()]) accessMap(doc).delete(key);
   });
   return true;
+}
+
+/**
+ * Copies a page's content (its blocks, not its metadata or access) into another page's document,
+ * after what is already there. Used to keep edits made to a page this person lost access to as a
+ * new Private page (#21).
+ */
+export function copyPageContent(from: Y.Doc, to: Y.Doc): void {
+  const blocks = from
+    .getXmlFragment("content")
+    .toArray()
+    .flatMap((node) => (node instanceof Y.XmlElement || node instanceof Y.XmlText ? [node.clone()] : []));
+  const target = to.getXmlFragment("content");
+  to.transact(() => target.insert(target.length, blocks));
 }
 
 export function renamePage(doc: Y.Doc, title: string): void {

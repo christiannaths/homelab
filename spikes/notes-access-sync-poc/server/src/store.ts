@@ -76,6 +76,10 @@ export class Store {
       .run(person.id, person.name, person.role, Date.now());
   }
 
+  removePerson(id: string): void {
+    this.db.prepare("DELETE FROM people WHERE id = ?").run(id);
+  }
+
   close(): void {
     this.db.close();
   }
