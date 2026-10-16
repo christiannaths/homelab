@@ -9,6 +9,7 @@ Yjs 14 is in release candidates. BlockNote already ships entry points for both (
 ## Decision
 - Use **Yjs 13** across client, server and tests.
 - Revisit only when **every** Yjs-dependent part we use (sync server, device storage, editor binding) supports 14. That revisit is a planned migration with its own ADR, tested against real stored data, never a casual dependency bump.
+- The revisit is tracked by a standing issue, [#4](https://github.com/christiannaths/localnotion/issues/4). It lists the gate and the migration steps, and goes back into the development queue periodically so the upgrade is re-attempted.
 
 ## Consequences
 - Yjs dependency upgrades stay within 13.x.
