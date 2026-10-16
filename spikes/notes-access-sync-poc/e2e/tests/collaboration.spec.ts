@@ -42,11 +42,12 @@ test("the first person sets up the workspace as owner and adds a member, who pic
     .toEqual(new Set((await server.people()).filter((p) => p.name !== "Gwen").map((p) => p.id)));
 });
 
-test("two people co-edit a page live", async ({ browser }) => {
-  const owner = await server.addPerson("Alice");
-  await server.addPerson("Bob", "member", owner);
+// Pages are Private until sharing exists (#15), so these two tests use one person's two devices.
+// #15 should turn them back into two people editing a shared page.
+test("two devices co-edit a page live", async ({ browser }) => {
+  await server.addPerson("Alice");
   const alice = await openAs(browser, server.url, "Alice");
-  const bob = await openAs(browser, server.url, "Bob");
+  const bob = await openAs(browser, server.url, "Alice"); // Alice's second device
 
   const route = await createPage(alice, "Shared plan", "Hello from Alice");
   await expect(treeRow(bob, "Shared plan")).toBeVisible();
@@ -57,13 +58,12 @@ test("two people co-edit a page live", async ({ browser }) => {
   await bob.keyboard.press("ControlOrMeta+End");
   await bob.keyboard.type(" and Bob");
   await expect.poll(() => editorText(alice)).toBe("Hello from Alice and Bob");
-  // Presence: Alice sees Bob's cursor, labelled with his name.
-  await expect(alice.locator(".bn-collaboration-cursor__label").filter({ hasText: "Bob" })).toBeVisible();
+  // Presence: the first device sees the other device's cursor, labelled with the person's name.
+  await expect(alice.locator(".bn-collaboration-cursor__label").filter({ hasText: "Alice" })).toBeVisible();
 });
 
 test("an offline edit merges with a live edit after reconnecting", async ({ browser }) => {
-  const owner = await server.addPerson("Alice");
-  await server.addPerson("Bob", "member", owner);
+  await server.addPerson("Alice");
   const alice = await openAs(browser, server.url, "Alice");
   await waitForServiceWorker(alice);
   const route = await createPage(alice, "Trip notes", "Packed passport.");
@@ -80,8 +80,8 @@ test("an offline edit merges with a live edit after reconnecting", async ({ brow
   await alice.keyboard.press("ControlOrMeta+End");
   await alice.keyboard.type(" Bought adapters offline.");
 
-  // Meanwhile Bob edits the same page online.
-  const bob = await openAs(browser, server.url, "Bob");
+  // Meanwhile her second device edits the same page online.
+  const bob = await openAs(browser, server.url, "Alice");
   await bob.goto(`${server.url}/${route}`);
   await expect(editor(bob)).toContainText("Packed passport.");
   await bob.locator(".bn-inline-content").first().click({ position: { x: 1, y: 8 } });

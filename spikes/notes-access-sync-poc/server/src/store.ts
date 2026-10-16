@@ -46,6 +46,15 @@ export class Store {
       .run(name, state, Date.now());
   }
 
+  /** Names of the stored documents that start with `prefix`. */
+  names(prefix: string): string[] {
+    return (
+      this.db.prepare("SELECT name FROM documents WHERE substr(name, 1, ?) = ?").all(prefix.length, prefix) as {
+        name: string;
+      }[]
+    ).map((r) => r.name);
+  }
+
   count(): number {
     return (this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as { n: number }).n;
   }

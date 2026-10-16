@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type * as Y from "yjs";
-import { buildTree, pagesMap, readPages, type Tree } from "@homelab/notes-access-sync-poc-model";
+import { buildTree, type Tree } from "@homelab/notes-access-sync-poc-model";
+import type { LocalPages } from "./pages";
 import type { DocEntry, SyncManager } from "./SyncManager";
 
 export const SyncContext = createContext<SyncManager | null>(null);
@@ -31,25 +31,8 @@ export function useLocalReady(entry: DocEntry | undefined): boolean {
   return ready;
 }
 
-/** Re-reads `read(doc)` whenever any of the given shared types change. */
-function useYState<T>(doc: Y.Doc, types: (doc: Y.Doc) => Y.AbstractType<any>[], read: (doc: Y.Doc) => T): T {
-  const [state, setState] = useState(() => read(doc));
-  useEffect(() => {
-    const update = () => setState(read(doc));
-    update();
-    const observed = types(doc);
-    for (const t of observed) t.observeDeep(update);
-    return () => {
-      for (const t of observed) t.unobserveDeep(update);
-    };
-    // `types` and `read` are module-level functions, so only `doc` can change.
-  }, [doc]);
-  return state;
-}
-
-const workspaceTypes = (doc: Y.Doc) => [pagesMap(doc)];
-
-export function useTree(doc: Y.Doc): Tree {
-  const pages = useYState(doc, workspaceTypes, readPages);
-  return useMemo(() => buildTree(pages), [pages]);
+/** The tree derived from the page documents on this device, rebuilt when any page's metadata changes. */
+export function useTree(pages: LocalPages): Tree {
+  const metas = useSyncExternalStore(pages.subscribe, pages.getSnapshot);
+  return useMemo(() => buildTree(metas), [metas]);
 }

@@ -3,9 +3,9 @@ import "@blocknote/mantine/style.css";
 import { withCollaboration } from "@blocknote/core/yjs";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
-import { pageDocName, renamePage, type PageMeta } from "@homelab/notes-access-sync-poc-model";
-import type * as Y from "yjs";
-import { useLocalReady, useSyncManager } from "../sync/context";
+import { renamePage, type PageMeta } from "@homelab/notes-access-sync-poc-model";
+import { useLocalReady } from "../sync/context";
+import type { LocalPages } from "../sync/pages";
 import type { DocEntry } from "../sync/SyncManager";
 
 /** How this person shows up in other people's cursors. */
@@ -16,13 +16,13 @@ export interface Identity {
 
 interface Props {
   page: PageMeta;
-  workspace: Y.Doc;
+  pages: LocalPages;
   identity: Identity;
 }
 
-export function PageView({ page, workspace, identity }: Props) {
-  const manager = useSyncManager();
-  const entry = manager.open(pageDocName(page.id));
+export function PageView({ page, pages, identity }: Props) {
+  // The page is in the tree, so its document is open: its title and content live there together.
+  const entry = pages.entry(page.id)!;
   const ready = useLocalReady(entry);
 
   return (
@@ -33,7 +33,7 @@ export function PageView({ page, workspace, identity }: Props) {
           data-testid="page-title"
           placeholder="Untitled"
           value={page.title}
-          onChange={(e) => renamePage(workspace, page.id, e.target.value)}
+          onChange={(e) => renamePage(entry.doc, e.target.value)}
         />
       </div>
       {ready ? <Editor key={entry.name} entry={entry} identity={identity} /> : <p className="muted">Loading…</p>}

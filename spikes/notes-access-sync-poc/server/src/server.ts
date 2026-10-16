@@ -2,8 +2,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
-import { addPerson, documentAccess, type Person, type Role } from "@homelab/notes-access-sync-poc-model";
+import {
+  addPerson, documentAccess, indexDocName, parseDocName, writeIndex, type Person, type Role,
+} from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
+import { PageCatalog } from "./catalog.ts";
 import { serveStatic } from "./static.ts";
 import { Store } from "./store.ts";
 
@@ -13,6 +16,14 @@ const dataDir = path.resolve(process.env.DATA_DIR ?? path.join(here, "../../data
 const webRoot = path.resolve(process.env.WEB_ROOT ?? path.join(here, "../../web/dist"));
 
 const store = new Store(dataDir);
+
+// Every page's metadata, read from storage now and kept current from each page document's changes.
+const catalog = new PageCatalog(store.people());
+for (const name of store.names("page:")) {
+  const ref = parseDocName(name);
+  const state = store.load(name);
+  if (ref?.kind === "page" && state) catalog.loadStored(ref.id, state);
+}
 
 /** What the server keeps about each connection: the person it belongs to. */
 export interface ConnectionContext {
@@ -33,15 +44,26 @@ const server = new Server<ConnectionContext>({
   maxUnauthenticatedQueueSize: 256 * 1024 * 1024,
 
   // Identity is faked: the token is the id of the person the device picked, and the server trusts it.
-  // Hocuspocus calls this for every document a connection opens.
-  async onAuthenticate({ token, documentName }): Promise<ConnectionContext> {
-    const people = store.people();
-    const person = people.find((p) => p.id === token);
-    if (!person || documentAccess({ people }, person.id, documentName) === "none") {
+  // Hocuspocus calls this for every document a connection opens, so access is checked per document
+  // with the access rules, against the catalog's current page tree.
+  async onAuthenticate({ token, documentName, connectionConfig }): Promise<ConnectionContext> {
+    const workspace = catalog.workspace();
+    const person = workspace.people.find((p) => p.id === token);
+    const level = person ? documentAccess(workspace, person.id, documentName, catalog.levels(person.id)) : "none";
+    if (!person || level === "none") {
       // A plain object (no .message) keeps Hocuspocus from logging every refusal.
       throw { reason: "no-access" };
     }
+    // The server refuses every update on a read-only connection (a person's page index, for now).
+    if (level === "view" || level === "comment") connectionConfig.readOnly = true;
     return { person };
+  },
+
+  // Keep the catalog current, and the page indexes with it. Title and content edits don't change
+  // who can open what, so only new pages and moves refresh the indexes.
+  async onChange({ documentName, document }) {
+    const ref = parseDocName(documentName);
+    if (ref?.kind === "page" && catalog.update(ref.id, document)) refreshIndexes();
   },
 
   async onLoadDocument({ documentName, document }) {
@@ -63,6 +85,25 @@ const server = new Server<ConnectionContext>({
     store.close();
   },
 });
+
+let indexWrites: Promise<void> = Promise.resolve();
+
+/**
+ * Rewrites the page index (`index:<personId>`) of everyone whose visible pages changed. Only the
+ * server writes indexes, through a direct connection, so devices following one get the change at
+ * their next sync. Writes are queued so they never overlap.
+ */
+function refreshIndexes(): Promise<void> {
+  indexWrites = indexWrites.then(async () => {
+    for (const { personId, ids } of catalog.staleIndexes()) {
+      const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
+      await connection.transact((doc) => writeIndex(doc, ids));
+      await connection.disconnect();
+      catalog.indexWritten(personId, ids);
+    }
+  }).catch((error) => console.error("refreshing page indexes failed:", error));
+  return indexWrites;
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown): true {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -120,10 +161,14 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
     });
     if (!result.ok) return sendJson(res, people.length && !actor ? 401 : 403, { error: result.reason });
     store.addPerson(result.person);
+    catalog.setPeople(store.people());
+    await refreshIndexes();
     return sendJson(res, 201, result.person);
   }
   return sendJson(res, 404, { error: "Not found" });
 }
 
+// Bring every stored index in line with the catalog (it may have been written by an older rule).
+await refreshIndexes();
 await server.listen();
 console.log(`notes-access-sync-poc listening on http://localhost:${port} (data: ${dataDir})`);

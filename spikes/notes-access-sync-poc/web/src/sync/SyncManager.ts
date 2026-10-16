@@ -110,6 +110,13 @@ export class SyncManager {
     return entry;
   }
 
+  /** Names of the documents this person already has in IndexedDB on this device. */
+  async storedNames(): Promise<string[]> {
+    const prefix = `notes-access:${this.personId}:`;
+    const dbs = (await indexedDB.databases?.()) ?? [];
+    return dbs.flatMap((db) => (db.name?.startsWith(prefix) ? [db.name.slice(prefix.length)] : []));
+  }
+
   get(name: string): DocEntry | undefined {
     return this.entries.get(name);
   }
