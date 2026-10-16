@@ -129,13 +129,15 @@ export class TestServer {
   }
 }
 
-export type OpenResult = { status: "synced"; doc: Y.Doc } | { status: "denied"; reason: string };
+/** How the server answered a request to open a document. `scope` is "read-write" or "readonly". */
+export type OpenResult = { status: "synced"; doc: Y.Doc; scope: string } | { status: "denied"; reason: string };
 
 interface Entry {
   doc: Y.Doc;
   provider: HocuspocusProvider;
   result: Promise<OpenResult>;
   status?: OpenResult["status"];
+  scope?: string;
 }
 
 /**
@@ -166,9 +168,12 @@ export class TestClient {
       name,
       document: doc,
       token: this.person.id,
+      onAuthenticated: ({ scope }) => {
+        entry.scope = scope;
+      },
       onSynced: () => {
         entry.status ??= "synced";
-        settle({ status: "synced", doc });
+        settle({ status: "synced", doc, scope: entry.scope ?? "read-write" });
       },
       onAuthenticationFailed: ({ reason }) => {
         entry.status = "denied";

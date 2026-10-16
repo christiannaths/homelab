@@ -34,6 +34,7 @@ describe("sync boundary", () => {
     expect(new Set(received)).toEqual(new Set([WORKSPACE_DOC, `page:${pageId}`]));
     expect(maxClient.pageTitles()).toEqual(["Shopping list"]);
     expect(maxClient.pageText(pageId)).toBe("Milk");
+    expect(await maxClient.open(`page:${pageId}`)).toMatchObject({ status: "synced", scope: "read-write" });
     expect(await oliveClient.syncAll()).toEqual(received);
   });
 
@@ -47,7 +48,7 @@ describe("sync boundary", () => {
   it("refuses a connection from someone who is not in the workspace", async () => {
     const stranger = await connect(server, { id: "stranger", name: "Stranger", role: "member" });
     const result = await stranger.open(WORKSPACE_DOC);
-    expect(result.status).toBe("denied");
+    expect(result).toEqual({ status: "denied", reason: "no-access" });
     expect(stranger.received()).toEqual([]);
   });
 });

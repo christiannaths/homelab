@@ -38,7 +38,8 @@ const server = new Server<ConnectionContext>({
     const people = store.people();
     const person = people.find((p) => p.id === token);
     if (!person || documentAccess({ people }, person.id, documentName) === "none") {
-      throw new Error("Forbidden");
+      // A plain object (no .message) keeps Hocuspocus from logging every refusal.
+      throw { reason: "no-access" };
     }
     return { person };
   },
