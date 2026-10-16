@@ -52,6 +52,10 @@ export class SyncManager {
       maxDelay: 10_000,
       onStatus: ({ status }) => {
         this.connection = status as ConnectionState;
+        // Whatever was synced before is unconfirmed until each doc re-syncs after
+        // reconnecting (the provider emits onSynced again). Without this, the badge
+        // would say "Synced" right after reconnecting, before anything was exchanged.
+        if (status !== "connected") for (const e of this.entries.values()) e.synced = false;
         this.notify();
       },
     });
