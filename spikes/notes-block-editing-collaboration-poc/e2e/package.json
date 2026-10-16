@@ -1,0 +1,23 @@
+{
+  "name": "@homelab/notes-block-editing-collaboration-poc-e2e",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "notes-block-editing-collaboration-poc-e2e",
+    "tags": [
+      "scope:notes-block-editing-collaboration-poc",
+      "spike",
+      "platform:node"
+    ],
+    "implicitDependencies": [
+      "notes-block-editing-collaboration-poc-web",
+      "notes-block-editing-collaboration-poc-server"
+    ]
+  },
+  "scripts": {
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

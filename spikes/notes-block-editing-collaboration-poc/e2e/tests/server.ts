@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// The Notes app directory (apps/notes).
+// The Notes app directory (spikes/notes-block-editing-collaboration-poc).
 const root = path.resolve(import.meta.dirname, "../..");
 let nextPort = 3200;
 

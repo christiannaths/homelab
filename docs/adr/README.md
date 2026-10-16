@@ -10,6 +10,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 |---|---|---|---|
 | [5](0005-typescript-node-26-npm.md) | The code is TypeScript on Node.js 26, in npm workspaces | none | Accepted |
 | [15](0015-nx-monorepo.md) | The repo is an Nx monorepo of independent apps | 5 | Accepted |
+| [16](0016-spikes-stay-out-of-repo-wide-runs.md) | Spikes live in spikes/ and stay out of repo-wide runs | 15 | Accepted |
 
 ## Format and style
 

@@ -1,15 +1,16 @@
 {
-  "name": "@homelab/notes-server",
+  "name": "@homelab/notes-block-editing-collaboration-poc-server",
   "private": true,
   "type": "module",
   "nx": {
-    "name": "notes-server",
+    "name": "notes-block-editing-collaboration-poc-server",
     "tags": [
-      "scope:notes",
+      "scope:notes-block-editing-collaboration-poc",
+      "spike",
       "platform:node"
     ],
     "implicitDependencies": [
-      "notes-web"
+      "notes-block-editing-collaboration-poc-web"
     ]
   },
   "scripts": {
