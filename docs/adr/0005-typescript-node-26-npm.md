@@ -10,7 +10,7 @@ The client and the server share data-model code and Yjs, and a very small team m
 
 ## Decision
 - **TypeScript** is used for the client, the server and the tests.
-- **Node.js 26** (LTS from 2026-10-28) is the minimum version. It is enforced by `engines` and `devEngines` (so `npm install` fails on older Node), `.nvmrc`, a version check at server startup, and the Docker base image.
+- **Node.js 26** (LTS from 2026-10-28) is the minimum version. It is enforced by `engines` and `devEngines` (so `npm install` fails on older Node), `mise.toml` and `.nvmrc`, a version check at server startup, and the Docker base image.
 - **npm**, the package manager bundled with Node, is used in its default `node_modules` layout. Dependencies' install scripts run only when approved in `allowScripts` (`npm approve-scripts`).
 - **One repo uses npm workspaces**, laid out as described in [ADR 15](0015-nx-monorepo.md).
 - Dependencies that compile native code are avoided in favour of what Node provides, for example `node:sqlite` ([ADR 6](../../apps/notes/docs/adr/0006-sqlite-server-storage.md)).
@@ -25,6 +25,6 @@ The client and the server share data-model code and Yjs, and a very small team m
   - npm won on needing no extra tooling. Node 25 and later no longer bundle Corepack, so any other package manager is an extra install on every machine, in CI and in Docker.
 
 ## Consequences
-- Contributors need Node 26 (`nvm install`).
+- Contributors need Node 26 (`mise install` or `nvm install`).
 - Moving to the next LTS is a deliberate version bump.
 - npm's flat `node_modules` lets code import packages it never declared, and npm's strict `install-strategy=linked` mode is not usable yet (it broke React peer resolution in testing). **Every package a workspace imports must be declared in that workspace's `package.json`, including peer dependencies of tools.** pnpm's strict layout caught exactly that case: `vite-plugin-pwa` imports `workbox-window`, which was undeclared.
