@@ -6,6 +6,9 @@ import {
   addPerson, canShare, documentAccess, indexDocName, parseDocName, refuseUpdate, touchedRoots, writeIndex,
   type Person, type Role,
 } from "@homelab/notes-access-sync-poc-model";
+import {
+  readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
+} from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 import { PageCatalog } from "./catalog.ts";
 import { serveStatic } from "./static.ts";
@@ -24,6 +27,11 @@ for (const name of store.names("page:")) {
   const ref = parseDocName(name);
   const state = store.load(name);
   if (ref?.kind === "page" && state) catalog.loadStored(ref.id, state);
+}
+for (const name of store.names("teamspace:")) {
+  const ref = parseDocName(name);
+  const state = store.load(name);
+  if (ref?.kind === "teamspace" && state) catalog.loadStoredTeamspace(ref.teamspaceId, state);
 }
 
 /** What the server keeps about each connection: the person it belongs to. */
@@ -66,7 +74,10 @@ const server = new Server<ConnectionContext>({
   // they would change. Throwing closes that document's connection with the reason, and the
   // update is not applied. The level is looked up now, not at open, so it follows access changes.
   async beforeSync({ type, payload, document, documentName, connection, context }) {
-    if (type === 0 || connection.readOnly || parseDocName(documentName)?.kind !== "page") return;
+    if (type === 0 || connection.readOnly) return;
+    const ref = parseDocName(documentName);
+    if (ref?.kind === "teamspace") return checkTeamspaceChange(ref.teamspaceId, document, payload, context.person);
+    if (ref?.kind !== "page") return;
     const level = documentAccess(catalog.workspace(), context.person.id, documentName, catalog.levels(context.person.id));
     if (canShare(level)) return;
     const reason = refuseUpdate(level, touchedRoots(document, payload));
@@ -78,6 +89,7 @@ const server = new Server<ConnectionContext>({
   async onChange({ documentName, document }) {
     const ref = parseDocName(documentName);
     if (ref?.kind === "page" && catalog.update(ref.id, document)) refreshIndexes();
+    if (ref?.kind === "teamspace" && catalog.updateTeamspace(ref.teamspaceId, document)) refreshIndexes();
   },
 
   async onLoadDocument({ documentName, document }) {
@@ -115,8 +127,47 @@ function refreshIndexes(): Promise<void> {
       await connection.disconnect();
       catalog.indexWritten(personId, levels);
     }
+    for (const { personId, levels } of catalog.staleTeamspaceIndexes()) {
+      const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
+      await connection.transact((doc) => writeTeamspaceIndex(doc, levels));
+      await connection.disconnect();
+      catalog.teamspaceIndexWritten(personId, levels);
+    }
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;
+}
+
+/**
+ * Adds a new workspace member (not a guest) to every default teamspace, whatever its kind, as an
+ * ordinary member entry they can later leave. The server writes it, like the indexes.
+ */
+async function joinDefaultTeamspaces(person: Person): Promise<void> {
+  if (person.role === "guest") return;
+  for (const teamspace of catalog.workspace().teamspaces ?? []) {
+    if (!teamspace.isDefault) continue;
+    const connection = await server.hocuspocus.openDirectConnection(teamspaceDocName(teamspace.id));
+    await connection.transact((doc) => {
+      setTeamspaceMember(doc, person.id, "member");
+    });
+    catalog.updateTeamspace(teamspace.id, connection.document!);
+    await connection.disconnect();
+  }
+}
+
+/**
+ * Refuses a change to a teamspace document that `person` may not make (`refuseTeamspaceChange`),
+ * comparing the server's copy with what the update would make of it. Throwing closes that
+ * document's connection with the reason, and the update is not applied, as for page updates.
+ */
+function checkTeamspaceChange(id: string, document: Y.Doc, update: Uint8Array, person: Person): void {
+  const before = readTeamspace(id, document);
+  const after = teamspaceAfterUpdate(id, document, update);
+  if (!after) {
+    if (before) throw { reason: "teamspace-change-refused" };
+    return;
+  }
+  const reason = refuseTeamspaceChange(catalog.workspace().people, before, after, person);
+  if (reason) throw { reason };
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): true {
@@ -176,6 +227,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
     if (!result.ok) return sendJson(res, people.length && !actor ? 401 : 403, { error: result.reason });
     store.addPerson(result.person);
     catalog.setPeople(store.people());
+    await joinDefaultTeamspaces(result.person);
     await refreshIndexes();
     return sendJson(res, 201, result.person);
   }
