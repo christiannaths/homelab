@@ -54,6 +54,16 @@ describe("scale seed", () => {
     expect(client.receivedContent()).not.toContain("Engineering");
   });
 
+  it("names an Engineering page that both Olive and Max can edit", async () => {
+    const olive = await connectAs(server, seeded.people.olive);
+    const max = await connectAs(server, seeded.people.max);
+    clients.push(olive, max);
+    await Promise.all([olive.syncAll(), max.syncAll()]);
+    expect(olive.level(seeded.engineeringPageId)).toBe("full");
+    expect(max.level(seeded.engineeringPageId)).toBe("full");
+    expect(max.pages().find((p) => p.id === seeded.engineeringPageId)?.title).toBe("Engineering 1");
+  });
+
   it("drops no connection and refuses nothing while the devices sync", async () => {
     expect(await server.refusals()).toEqual([]);
     expect(server.logs.filter((l) => /closing connection/i.test(l))).toEqual([]);

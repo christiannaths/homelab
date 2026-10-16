@@ -17,6 +17,9 @@ import type { DocEntry, SyncManager } from "./SyncManager";
  * Losing access (#21): when the sync manager deletes a page this person lost, it leaves the tree
  * here too. When the index itself is lost, the person is no longer in the workspace.
  */
+/** The most often the sidebar is rebuilt while pages keep arriving. */
+const PUBLISH_INTERVAL_MS = 100;
+
 export class LocalPages implements PageDocs {
   private readonly indexName: string;
   private readonly metas = new Map<string, PageMeta>();
@@ -27,6 +30,7 @@ export class LocalPages implements PageDocs {
   private snapshot: PageMeta[] = [];
   private levels: ReadonlyMap<string, AccessLevel> = new Map();
   private notifyScheduled = false;
+  private publishedAt = -Infinity;
 
   constructor(
     private readonly manager: SyncManager,
@@ -158,14 +162,25 @@ export class LocalPages implements PageDocs {
     return entry;
   }
 
-  // Batched, so opening hundreds of pages doesn't rebuild the tree hundreds of times.
+  /**
+   * Batched, so opening hundreds of pages doesn't rebuild the tree hundreds of times: a change
+   * after a quiet spell is published at once (next microtask), but during a burst at most every
+   * `PUBLISH_INTERVAL_MS`. Each publish rebuilds the whole tree and re-renders the sidebar, and
+   * at startup the page documents finish loading from IndexedDB one task at a time, so batching
+   * per microtask alone made startup quadratic: a warm reload of 2,000 pages spent most of its
+   * ~20 s rebuilding the sidebar (#22).
+   */
   private changed(): void {
     if (this.notifyScheduled) return;
     this.notifyScheduled = true;
-    queueMicrotask(() => {
+    const publish = () => {
       this.notifyScheduled = false;
+      this.publishedAt = performance.now();
       this.snapshot = [...this.metas.values()];
       for (const l of this.listeners) l();
-    });
+    };
+    const wait = this.publishedAt + PUBLISH_INTERVAL_MS - performance.now();
+    if (wait <= 0) queueMicrotask(publish);
+    else setTimeout(publish, wait);
   }
 }

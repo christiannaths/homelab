@@ -8,7 +8,9 @@ import type { Person } from "@homelab/notes-access-sync-poc-model";
 // person can open. Slow, so opt-in:
 //   SLOW=1 PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium npx nx e2e notes-access-sync-poc-e2e -- access-scale
 // SCALE_REPEATS (default 3) repeats each measurement; SCALE (default 1) shrinks the seeded
-// workspace for a quick dry run; SCALE_RESULTS=<file> also writes the raw results as JSON.
+// workspace for a quick dry run; SCALE_RESULTS=<file> also writes the raw results as JSON;
+// SCALE_SYNC_TIMEOUT (ms, default 10 min) bounds each wait; SCALE_PROFILE=<file> saves a Chromium
+// CPU profile of Olive's first warm reload (open it in DevTools' Performance panel).
 test.skip(!process.env.SLOW, "set SLOW=1 to run");
 test.setTimeout(60 * 60_000);
 
@@ -17,7 +19,7 @@ const FACTOR = Number(process.env.SCALE ?? 1);
 const layout = Object.fromEntries(
   Object.entries(DEFAULT_LAYOUT).map(([k, v]) => [k, Math.max(1, Math.round(v * FACTOR))]),
 ) as unknown as SeedLayout;
-const SYNC_TIMEOUT = 10 * 60_000;
+const SYNC_TIMEOUT = Number(process.env.SCALE_SYNC_TIMEOUT ?? 10 * 60_000);
 
 type Who = "olive" | "max" | "gus";
 
@@ -67,17 +69,45 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
     await devices.gus.context.close();
     const big = ["olive", "max"] as const;
 
+    // Hocuspocus 4.7.1 can leave a device on a dead copy of a document unloaded while the device
+    // opened it (#21): that device stops getting updates without any error. After each phase,
+    // every document must be connected on the server, and a rename must reach both devices.
+    let renames = 0;
+    const expectStillLive = async () => {
+      for (const who of big) await expectEveryDocConnected(server, seeded.people[who], expected[who]);
+      const title = `Live check ${++renames}`;
+      const writer = await connectAs(server, seeded.people.olive);
+      try {
+        await writer.open(`page:${seeded.engineeringPageId}`);
+        await writer.rename(seeded.engineeringPageId, title);
+        await writer.settled();
+      } finally {
+        await writer.close();
+      }
+      for (const who of big) {
+        await expect
+          .poll(() => devices[who].page.evaluate((id) => (window as any).__notesSync.get(`page:${id}`)?.doc.getMap("meta").get("title"), seeded.engineeringPageId), {
+            message: `${who}'s device stopped receiving updates`,
+          })
+          .toBe(title);
+      }
+    };
+    await expectStillLive();
+
     for (const who of big) {
       const d = devices[who];
       for (let i = 0; i < REPEATS; i++) {
         await d.context.setOffline(true);
-        await expect(d.page.getByTestId("sync-badge")).toHaveText(/Offline/);
+        // At once: before the fix in `SyncManager.goOffline`, about 1 switch in 3 left the socket
+        // closing for ~36 s, still "connected".
+        await expect(d.page.getByTestId("sync-badge")).toHaveText(/Offline/, { timeout: 2_000 });
         await d.context.setOffline(false);
         const started = Date.now();
         await d.waitSynced(expected[who]);
         record("reconnect until everything re-synced", who, Date.now() - started);
       }
     }
+    await expectStillLive();
 
     for (let i = 0; i < REPEATS; i++) {
       await server.stop();
@@ -89,19 +119,23 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
       }));
       big.forEach((who, j) => record("server restart until both devices re-synced", who, done[j]));
       record("server restart until both devices re-synced", "both", Math.max(...done));
+      await expectStillLive();
     }
 
     for (const who of big) {
       const d = devices[who];
       for (let i = 0; i < REPEATS; i++) {
+        const cdp = process.env.SCALE_PROFILE && who === "olive" && i === 0 ? await d.context.newCDPSession(d.page) : null;
+        if (cdp) { await cdp.send("Profiler.enable"); await cdp.send("Profiler.start"); }
         await d.page.reload();
         const t = await d.waitSynced(expected[who]);
+        if (cdp) { const { profile } = await cdp.send("Profiler.stop"); writeFileSync(process.env.SCALE_PROFILE!, JSON.stringify(profile)); }
         record("warm reload: everything loaded from IndexedDB (sidebar complete)", who, t.localMs);
         record("warm reload until everything re-synced", who, t.syncedMs);
         expect(d.closes(), "socket closed while reloading").toBe(0);
       }
-      await expectEveryDocConnected(server, seeded.people[who], expected[who]);
     }
+    await expectStillLive();
 
     expect(await server.refusals(), "updates refused").toEqual([]);
     expect(server.logs.filter((l) => /closing connection/i.test(l)), "server dropped connections").toEqual([]);
@@ -171,7 +205,14 @@ async function openDevice(browser: Browser, url: string, person: Person): Promis
             const off = m.subscribe(check);
             const timer = setTimeout(() => {
               off();
-              reject(new Error(`not synced: ${JSON.stringify(m.getSnapshot())}`));
+              const pending = [...m.entries.values()]
+                .filter((e: any) => e.unsyncedChanges > 0 || !e.synced)
+                .slice(0, 5)
+                .map((e: any) => ({
+                  name: e.name, unsynced: e.unsyncedChanges, synced: e.synced,
+                  authenticated: e.provider?.isAuthenticated, title: e.doc.getMap("meta").get("title"),
+                }));
+              reject(new Error(`not synced: ${JSON.stringify(m.getSnapshot())} ${JSON.stringify(pending)}`));
             }, timeout);
             check();
           }),

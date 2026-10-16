@@ -91,7 +91,8 @@ function Editor({ entry, identity, editable }: { entry: DocEntry; identity: Iden
       collaboration: {
         fragment: entry.doc.getXmlFragment("content"),
         user: { ...identity },
-        provider: entry.provider as unknown as { awareness: NonNullable<DocEntry["provider"]["awareness"]> },
+        // The editor only mounts once the local copy has loaded, so the provider exists.
+        provider: entry.provider as unknown as { awareness: NonNullable<NonNullable<DocEntry["provider"]>["awareness"]> },
         showCursorLabels: "always",
       },
     }),

@@ -60,6 +60,8 @@ export interface SeededWorkspace {
   people: { olive: Person; max: Person; gus: Person };
   /** Every page document written, databases and rows included. */
   pageCount: number;
+  /** An Engineering page that Olive and Max can both edit (to check that updates still reach their devices). */
+  engineeringPageId: string;
   /** Every document written (pages, databases' properties, teamspaces). */
   documentCount: number;
 }
@@ -173,12 +175,12 @@ export function seedWorkspace(dataDir: string, layout: SeedLayout = DEFAULT_LAYO
   database("Reading list", olivePrivate, layout.readingRows);
 
   const engineering = teamspaceSection(teamspace("Engineering", "open", [max]));
-  pages("Engineering", engineering, layout.engineering);
+  const [engineeringPageId] = pages("Engineering", engineering, layout.engineering);
   database("Tasks", engineering, layout.tasksRows, (i) => (i < layout.rowsForGus ? [gus, "view"] : null));
   pages("Leadership", teamspaceSection(teamspace("Leadership", "private", [])), layout.leadership);
 
   store.close();
-  return { people: { olive, max, gus }, pageCount, documentCount };
+  return { people: { olive, max, gus }, pageCount, documentCount, engineeringPageId };
 }
 
 /** A heading and 30 paragraphs, shaped the way BlockNote stores them. */

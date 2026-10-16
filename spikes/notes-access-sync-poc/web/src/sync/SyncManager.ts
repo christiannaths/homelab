@@ -18,7 +18,8 @@ export interface LostDocument {
 export interface DocEntry {
   name: string;
   doc: Y.Doc;
-  provider: HocuspocusProvider;
+  /** Syncs the document with the server. Created once the local copy has loaded (`whenLocal`). */
+  provider?: HocuspocusProvider;
   local: IndexeddbPersistence;
   /** Resolves once the local IndexedDB copy has been applied, with no network needed. */
   whenLocal: Promise<void>;
@@ -46,10 +47,15 @@ export interface SyncSnapshot {
  * synced to the server second, all over one shared WebSocket. The UI only ever
  * reads the local Y.Doc, so the app behaves the same online or offline.
  */
+/** The most often listeners (the sync badge) are told about sync progress during a burst. */
+const NOTIFY_INTERVAL_MS = 100;
+
 export class SyncManager {
   readonly socket: HocuspocusProviderWebsocket;
   readonly startedAt = performance.now();
   private entries = new Map<string, DocEntry>();
+  /** Entries thrown away (recovered, lost or wiped), whose provider must not be created any more. */
+  private readonly discarded = new WeakSet<DocEntry>();
   private listeners = new Set<() => void>();
   private resetListeners = new Set<(name: string) => void>();
   private lostListeners = new Set<(lost: LostDocument) => void>();
@@ -61,6 +67,7 @@ export class SyncManager {
   private connection: ConnectionState = "connecting";
   private snapshotCache: SyncSnapshot | null = null;
   private notifyScheduled = false;
+  private notifiedAt = -Infinity;
   private allLocalLoadedMs?: number;
   private allSyncedMs?: number;
 
@@ -86,8 +93,25 @@ export class SyncManager {
     });
     // React to the OS's network state right away. Otherwise a dead socket is only
     // noticed after the provider's message timeout (~30s).
-    addEventListener("offline", () => this.socket.disconnect());
+    addEventListener("offline", () => this.goOffline());
     addEventListener("online", () => this.socket.connect());
+  }
+
+  /**
+   * Closes the socket when the device goes offline. `disconnect()` only asks the WebSocket to
+   * close, and with the network gone its closing handshake can't finish: the socket can sit in
+   * CLOSING for about 30 s, and until its `close` event the provider still says "connected", so
+   * the badge said "Synced" on an offline device (found in #22, 1 offline switch in 3 at 2,000
+   * documents). So the close is finished here: a `close` event on the socket runs the provider's
+   * own close handling (status, every document's provider), and the real one, when it comes, is
+   * ignored because the provider has already let go of that socket.
+   */
+  private goOffline(): void {
+    const ws = this.socket.webSocket;
+    this.socket.disconnect();
+    if (ws && ws.readyState !== WebSocket.CLOSED && this.socket.webSocket === ws) {
+      ws.dispatchEvent(new CloseEvent("close", { code: 1000, reason: "offline" }));
+    }
   }
 
   open(name: string): DocEntry {
@@ -96,7 +120,23 @@ export class SyncManager {
 
     const doc = new Y.Doc();
     const local = new IndexeddbPersistence(this.storeName(name), doc);
-    const provider = new HocuspocusProvider({
+    // The provider is only created once the local copy has loaded. A provider sends every change
+    // it sees on the document as an update, including the stored copy IndexedDB applies when it
+    // finishes loading after the provider has synced. On a document opened read-only (the
+    // person's index, or a page at Can view) the server answers that update "not applied" even
+    // though it adds nothing, so the change stayed pending and the badge said "Syncing" forever
+    // (#22, about 1 warm reload in 5). Loaded first, the stored copy goes in the sync handshake
+    // instead: its state vector tells the server what the device already has, so the server
+    // sends only what is missing rather than every document in full on each start. Edits made
+    // in the meantime are in the document, so the handshake carries them too.
+    const connect = () => {
+      if (this.discarded.has(entry)) return;
+      const provider = createProvider();
+      entry.provider = provider;
+      // Since v2, providers on a shared socket must be attached explicitly.
+      provider.attach();
+    };
+    const createProvider = () => new HocuspocusProvider({
       websocketProvider: this.socket,
       name,
       document: doc,
@@ -129,25 +169,24 @@ export class SyncManager {
     });
     // Edits made on this device (not ones arriving from the server or loaded from IndexedDB).
     doc.on("update", (_update: Uint8Array, origin: unknown) => {
-      if (origin !== provider && origin !== local) this.setUnsynced(name, true);
+      if (origin !== entry.provider && origin !== local) this.setUnsynced(name, true);
     });
 
     const entry: DocEntry = {
       name,
       doc,
-      provider,
       local,
       synced: false,
       unsyncedChanges: 0,
       generation: 0,
-      whenLocal: local.whenSynced.then(() => {
+      // A local copy that can't be read (storage blocked) still syncs from the server.
+      whenLocal: local.whenSynced.catch(() => undefined).then(() => {
         entry.localLoadedAt = performance.now() - this.startedAt;
+        connect();
         this.notify();
       }),
     };
     this.entries.set(name, entry);
-    // Since v2, providers on a shared socket must be attached explicitly.
-    provider.attach();
     this.notify();
     return entry;
   }
@@ -162,8 +201,9 @@ export class SyncManager {
    * the page and was never allowed to make them, so they are not offered back.
    */
   private async recover(entry: DocEntry): Promise<void> {
+    this.discarded.add(entry);
     await entry.local.destroy(); // stop writing to IndexedDB, and close it so it can be deleted
-    entry.provider.destroy();
+    entry.provider?.destroy();
     entry.doc.destroy();
     await clearDocument(this.storeName(entry.name));
     this.entries.delete(entry.name);
@@ -214,7 +254,8 @@ export class SyncManager {
   }
 
   private async discard(entry: DocEntry): Promise<void> {
-    entry.provider.destroy();
+    this.discarded.add(entry);
+    entry.provider?.destroy();
     await entry.local.destroy(); // stop writing to IndexedDB, and close it so it can be deleted
     entry.doc.destroy();
     await clearDocument(this.storeName(entry.name));
@@ -297,15 +338,24 @@ export class SyncManager {
     this.notify();
   }
 
-  // Batch notifications so syncing hundreds of docs doesn't cause hundreds of renders.
+  /**
+   * Batch notifications so syncing hundreds of docs doesn't cause hundreds of renders: at once
+   * after a quiet spell, at most every `NOTIFY_INTERVAL_MS` during a burst. Each one recounts
+   * every document (`getSnapshot`), and documents load and sync one task at a time, so batching
+   * per microtask alone cost O(n²) at startup (#22, as `LocalPages` did).
+   */
   private notify(): void {
     this.snapshotCache = null;
     if (this.notifyScheduled) return;
     this.notifyScheduled = true;
-    queueMicrotask(() => {
+    const run = () => {
       this.notifyScheduled = false;
+      this.notifiedAt = performance.now();
       for (const l of this.listeners) l();
-    });
+    };
+    const wait = this.notifiedAt + NOTIFY_INTERVAL_MS - performance.now();
+    if (wait <= 0) queueMicrotask(run);
+    else setTimeout(run, wait);
   }
 }
 
