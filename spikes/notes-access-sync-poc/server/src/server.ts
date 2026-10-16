@@ -3,8 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canEdit, documentAccess, indexDocName, parseDocName, reviewUpdate, writeIndex,
+  addPerson, canEdit, documentAccess, indexDocName, isRefusal, parseDocName, reviewUpdate, writeIndex,
   type Person, type Refusal, type Role,
+} from "@homelab/notes-access-sync-poc-model";
+import {
+  readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 import { PageCatalog } from "./catalog.ts";
@@ -24,6 +27,11 @@ for (const name of store.names("page:")) {
   const ref = parseDocName(name);
   const state = store.load(name);
   if (ref?.kind === "page" && state) catalog.loadStored(ref.id, state);
+}
+for (const name of store.names("teamspace:")) {
+  const ref = parseDocName(name);
+  const state = store.load(name);
+  if (ref?.kind === "teamspace" && state) catalog.loadStoredTeamspace(ref.teamspaceId, state);
 }
 
 /** Every update refused since the server started, for tests and diagnostics (GET /api/refusals). */
@@ -76,7 +84,10 @@ const server = new Server<ConnectionContext>({
     const person = context.person.id;
     const workspace = catalog.workspace();
     const levels = catalog.levels(person);
-    const reason = reviewUpdate(workspace, person, documentName, document, payload, levels);
+    const ref = parseDocName(documentName);
+    const reason =
+      reviewUpdate(workspace, person, documentName, document, payload, levels) ??
+      (ref?.kind === "teamspace" ? teamspaceRefusal(ref.teamspaceId, document, payload, context.person) : null);
     if (reason) {
       refusals.push({ personId: person, documentName, reason });
       throw { reason };
@@ -92,6 +103,7 @@ const server = new Server<ConnectionContext>({
   async onChange({ documentName, document }) {
     const ref = parseDocName(documentName);
     if (ref?.kind === "page" && catalog.update(ref.id, document)) refreshIndexes();
+    if (ref?.kind === "teamspace" && catalog.updateTeamspace(ref.teamspaceId, document)) refreshIndexes();
   },
 
   async onLoadDocument({ documentName, document }) {
@@ -130,8 +142,44 @@ function refreshIndexes(): Promise<void> {
       catalog.indexWritten(personId, levels);
       closeRevoked(personId);
     }
+    for (const { personId, levels } of catalog.staleTeamspaceIndexes()) {
+      const connection = await server.hocuspocus.openDirectConnection(indexDocName(personId));
+      await connection.transact((doc) => writeTeamspaceIndex(doc, levels));
+      await connection.disconnect();
+      catalog.teamspaceIndexWritten(personId, levels);
+    }
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;
+}
+
+/**
+ * Adds a new workspace member (not a guest) to every default teamspace, whatever its kind, as an
+ * ordinary member entry they can later leave. The server writes it, like the indexes.
+ */
+async function joinDefaultTeamspaces(person: Person): Promise<void> {
+  if (person.role === "guest") return;
+  for (const teamspace of catalog.workspace().teamspaces ?? []) {
+    if (!teamspace.isDefault) continue;
+    const connection = await server.hocuspocus.openDirectConnection(teamspaceDocName(teamspace.id));
+    await connection.transact((doc) => {
+      setTeamspaceMember(doc, person.id, "member");
+    });
+    catalog.updateTeamspace(teamspace.id, connection.document!);
+    await connection.disconnect();
+  }
+}
+
+/**
+ * Refuses a change to a teamspace document that `person` may not make (`refuseTeamspaceChange`),
+ * comparing the server's copy with what the update would make of it. Throwing closes that
+ * document's connection with the reason, and the update is not applied, as for page updates.
+ */
+function teamspaceRefusal(id: string, document: Y.Doc, update: Uint8Array, person: Person): Refusal | null {
+  const before = readTeamspace(id, document);
+  const after = teamspaceAfterUpdate(id, document, update);
+  if (!after) return before ? "teamspace-change-refused" : null;
+  const reason = refuseTeamspaceChange(catalog.workspace().people, before, after, person);
+  return reason === null ? null : isRefusal(reason) ? reason : "teamspace-change-refused";
 }
 
 /**
@@ -212,6 +260,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boo
     if (!result.ok) return sendJson(res, people.length && !actor ? 401 : 403, { error: result.reason });
     store.addPerson(result.person);
     catalog.setPeople(store.people());
+    await joinDefaultTeamspaces(result.person);
     await refreshIndexes();
     return sendJson(res, 201, result.person);
   }

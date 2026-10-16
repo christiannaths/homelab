@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Person } from "@homelab/notes-access-sync-poc-model";
+import { teamspaceSection, type Person } from "@homelab/notes-access-sync-poc-model";
 import { connectAs, indexDocName, pageDocName, privateSection, TestServer, waitFor, type TestClient } from "./index.ts";
 
 // Rejecting edits (#18): the server refuses what a device may not write, and the device gets back
@@ -159,6 +159,19 @@ describe("rejecting edits", () => {
       await expect.poll(() => device.pageTitles()).not.toContain("Planted in Max's Private");
     });
 
+    it("in a teamspace is refused unless the person can edit there", async () => {
+      const workshop = await owner.createTeamspace("Workshop", "closed", { memberLevel: "edit" });
+      const outside = await device.createPage("Not a member", "Hi", null, { section: teamspaceSection(workshop) });
+      await expect.poll(() => device.refusals(pageDocName(outside))).toEqual(["placement-refused"]);
+      await owner.addToTeamspace(workshop, nia.id);
+      await owner.settled();
+      await expect.poll(async () => (await device.syncAll(), device.teamspace(workshop)?.members[nia.id])).toBe("member");
+      const inside = await device.createPage("Tool list", "Saw", null, { section: teamspaceSection(workshop) });
+      await device.settled();
+      await expect.poll(() => owner.syncAll()).toContain(pageDocName(inside));
+      expect(device.refusals(pageDocName(inside))).toEqual([]);
+    });
+
     it("under a page the person can only view is refused", async () => {
       const id = await device.createPage("Dessert", "Cake", menu);
       await expect.poll(() => device.refusals(pageDocName(id))).toEqual(["placement-refused"]);
@@ -241,7 +254,7 @@ describe("rejecting edits", () => {
       const device = await connect(person);
       await device.syncAll();
       const everything = device.receivedContent();
-      for (const trace of ["Hacked", "Written offline", "Planted", "Dessert", "Car hire", "made-up-page"]) {
+      for (const trace of ["Hacked", "Written offline", "Planted", "Dessert", "Car hire", "made-up-page", "Not a member"]) {
         expect(everything).not.toContain(trace);
       }
     }

@@ -13,8 +13,12 @@ import { parseDocName, readMeta } from "./workspace.ts";
  * - "access-change-refused": the update changes the page's access, which needs Full access.
  * - "placement-refused": a new page placed where its creator can't edit, such as someone else's
  *   Private section or under a page they can only view.
+ * - "teamspace-change-refused", "last-owner": a teamspace change the teamspace rules refuse
+ *   (`refuseTeamspaceChange`, #17).
  */
-export const REFUSALS = ["read-only", "access-change-refused", "placement-refused"] as const;
+export const REFUSALS = [
+  "read-only", "access-change-refused", "placement-refused", "teamspace-change-refused", "last-owner",
+] as const;
 
 export type Refusal = (typeof REFUSALS)[number];
 

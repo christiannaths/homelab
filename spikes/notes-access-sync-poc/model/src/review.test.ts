@@ -4,7 +4,7 @@ import type { Workspace } from "./access.ts";
 import type { Person } from "./people.ts";
 import { placementLevel, reviewUpdate } from "./review.ts";
 import type { PageMeta } from "./tree.ts";
-import { metaMap, pageDocName, privateSection, setPersonAccess } from "./workspace.ts";
+import { metaMap, pageDocName, privateSection, setPersonAccess, teamspaceSection } from "./workspace.ts";
 
 const people: Person[] = [
   { id: "max", name: "Max", role: "member" },
@@ -111,5 +111,28 @@ describe("moving a page", () => {
     expect(move("nia", "plan", { parentId: null, section: NIA })).toBeNull();
     // Nia's own page, moved under a page she can edit: Max gains access, which her Full access allows.
     expect(move("nia", "notes", { parentId: "trip" })).toBeNull();
+  });
+
+  it("out of a teamspace into the mover's Private section needs Full access, and into a teamspace needs Can edit there", () => {
+    const team = (memberLevel: "edit" | "full"): Workspace => ({
+      people,
+      teamspaces: [{ id: "home", name: "Home", kind: "closed", isDefault: false, memberLevel, workspaceLevel: "view", members: { max: "owner", nia: "member" } }],
+      pages: [page("chores", { section: teamspaceSection("home") }), page("notes", { section: privateSection("nia") })],
+    });
+    const moveIn = (w: Workspace, id: string, to: Partial<PageMeta>) => {
+      const before = w.pages.find((p) => p.id === id)!;
+      const server = new Y.Doc();
+      Y.applyUpdate(server, newPage(before));
+      const device = new Y.Doc();
+      Y.applyUpdate(device, Y.encodeStateAsUpdate(server));
+      const sv = Y.encodeStateVector(device);
+      device.transact(() => Object.entries(to).forEach(([k, v]) => metaMap(device).set(k, v)));
+      return reviewUpdate(w, "nia", pageDocName(id), server, Y.encodeStateAsUpdate(device, sv));
+    };
+    expect(moveIn(team("edit"), "chores", { section: privateSection("nia") })).toBe("access-change-refused");
+    expect(moveIn(team("full"), "chores", { section: privateSection("nia") })).toBeNull();
+    expect(moveIn(team("edit"), "notes", { section: teamspaceSection("home") })).toBeNull();
+    const outsider: Workspace = { ...team("edit"), teamspaces: [{ ...team("edit").teamspaces![0], members: { max: "owner" } }] };
+    expect(moveIn(outsider, "notes", { section: teamspaceSection("home") })).toBe("placement-refused");
   });
 });
