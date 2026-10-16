@@ -18,4 +18,4 @@ LocalNotion is meant for private, self-hosted instances. Each one serves a handf
 
 ## Consequences
 - Scale targets are hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Designs may rely on that, e.g. by syncing the whole workspace to each device (ADR 2).
-- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts, not on encryption at rest.
+- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts (ADR 14), not on encryption at rest. The one exception meant to be reachable publicly is the published-pages listener (ADR 15).

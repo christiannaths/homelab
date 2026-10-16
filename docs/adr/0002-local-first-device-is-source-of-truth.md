@@ -26,5 +26,5 @@ Full offline support is a core requirement. A "works offline" mode bolted onto a
 
 ## Consequences
 - Storage on each device grows with the whole workspace. That's acceptable at homelab scale (ADR 5).
-- Permissions are enforced when changes sync, not when they're made (see "Not decided yet": accounts and auth).
+- Permissions are enforced when changes sync, not when they're made (ADRs 13, 14 and 16).
 - How docs are held in memory and stored on the device can change (see "Not decided yet"), but the rule that every device holds everything does not.

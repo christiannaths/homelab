@@ -9,7 +9,7 @@ The server only needs to keep each document's latest Yjs state and give it back.
 ## Decision
 - Server data lives in **one SQLite database file** in `DATA_DIR`, accessed through Node's built-in `node:sqlite` in WAL mode.
 - Each document is stored as its merged Yjs state (`documents(name, state BLOB, updated_at)`).
-- The server treats document contents as opaque. Any server-side features that need the contents (search, history) are built alongside, without changing this storage format.
+- The server treats document contents as opaque. Any server-side features that need the contents (search, history, publishing in ADR 15) are built alongside, without changing this storage format.
 - Postgres isn't supported. Adding it would need a new ADR.
 
 ## Evidence

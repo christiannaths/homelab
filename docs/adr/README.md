@@ -15,19 +15,22 @@ Decisions we've **locked in** for LocalNotion, based on the requirements and the
 | [9](0009-crdt-invariants.md) | CRDT rules every feature must follow | Accepted |
 | [10](0010-blocknote-editor.md) | BlockNote is the page editor, using only its MPL-licensed packages | Accepted |
 | [11](0011-pure-model-and-testing.md) | A pure data-model layer, tested at two levels | Accepted |
+| [12](0012-stay-on-yjs-13.md) | Stay on Yjs 13 until the stack supports Yjs 14 | Accepted |
+| [13](0013-workspace-is-the-unit-of-access.md) | The workspace is the unit of access | Accepted |
+| [14](0014-local-password-accounts.md) | Local accounts with passwords | Accepted |
+| [15](0015-public-read-only-publishing.md) | Public, read-only publishing of pages and subpages | Accepted |
+| [16](0016-hocuspocus-sync-server.md) | Keep Hocuspocus as the sync server | Accepted |
 
 ## Not decided yet
 
-These were used in the spikes but are **deliberately not locked in**. Each one has a known problem or hasn't been tested enough. Treat the current implementation as replaceable.
+These are deliberately **not** locked in. The current implementation is replaceable. Each item lists what would settle it and who does the work: **human** means testing on real devices, or a product decision; **AI** means work that can be automated or built in the sandbox.
 
-| Topic | What the spikes used | Why it's still open | What would settle it |
+| Topic | Where it stands | What would settle it | Who |
 |---|---|---|---|
-| Sync server and protocol | Hocuspocus 4, one WebSocket carrying every doc | It authenticates each document separately, and its default limits disconnected workspaces with more than 100 docs (raised as a workaround) | Authenticate once per connection: try it in Hocuspocus, or compare with a small custom Yjs sync server |
-| Device storage | `y-indexeddb`, one IndexedDB database per doc | The main startup bottleneck: opening hundreds of databases is slower than syncing over a LAN | Benchmark one shared IndexedDB store against OPFS SQLite on an iPhone |
-| Docs held in memory | Every doc open at once | Fine for hundreds of docs; unknown for thousands, especially on iOS | Memory and startup measurements on an iPhone with 1,000+ pages |
-| Yjs 14 | Yjs 13 (BlockNote already supports both) | Hocuspocus and y-indexeddb are still on 13 | Ecosystem support, plus a migration test on real data |
-| Accounts and permissions | A random name per device, plus an optional shared token | Not designed yet; offline-first changes how permissions can be enforced | A design for accounts, roles, sharing and how revoked access behaves offline |
-| Phone layout and touch interactions | The sidebar sits above the content; long-press to drag | The iPhone checks for PR #2 haven't been run yet | Results of PR #2's iPhone checklist |
-| Database views beyond the table | Table only; sort plus a quick filter | Board view, saved filters, relations and changing a property's type haven't been built | A spike on the board view and filters |
-| Attachments, search, page history | Not built | Each has open design questions (offline uploads, storage format, history compaction) | Spikes for each |
-| Wrapping as a native app (Tauri, Capacitor) | Not used | Only needed if the PWA hits a limit | A concrete limit found in real use |
+| **The PWA works offline on Apple devices** (would reopen ADR 4) | Loads in Safari on an iPhone. An installed offline start and how long Safari keeps data are unconfirmed | Install on the iPhone and the Mac → Airplane Mode → force-quit → reopen. Then leave it **unopened for 7+ days** and check the data is still there (Diagnostics: persistence flag, storage used) | Human |
+| **Device storage** | `y-indexeddb`, one IndexedDB database per doc; this is the startup bottleneck | Build one shared IndexedDB store and an OPFS SQLite store behind the same interface, with a Diagnostics benchmark. Measure in Chromium, then on an iPhone | AI builds and measures in Chromium; human runs on iPhone |
+| **Keeping every doc in memory** | 2,000 pages use ~307 MB of JS heap in Chromium (ADR 16 test) | Run Diagnostics → 4 × "Create 500 test pages" on an iPhone. Report startup time, and whether iOS reloads or kills the app | Human runs; AI adds an on-demand loading design if it fails |
+| **Phone layout and touch interactions** | The sidebar sits above the content; long-press to drag | PR #2's iPhone checklist (section 7): touch drag-and-drop, scrolling a large table, the native pickers. Then an AI design pass on the phone layout | Human, then AI |
+| **Roles within a workspace** (e.g. read-only members) | Every member can edit | A product decision: do some members need read-only access? | Human (decision) |
+| **More database views, attachments, search, page history** | Not built | A design spike for each | AI |
+| **Wrapping as a native app** (Tauri, Capacitor) | Not used | Only if the Apple-device checks above fail | Depends on the first row |

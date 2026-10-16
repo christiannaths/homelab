@@ -10,7 +10,7 @@ Offline edits from several devices must merge automatically and the same way eve
 - **All synced data is stored in Yjs documents:** page content, the page tree, database schemas, rows, cells and views.
 - No second source of truth sits beside Yjs, such as relational tables that clients sync.
 - The server stores and relays Yjs updates, and never needs a different data format.
-- We're on **Yjs 13**. The move to Yjs 14 is a planned migration, not a change of direction (see "Not decided yet").
+- We're on **Yjs 13** (ADR 12). The move to Yjs 14 is a planned migration, not a change of direction.
 
 ## Why Yjs
 - It has the most mature editor bindings (ProseMirror/Tiptap/BlockNote), and live cursors and presence are built in.
