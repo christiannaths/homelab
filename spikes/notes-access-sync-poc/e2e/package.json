@@ -1,0 +1,26 @@
+{
+  "name": "@homelab/notes-access-sync-poc-e2e",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "notes-access-sync-poc-e2e",
+    "tags": [
+      "scope:notes-access-sync-poc",
+      "spike",
+      "platform:node"
+    ],
+    "implicitDependencies": [
+      "notes-access-sync-poc-web"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "NODE_OPTIONS=--no-experimental-webstorage playwright test"
+  },
+  "devDependencies": {
+    "@homelab/notes-access-sync-poc-server": "*",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
