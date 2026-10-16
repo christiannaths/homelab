@@ -12,7 +12,7 @@ A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: ever
 - **Databases** with text, number, select, checkbox and date properties, a virtualized table view (sort and filter), and rows that open as pages.
 
 ## Run it
-Requires **Node.js 26+** (the server uses the built-in `node:sqlite`). With nvm, run `nvm install` in the repo root (it reads `.nvmrc`).
+Requires **Node.js 26+** (the server uses the built-in `node:sqlite`). With [mise](https://mise.jdx.dev), run `mise install` in the repo root (it reads `mise.toml`); with nvm, run `nvm install` (it reads `.nvmrc`).
 
 ```sh
 npm install
