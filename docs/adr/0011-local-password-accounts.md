@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 1](0001-works-offline.md), [ADR 4](0004-homelab-instance.md), [ADR 5](0005-typescript-node-26-npm.md), [ADR 6](0006-sqlite-server-storage.md)
-- Dependency of: [ADR 12](0012-hocuspocus-sync-server.md)
+- Dependency of: [ADR 12](0012-hocuspocus-sync-server.md), [ADR 13](0013-notion-style-access.md)
 
 ## Context
 Each instance needs to know who is editing. A homelab install ([ADR 4](0004-homelab-instance.md)) should not depend on an external identity provider or proxy, and the app must keep working offline after sign-in ([ADR 1](0001-works-offline.md)).
