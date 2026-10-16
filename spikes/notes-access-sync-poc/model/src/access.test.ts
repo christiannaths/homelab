@@ -184,10 +184,10 @@ describe("sidebar sections with sharing", () => {
 });
 
 describe("documents that are not existing pages", () => {
-  it("let members and owners create a page the server has never seen, but not guests", () => {
+  it("let members and owners create a page the server has never seen; guests open it at Can edit until placed (#19)", () => {
     expect(documentAccess(workspace, "m", pageDocName("brand-new"))).toBe("full");
     expect(documentAccess(workspace, "o", pageDocName("brand-new"))).toBe("full");
-    expect(documentAccess(workspace, "g", pageDocName("brand-new"))).toBe("none");
+    expect(documentAccess(workspace, "g", pageDocName("brand-new"))).toBe("edit");
   });
 
   it("let a person read only their own page index", () => {

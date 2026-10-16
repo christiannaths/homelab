@@ -1,5 +1,5 @@
 import {
-  createPage, flattenVisible, privateSection, sidebarSections,
+  createPage, flattenVisible, privateSection, readTeamspaceIndex, sidebarSections,
   type Person, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import { useExpanded } from "../useExpanded";
@@ -17,7 +17,9 @@ interface Props {
 /** The sidebar, built only from the page documents this device received. */
 export function Sidebar({ pages, tree, currentId, me, onSwitchPerson }: Props) {
   const { isExpanded, setExpanded } = useExpanded();
-  const sections = sidebarSections(tree, me.id);
+  // Teamspaces have no UI here yet, but a page from a teamspace this person can't see (always, for
+  // a guest) was shared with them on its own, so it goes in Shared (#19).
+  const sections = sidebarSections(tree, me.id, new Set(readTeamspaceIndex(pages.index.doc).keys()));
   // Guests have no Private section and create no top-level pages.
   const canCreate = me.role !== "guest";
 

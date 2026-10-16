@@ -58,6 +58,12 @@ A database is split across documents by who may receive each part, because a sin
 - **Cost:** one document per row, plus two per database. A 2,000-row database is 2,002 documents, where the old spike had one document plus a body document only for rows with a body. #22 measures what that does to startup.
 - Kept small: text, number and checkbox properties (a select's options would show every option name to someone given one row), one table view, no web UI for databases yet.
 
+## Guests (#19)
+- **A guest receives only the pages shared with them, and their subpages.** They get no Private section (owning a `private:<guest>` section gives them nothing, `levelOf`), no teamspace documents, never general access ("Everyone in the workspace", including an open teamspace's level for people who haven't joined), and no teamspace ids in their index. A page shared with them out of a teamspace arrives alone: its `section` names the teamspace's id (a random UUID, like a hidden parent's), never its name.
+- **A guest creates pages only as subpages of a page they can edit.** They open a page document the server hasn't seen at Can edit, and #18's placement check (`reviewUpdate`, `placementLevel`) decides on the first update. With no Private section and no teamspaces, the only places that give a guest Can edit are inside pages shared with them, so a top-level page is refused with `placement-refused`, and so is a subpage of a page they can only view or comment on.
+- **A guest with Full access can share the page**, with other guests too. Below Full access their share is refused, as anyone's is.
+- **The sidebar puts a page from a teamspace the device doesn't hold in Shared** (`sidebarSections(tree, me, teamspaceIds)`), so a guest's teamspace page shows up with their other shared pages.
+
 ## Run it
 From the repo root (Node.js 26+):
 ```sh
