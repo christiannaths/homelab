@@ -65,3 +65,5 @@ Instead, there are two ways to share, and which one you use decides how the shar
 3. Can a share expire?
 4. Who can share onward?
 5. Should "everyone except Sam" be a one-click option?
+
+The spec built from these mockups is [`docs/specs/access-and-sharing.md`](../../specs/access-and-sharing.md).
