@@ -297,9 +297,23 @@ export class TestClient {
     return titles;
   }
 
+  /**
+   * This device's sidebar sections. A page from a teamspace the device doesn't hold (a guest's, or
+   * one shared out of a private teamspace) goes in Shared, as in the web app.
+   */
+  private sections(): ReturnType<typeof sidebarSections> {
+    const held = new Set(
+      this.received().flatMap((name) => {
+        const ref = parseDocName(name);
+        return ref?.kind === "teamspace" ? [ref.teamspaceId] : [];
+      }),
+    );
+    return sidebarSections(this.tree(), this.person.id, held);
+  }
+
   /** The top-level titles in each sidebar section. */
   sidebar(): { shared: string[]; private: string[] } {
-    const s = sidebarSections(this.tree(), this.person.id);
+    const s = this.sections();
     return { shared: s.shared.map((n) => n.page.title), private: s.private.map((n) => n.page.title) };
   }
 
@@ -473,7 +487,7 @@ export class TestClient {
 
   /** The top-level page titles of each teamspace this device holds pages of, by teamspace name. */
   teamspaceSidebar(): Record<string, string[]> {
-    const { teamspaces } = sidebarSections(this.tree(), this.person.id);
+    const { teamspaces } = this.sections();
     return Object.fromEntries(
       [...teamspaces].map(([id, nodes]) => [this.teamspace(id)?.name ?? id, nodes.map((n) => n.page.title)]),
     );

@@ -192,7 +192,9 @@ describe("rejecting edits", () => {
       await expect.poll(() => device.refusals(pageDocName(id))).toContain("access-change-refused");
       const guest = await connect(gus);
       expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
-      expect(await guest.open(pageDocName(id))).toEqual({ status: "denied", reason: "no-access" });
+      // The page was never taken in, so to a guest its name is a page they could still create (#19): empty.
+      expect(await guest.open(pageDocName(id))).toMatchObject({ status: "synced" });
+      expect(guest.receivedContent()).not.toContain("Pick up at 9");
     });
   });
 
