@@ -33,4 +33,6 @@ export function atLeast(level: AccessLevel, required: AccessLevel): boolean {
 export interface PageAccess {
   people?: Readonly<Record<string, AccessLevel>>;
   workspace?: AccessLevel;
+  /** In a teamspace: the level its members get here and below, instead of the teamspace's default (#17). */
+  teamspace?: AccessLevel;
 }

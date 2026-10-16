@@ -21,9 +21,13 @@ import {
   readMeta, renamePage, setPersonAccess, setWorkspaceAccess, sidebarSections,
   type AccessLevel, type PageAccess, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
+import {
+  createTeamspace, readTeamspace, readTeamspaceIndex, setTeamspaceAccess, setTeamspaceMember, setTeamspaceSettings, teamspaceDocName,
+  teamspaceSection, type Teamspace, type TeamspaceKind, type TeamspaceRole,
+} from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
-export { indexDocName, pageDocName };
+export { indexDocName, pageDocName, teamspaceDocName };
 
 const serverDir = path.resolve(import.meta.dirname, "..");
 const defaultWebRoot = path.resolve(serverDir, "../web/dist");
@@ -211,7 +215,10 @@ export class TestClient {
   async syncAll(): Promise<string[]> {
     const index = await this.open(indexDocName(this.person.id));
     if (index.status === "synced") {
-      await Promise.all(readIndex(index.doc).map((id) => this.open(pageDocName(id))));
+      await Promise.all([
+        ...readIndex(index.doc).map((id) => this.open(pageDocName(id))),
+        ...[...readTeamspaceIndex(index.doc).keys()].map((id) => this.open(teamspaceDocName(id))),
+      ]);
     }
     return this.received();
   }
@@ -320,6 +327,90 @@ export class TestClient {
   level(pageId: string): AccessLevel | undefined {
     const index = this.doc(indexDocName(this.person.id));
     return index && readIndexLevels(index).get(pageId);
+  }
+
+  /** Creates a teamspace owned by this person, waits for the server to accept it, and returns its id. */
+  async createTeamspace(
+    name: string,
+    kind: TeamspaceKind,
+    opts: { memberLevel?: AccessLevel; workspaceLevel?: AccessLevel; isDefault?: boolean } = {},
+  ): Promise<string> {
+    const id = crypto.randomUUID();
+    createTeamspace(this.entry(teamspaceDocName(id)).doc, { name, kind, owner: this.person.id, ...opts });
+    const result = await this.open(teamspaceDocName(id));
+    if (result.status !== "synced") throw new Error(`teamspace denied: ${result.reason}`);
+    await this.settled();
+    return id;
+  }
+
+  /** Creates a top-level page in a teamspace (opening the teamspace first if needed) and returns its id. */
+  async createTeamspacePage(teamspaceId: string, title: string, body = ""): Promise<string> {
+    const docs: PageDocs = {
+      get: (id) => this.doc(pageDocName(id)),
+      create: (id) => this.entry(pageDocName(id)).doc,
+    };
+    const id = createPage(docs, this.tree(), { title, section: teamspaceSection(teamspaceId) });
+    const page = await this.open(pageDocName(id));
+    if (page.status !== "synced") throw new Error(`page denied: ${page.reason}`);
+    if (body) writeParagraph(page.doc, body);
+    return id;
+  }
+
+  /** Adds someone to a teamspace (or changes their role; null removes them). The server decides whether it sticks. */
+  async addToTeamspace(teamspaceId: string, personId: string, role: TeamspaceRole | null = "member"): Promise<void> {
+    const result = await this.open(teamspaceDocName(teamspaceId));
+    if (result.status !== "synced") throw new Error(`teamspace denied: ${result.reason}`);
+    setTeamspaceMember(result.doc, personId, role);
+  }
+
+  /** Joins a teamspace this device has received. */
+  join(teamspaceId: string): Promise<void> {
+    return this.addToTeamspace(teamspaceId, this.person.id, "member");
+  }
+
+  /** Leaves a teamspace. */
+  leave(teamspaceId: string): Promise<void> {
+    return this.addToTeamspace(teamspaceId, this.person.id, null);
+  }
+
+  /** Changes a received teamspace's settings. */
+  async setTeamspace(teamspaceId: string, changes: Parameters<typeof setTeamspaceSettings>[1]): Promise<void> {
+    setTeamspaceSettings(this.receivedTeamspace(teamspaceId), changes);
+  }
+
+  /** In a teamspace, overrides the level its members get on a received page and below (null: the teamspace's default). */
+  async shareWithTeamspace(pageId: string, level: AccessLevel | null): Promise<void> {
+    setTeamspaceAccess(this.receivedPage(pageId), level);
+  }
+
+  /** A received teamspace, as this device holds it. */
+  teamspace(teamspaceId: string): Teamspace | null {
+    const doc = this.doc(teamspaceDocName(teamspaceId));
+    return doc ? readTeamspace(teamspaceId, doc) : null;
+  }
+
+  /** The names of the received teamspaces, sorted. */
+  teamspaceNames(): string[] {
+    return this.received()
+      .flatMap((name) => {
+        const ref = parseDocName(name);
+        return ref?.kind === "teamspace" ? (this.teamspace(ref.teamspaceId)?.name ?? []) : [];
+      })
+      .sort();
+  }
+
+  /** The top-level page titles of each teamspace this device holds pages of, by teamspace name. */
+  teamspaceSidebar(): Record<string, string[]> {
+    const { teamspaces } = sidebarSections(this.tree(), this.person.id);
+    return Object.fromEntries(
+      [...teamspaces].map(([id, nodes]) => [this.teamspace(id)?.name ?? id, nodes.map((n) => n.page.title)]),
+    );
+  }
+
+  private receivedTeamspace(teamspaceId: string): Y.Doc {
+    const doc = this.doc(teamspaceDocName(teamspaceId));
+    if (!doc) throw new Error(`teamspace ${teamspaceId} was not received`);
+    return doc;
   }
 
   /** Why the server closed a document's connection, or undefined. */
