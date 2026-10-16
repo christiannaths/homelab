@@ -1,7 +1,5 @@
 # AGENTS.md
 
-Node 26 is pinned in `.nvmrc` and `mise.toml`. Cloud sessions get it from the SessionStart hook (`.claude/hooks/session-start.sh`, via nvm); locally, run `mise install` or `nvm install`.
-
 ## Agent skills
 
 Matt Pocock's skills (`mattpocock/skills`) are installed in `.agents/skills/` (read by Codex) and symlinked into `.claude/skills/` (read by Claude Code). Update with `npx skills@latest update`; versions are pinned in `skills-lock.json`.
