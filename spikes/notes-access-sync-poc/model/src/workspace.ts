@@ -19,14 +19,23 @@ export const indexDocName = (personId: string) => `index:${personId}`;
 /** One document per teamspace (#17): its name, kind, default levels and members. See `teamspaces.ts`. */
 export const teamspaceDocName = (id: string) => `teamspace:${id}`;
 
+/**
+ * One document per database (#20) holding its properties (names, types, order): what showing any
+ * of its rows needs, and nothing else, so it also reaches people given a single row. The
+ * database's views live in its page document, each row in a page document of its own. See `database.ts`.
+ */
+export const schemaDocName = (databaseId: string) => `schema:${databaseId}`;
+
 export type DocRef =
   | { kind: "page"; id: string }
+  | { kind: "schema"; databaseId: string }
   | { kind: "index"; personId: string }
   | { kind: "teamspace"; teamspaceId: string };
 
 export function parseDocName(name: string): DocRef | null {
-  const [, kind, rest] = name.match(/^(page|index|teamspace):(.+)$/) ?? [];
+  const [, kind, rest] = name.match(/^(page|index|teamspace|schema):(.+)$/) ?? [];
   if (kind === "page") return { kind, id: rest };
+  if (kind === "schema") return { kind, databaseId: rest };
   if (kind === "index") return { kind, personId: rest };
   if (kind === "teamspace") return { kind, teamspaceId: rest };
   return null;

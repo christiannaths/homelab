@@ -1,7 +1,7 @@
 import { atLeast, mostPermissive, type AccessLevel, type PageAccess } from "./levels.ts";
 import type { Person } from "./people.ts";
 import type { Teamspace } from "./teamspaces.ts";
-import { resolveParents, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
+import { resolveParents, type PageKind, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
 import { parseDocName, parseSection, privateSection } from "./workspace.ts";
 
 export type { AccessLevel, PageAccess } from "./levels.ts";
@@ -160,15 +160,26 @@ export const canEdit = (level: AccessLevel): boolean => atLeast(level, "edit");
  * whole update when this returns a reason.
  * - Below Can edit, any change is refused ("read-only").
  * - Below Full access, a change to `access` is refused ("access-change-refused").
- * The server applies it to every update through `reviewUpdate` (review.ts). Can edit content
- * (databases) will need paths below the top level.
+ * - Can edit content (#20) is Can edit on a database's rows (their title, cells, body and order),
+ *   and nothing on the database itself: its page (title, place, views, body) and its properties
+ *   (`schema`) are its structure ("structure-refused"). On an ordinary page it is read-only.
+ * The server applies it to every update through `reviewUpdate` (review.ts). `kind` is the kind of
+ * page the document is, or "schema" for a database's properties document.
  */
-export function refuseUpdate(level: AccessLevel, touched: ReadonlySet<string>): string | null {
+export function refuseUpdate(
+  level: AccessLevel,
+  touched: ReadonlySet<string>,
+  kind: PageKind | "schema" = "page",
+): string | null {
   if (touched.size === 0) return null;
-  if (!canEdit(level)) return "read-only";
-  if (touched.has("access") && !canShare(level)) return "access-change-refused";
-  return null;
+  if (canEdit(level)) return touched.has("access") && !canShare(level) ? "access-change-refused" : null;
+  if (level !== "edit-content" || kind === "page") return "read-only";
+  if (touched.has("access")) return "access-change-refused";
+  return kind === "row" ? null : "structure-refused";
 }
+
+/** Can edit content and above may add a row to a database (#20). */
+export const canEditContent = (level: AccessLevel): boolean => atLeast(level, "edit-content");
 
 /** A person's sidebar sections, each a list of top-level tree nodes in order. Teamspaces come later. */
 export interface SidebarSections {
@@ -244,6 +255,28 @@ export function visibleTeamspaces(workspace: Workspace, personId: string): Map<s
 }
 
 /**
+ * The level `person` has on a database's properties document (`schema:<databaseId>`, #20): their
+ * level on the database page, or Can view if they can only open some of its rows (showing a row
+ * needs the property names and types). Who may *change* the properties is `refuseUpdate`'s to say:
+ * Can edit content may not. A database the server has never seen is one being created, like a page.
+ */
+export function schemaAccess(
+  workspace: Workspace,
+  person: Person,
+  databaseId: string,
+  levels?: ReadonlyMap<string, AccessLevel>,
+): AccessLevel {
+  const database = workspace.pages.find((p) => p.id === databaseId);
+  if (!database) return person.role === "guest" ? "none" : "full";
+  if (database.kind !== "database") return "none";
+  const mine = levels ?? pageLevels(workspace, person.id);
+  const level = mine.get(databaseId);
+  if (level) return level;
+  const isRow = (p: PageMeta) => p.kind === "row" && p.parentId === databaseId && mine.has(p.id);
+  return workspace.pages.some(isRow) ? "view" : "none";
+}
+
+/**
  * The level `personId` has on the Yjs document named `documentName`. Pass `levels` (from
  * `pageLevels`) to avoid recomputing the tree for every document a device opens.
  */
@@ -258,6 +291,7 @@ export function documentAccess(
   if (!person || !doc) return "none";
   if (doc.kind === "index") return doc.personId === personId ? "view" : "none";
   if (doc.kind === "teamspace") return teamspaceAccess(workspace, person, doc.teamspaceId);
+  if (doc.kind === "schema") return schemaAccess(workspace, person, doc.databaseId, levels);
   if (workspace.pages.some((p) => p.id === doc.id)) {
     return (levels ?? pageLevels(workspace, personId)).get(doc.id) ?? "none";
   }

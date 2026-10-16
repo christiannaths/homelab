@@ -1,7 +1,11 @@
 import type { PageAccess } from "./levels.ts";
 import { compareOrder } from "./order.ts";
 
-export type PageKind = "page" | "database";
+/**
+ * A "row" is a database row (#20): a page of its own whose parent is its database. It inherits the
+ * database's access like any subpage, but it isn't a sidebar page: it is shown inside its database.
+ */
+export type PageKind = "page" | "database" | "row";
 
 export interface PageMeta {
   id: string;
@@ -49,14 +53,15 @@ export function comparePages(a: PageMeta, b: PageMeta): number {
 /**
  * Resolves each page's effective parent. Every client runs this on the same
  * data and gets the same answer, so no client needs to write a repair:
- * - a parent that doesn't exist, or is a database, becomes the root
+ * - a parent that doesn't exist becomes the root, and so does a database, except for its rows
  * - a cycle (from two concurrent moves) is broken at its smallest id, which becomes a root
  */
 export function resolveParents(pages: ReadonlyMap<string, PageMeta>): Map<string, string | null> {
   const parent = new Map<string, string | null>();
   for (const p of pages.values()) {
     const target = p.parentId ? pages.get(p.parentId) : undefined;
-    parent.set(p.id, target && target.kind !== "database" && target.id !== p.id ? target.id : null);
+    const allowed = target && target.id !== p.id && (target.kind !== "database" || p.kind === "row");
+    parent.set(p.id, allowed ? target.id : null);
   }
 
   const acyclic = new Set<string>();
@@ -137,13 +142,16 @@ export function isInSubtree(tree: Tree, id: string, ancestorId: string): boolean
   return false;
 }
 
-/** Depth-first list of nodes, skipping the children of collapsed nodes: the sidebar's rows. */
+/**
+ * Depth-first list of nodes, skipping the children of collapsed nodes: the sidebar's lines. A
+ * database's children are its rows, which the database shows itself, so they are never listed.
+ */
 export function flattenVisible(tree: Pick<Tree, "roots">, expanded: (id: string) => boolean): TreeNode[] {
   const out: TreeNode[] = [];
   const walk = (nodes: TreeNode[]) => {
     for (const n of nodes) {
       out.push(n);
-      if (n.children.length && expanded(n.page.id)) walk(n.children);
+      if (n.children.length && n.page.kind !== "database" && expanded(n.page.id)) walk(n.children);
     }
   };
   walk(tree.roots);
