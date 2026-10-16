@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 6](0006-sqlite-server-storage.md), [ADR 10](0010-pure-model-and-tests.md), [ADR 12](0012-local-password-accounts.md)
+- Dependency of: [ADR 6](0006-sqlite-server-storage.md), [ADR 9](0009-pure-model-and-tests.md), [ADR 11](0011-local-password-accounts.md)
 
 ## Context
 The client and the server share data-model code and Yjs, and a very small team maintains the project.

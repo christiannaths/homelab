@@ -1,12 +1,12 @@
-# 11. Yjs stays on version 13 until the whole stack supports 14
+# 10. Yjs stays on version 13 until the whole stack supports 14
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 9](0009-blocknote-and-mantine.md), [ADR 10](0010-pure-model-and-tests.md), [ADR 13](0013-hocuspocus-sync-server.md)
+- Depends on: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 8](0008-blocknote-and-mantine.md), [ADR 9](0009-pure-model-and-tests.md), [ADR 12](0012-hocuspocus-sync-server.md)
 - Dependency of: none
 
 ## Context
-Yjs 14 is in release candidates. BlockNote ([ADR 9](0009-blocknote-and-mantine.md)) already ships entry points for both versions (`@blocknote/core/yjs` for 13, `@blocknote/core/y` for 14), but Hocuspocus ([ADR 13](0013-hocuspocus-sync-server.md)) and `y-indexeddb` are still on 13. Mixing major versions would split the shared types between two runtimes.
+Yjs 14 is in release candidates. BlockNote ([ADR 8](0008-blocknote-and-mantine.md)) already ships entry points for both versions (`@blocknote/core/yjs` for 13, `@blocknote/core/y` for 14), but Hocuspocus ([ADR 12](0012-hocuspocus-sync-server.md)) and `y-indexeddb` are still on 13. Mixing major versions would split the shared types between two runtimes.
 
 ## Decision
 - **Yjs 13** is used across the client, the server and the tests.
@@ -18,4 +18,4 @@ Yjs 14 is in release candidates. BlockNote ([ADR 9](0009-blocknote-and-mantine.m
 
 ## Consequences
 - Yjs dependency upgrades stay within 13.x.
-- New code keeps Yjs use behind the model and sync modules ([ADR 10](0010-pure-model-and-tests.md)), so the eventual migration stays contained.
+- New code keeps Yjs use behind the model and sync modules ([ADR 9](0009-pure-model-and-tests.md)), so the eventual migration stays contained.

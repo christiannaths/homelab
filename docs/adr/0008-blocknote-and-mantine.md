@@ -1,15 +1,15 @@
-# 9. BlockNote is the page editor, and Mantine is the UI library
+# 8. BlockNote is the page editor, and Mantine is the UI library
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 7](0007-document-split.md)
-- Dependency of: [ADR 11](0011-yjs-13-until-stack-supports-14.md)
+- Depends on: [ADR 2](0002-yjs-stores-shared-data.md)
+- Dependency of: [ADR 10](0010-yjs-13-until-stack-supports-14.md)
 
 ## Context
 A Notion-style block editor with live collaboration on Yjs ([ADR 2](0002-yjs-stores-shared-data.md)) is the largest single UI component, and building one from scratch is not worthwhile. BlockNote draws its menus and toolbars through one of three interchangeable UI packages: `@blocknote/mantine`, `@blocknote/shadcn` or `@blocknote/ariakit`. All three provide the same editor components, because `@blocknote/react` defines one component interface that each implements, so choosing between them is really choosing the UI library for the whole app. The goal is mostly default styles, adjusted at a high level: semantic colours, border radius, depth (shadows) and font, in light and dark.
 
 ## Decision
-- **BlockNote edits page bodies** (`@blocknote/core`, `@blocknote/react`; MPL-2.0). It is bound to the page doc's `content` fragment ([ADR 7](0007-document-split.md)) through `@blocknote/core/yjs`.
+- **BlockNote edits page bodies** (`@blocknote/core`, `@blocknote/react`; MPL-2.0). It is bound to a Yjs XML fragment that holds the page body, through `@blocknote/core/yjs`.
 - **BlockNote's "XL" packages are not used** (GPL-3.0 or commercial; for example PDF or DOCX export, or AI). Features like those need another implementation.
 - **Mantine is the UI library for the whole client:** the editor's menus (`@blocknote/mantine`) and the app's own UI (`@mantine/core`, `@mantine/hooks`, plus Mantine add-on packages such as `dates`, `spotlight`, `notifications` and `modals` as features need them). No second component library is added.
 - **One set of design tokens styles both.** The app defines semantic tokens once (colours, radius, elevation and font, for light and dark). Those tokens feed Mantine's theme and BlockNote's `--bn-*` variables, so the editor and the app always match.

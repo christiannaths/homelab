@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 4](0004-homelab-instance.md), [ADR 5](0005-typescript-node-26-npm.md)
-- Dependency of: [ADR 12](0012-local-password-accounts.md), [ADR 13](0013-hocuspocus-sync-server.md)
+- Dependency of: [ADR 11](0011-local-password-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md)
 
 ## Context
 The server only needs to keep each document's latest Yjs state and return it. At homelab scale ([ADR 4](0004-homelab-instance.md)), easy backup and zero operations matter more than horizontal scaling.

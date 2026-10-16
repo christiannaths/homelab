@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 1](0001-works-offline.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 7](0007-document-split.md), [ADR 12](0012-local-password-accounts.md)
+- Dependency of: [ADR 1](0001-works-offline.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md)
 
 ## Context
 LocalNotion is meant for private, self-hosted instances. Each instance serves a handful of people who trust each other and the server.
@@ -20,4 +20,4 @@ LocalNotion is meant for private, self-hosted instances. Each instance serves a 
 
 ## Consequences
 - The scale target is hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Other decisions rely on that, for example syncing the whole workspace to each device ([ADR 1](0001-works-offline.md)).
-- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 12](0012-local-password-accounts.md)), not on encryption at rest.
+- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 11](0011-local-password-accounts.md)), not on encryption at rest.
