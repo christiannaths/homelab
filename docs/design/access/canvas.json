@@ -22,16 +22,20 @@
     "ShareSpace.dc.html": {"x": 1200, "y": 5700, "w": 1120, "h": 720, "title": "6b · Share space: pick people, pages and the rule for new pages"},
     "SharePage.dc.html": {"x": 2400, "y": 5700, "w": 1120, "h": 720, "title": "6c · Share page: just this page and its subpages"},
     "RecipientView.dc.html": {"x": 3600, "y": 5700, "w": 1120, "h": 720, "title": "6d · Sam's sidebar: a shared space and a shared page"},
-    "NewPagePrompt.dc.html": {"x": 4800, "y": 5700, "w": 1120, "h": 720, "title": "6e · A new page in a partly shared space"}
+    "NewPagePrompt.dc.html": {"x": 4800, "y": 5700, "w": 1120, "h": 720, "title": "6e · A new page in a partly shared space"},
+    "TreeInstance.dc.html": {"x": 0, "y": 6840, "w": 1120, "h": 720, "title": "7a · One share dialog: the instance selected (new account + summary)"},
+    "TreeSpace.dc.html": {"x": 1200, "y": 6840, "w": 1120, "h": 720, "title": "7b · A space selected: role, pages, new-page rule"},
+    "TreePage.dc.html": {"x": 2400, "y": 6840, "w": 1120, "h": 720, "title": "7c · A page selected: overrides for just this page"}
   },
-  "order": ["Main.dc.html", "SpaceCreate.dc.html", "ShareDialog.dc.html", "SamView.dc.html", "MoveConfirm.dc.html", "LinkWarning.dc.html", "RemoveMember.dc.html", "SlackSidebar.dc.html", "BrowseSpaces.dc.html", "DirectSpace.dc.html", "GuestView.dc.html", "PartialSpace.dc.html", "ShareContext.dc.html", "InvitePerson.dc.html", "ShareSpace.dc.html", "SharePage.dc.html", "RecipientView.dc.html", "NewPagePrompt.dc.html"],
+  "order": ["Main.dc.html", "SpaceCreate.dc.html", "ShareDialog.dc.html", "SamView.dc.html", "MoveConfirm.dc.html", "LinkWarning.dc.html", "RemoveMember.dc.html", "SlackSidebar.dc.html", "BrowseSpaces.dc.html", "DirectSpace.dc.html", "GuestView.dc.html", "PartialSpace.dc.html", "ShareContext.dc.html", "InvitePerson.dc.html", "ShareSpace.dc.html", "SharePage.dc.html", "RecipientView.dc.html", "NewPagePrompt.dc.html", "TreeInstance.dc.html", "TreeSpace.dc.html", "TreePage.dc.html"],
   "notes": {
     "t1": {"x": 0, "y": -300, "text": "1 · Spaces: sidebar sections, each with its own members", "kind": "title1", "maxW": 2320},
     "t2": {"x": 0, "y": 840, "text": "2 · Sharing one page from a space with someone outside it", "kind": "title1", "maxW": 2320},
     "t3": {"x": 0, "y": 1980, "text": "3 · The moments that need care", "kind": "title1", "maxW": 3520},
     "t4": {"x": 0, "y": 3120, "text": "4 · Slack-style: open and private spaces you join, direct spaces, guests", "kind": "title1", "maxW": 4720},
     "t5": {"x": 0, "y": 4260, "text": "5 · Shared pages keep their space: partial spaces instead of “Shared with me”", "kind": "title1", "maxW": 2320},
-    "t6": {"x": 0, "y": 5400, "text": "6 · Two ways to share: a space (with chosen pages) or a single page. No automatic “everyone” space.", "kind": "title1", "maxW": 5920}
+    "t6": {"x": 0, "y": 5400, "text": "6 · Two ways to share: a space (with chosen pages) or a single page. No automatic “everyone” space.", "kind": "title1", "maxW": 5920},
+    "t7": {"x": 0, "y": 6540, "text": "7 · One share dialog: instance, spaces and pages in one checkbox tree, details on the right", "kind": "title1", "maxW": 3520}
   },
   "designSystems": []
 }

@@ -58,6 +58,16 @@ Instead, there are two ways to share, and which one you use decides how the shar
 | 6d | `RecipientView.dc.html` | Sam's sidebar: Household (a member), Party for Sam ("3 of 6 pages"), and "Pages shared with you", each marked with who shared it. |
 | 6e | `NewPagePrompt.dc.html` | With "Ask whoever creates it", a new page shows a "Should Sam see this?" bar and stays hidden until answered. Members see a crossed-out eye on hidden pages. |
 
+## Alternative: one share dialog with a single tree
+
+Instead of separate screens for the instance, a space and a page, there is one Share dialog everywhere. It shows the instance, its spaces and their pages as a checkbox tree: ticked, partly ticked, or not ticked. A context panel shows the details of the selected row.
+
+| Screen | File | Shows |
+|---|---|---|
+| 7a | `TreeInstance.dc.html` | Instance selected: account fields for a new person, a default role, and a summary of everything they will get. |
+| 7b | `TreeSpace.dc.html` | Space selected: role, the "N of 6" page count, the new-page rule, and a preview of how the space looks in the recipient's sidebar. |
+| 7c | `TreePage.dc.html` | Page selected: a role override for just this page, who else sees it, and an optional "show on its own" switch. Private pages always show on their own. |
+
 ## Open questions raised
 
 1. Is per-page Share needed, or are spaces enough?
