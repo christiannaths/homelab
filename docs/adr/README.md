@@ -10,7 +10,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [2](0002-yjs-for-all-shared-data.md) | Yjs is the CRDT for all shared data | Accepted |
 | [3](0003-pwa-for-ios-and-macos.md) | The client is a PWA, installed on macOS and iOS | Accepted |
 | [4](0004-self-hosted-homelab-deployment.md) | Self-hosted homelab deployment for a handful of trusted users | Accepted |
-| [5](0005-typescript-on-node-26.md) | TypeScript everywhere, on Node.js 26, in one npm-workspaces repo | Accepted |
+| [5](0005-typescript-on-node-26.md) | TypeScript everywhere, on Node.js 26, with npm, in one workspaces repo | Accepted |
 | [6](0006-sqlite-server-storage.md) | The server stores Yjs document state in SQLite | Accepted |
 | [7](0007-document-granularity.md) | How data is split across Yjs documents | Accepted |
 | [8](0008-crdt-invariants.md) | CRDT rules every feature must follow | Accepted |
