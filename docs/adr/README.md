@@ -14,7 +14,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [6](0006-sqlite-server-storage.md) | The server stores Yjs document state in SQLite | Accepted |
 | [7](0007-document-granularity.md) | How data is split across Yjs documents | Accepted |
 | [8](0008-crdt-invariants.md) | CRDT rules every feature must follow | Accepted |
-| [9](0009-blocknote-editor.md) | BlockNote is the page editor, using only its MPL-licensed packages | Accepted |
+| [9](0009-blocknote-editor.md) | BlockNote is the page editor, and Mantine is the UI library | Accepted |
 | [10](0010-pure-model-and-testing.md) | A pure data-model layer, tested at two levels | Accepted |
 | [11](0011-stay-on-yjs-13.md) | Stay on Yjs 13 until the stack supports Yjs 14 | Accepted |
 | [12](0012-workspace-is-the-unit-of-access.md) | The workspace is the unit of access | Accepted |
