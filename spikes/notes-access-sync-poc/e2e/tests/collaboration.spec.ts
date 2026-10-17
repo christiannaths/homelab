@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { TestServer } from "@homelab/notes-access-sync-poc-server/testing";
 import {
   createPage, editor, editorText, openAs, pickPerson, section, sharePage, waitForServiceWorker, waitForSynced,
@@ -97,4 +97,49 @@ test("an offline edit merges with another person's live edit after reconnecting"
   for (const p of [alice, bob]) {
     await expect.poll(() => editorText(p)).toBe("Bob: Packed passport. Bought adapters offline.");
   }
+});
+
+test("two people with Can edit both edit a shared page offline, and both edits merge after reconnecting", async ({ browser }) => {
+  const owner = await server.addPerson("Alice");
+  await server.addPerson("Bob", "member", owner);
+  await server.addPerson("Carol", "member", owner);
+  const alice = await openAs(browser, server.url, "Alice");
+  const route = await createPage(alice, "Trip notes", "Packed passport.");
+  await sharePage(alice, "Bob", "Can edit");
+  await sharePage(alice, "Carol", "Can edit");
+  await waitForSynced(alice);
+
+  // Bob and Carol each open the page online once, then go offline and reopen the app.
+  const devices: Page[] = [];
+  for (const name of ["Bob", "Carol"]) {
+    const device = await openAs(browser, server.url, name);
+    await waitForServiceWorker(device);
+    await device.goto(`${server.url}/${route}`);
+    await expect(editor(device)).toContainText("Packed passport.");
+    await waitForSynced(device);
+    await device.context().setOffline(true);
+    await device.reload();
+    await expect(device.getByTestId("sync-badge")).toHaveText(/Offline/);
+    await expect(device.getByTestId("page")).toHaveAttribute("data-level", "edit");
+    await expect(editor(device)).toContainText("Packed passport.");
+    devices.push(device);
+  }
+  const [bob, carol] = devices;
+
+  // Both edit the same paragraph while offline: Bob at its start, Carol at its end.
+  await bob.locator(".bn-inline-content").first().click({ position: { x: 1, y: 8 } });
+  await bob.keyboard.type("Bob: ");
+  await expect.poll(() => editorText(bob)).toBe("Bob: Packed passport.");
+  await editor(carol).click();
+  await carol.keyboard.press("ControlOrMeta+End");
+  await carol.keyboard.type(" Carol bought adapters.");
+  await expect.poll(() => editorText(carol)).toBe("Packed passport. Carol bought adapters.");
+
+  for (const device of [bob, carol]) await device.context().setOffline(false);
+  for (const device of [bob, carol]) await waitForSynced(device);
+  for (const device of [alice, bob, carol]) {
+    await expect.poll(() => editorText(device)).toBe("Bob: Packed passport. Carol bought adapters.");
+  }
+  // Neither edit was refused: Can edit may change the page's content.
+  expect(await server.refusals()).toEqual([]);
 });

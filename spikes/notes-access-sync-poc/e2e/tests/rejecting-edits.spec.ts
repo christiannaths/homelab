@@ -79,6 +79,7 @@ test("a forged edit from a Can view device is refused, and the device drops it f
   await expect(bob.getByTestId("sync-badge")).toHaveText(/Offline/);
   await expect(bob.getByTestId("page-title")).toHaveValue("House manual");
   await expect.poll(() => editorText(bob)).toBe("Bins go out on Tuesday and Friday");
+  await expectReadOnly(bob, "view");
 
   // Back online, the forged edit is not sent again.
   await bob.context().setOffline(false);
