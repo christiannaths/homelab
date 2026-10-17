@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { pageLevels, readOnlyAt, refuseUpdate, type AccessLevel, type Workspace } from "./access.ts";
 import type { Person } from "./people.ts";
-import { touchedRoots } from "./updates.ts";
 import {
-  createPage, metaMap, movePage, privateSection, readIndex, readIndexLevels, readMeta, setPersonAccess,
+  createPage, movePage, privateSection, readIndex, readIndexLevels, readMeta, setPersonAccess,
   setWorkspaceAccess, writeIndex, type PageDocs,
 } from "./workspace.ts";
 import { buildTree } from "./tree.ts";
@@ -114,70 +113,6 @@ describe("concurrent access changes (two devices, offline, then synced)", () => 
     sync(laptop, phone);
     expect(laptop.levels()).toEqual(phone.levels());
     expect(laptop.levels().nia).toEqual({});
-  });
-});
-
-describe("what an update touches", () => {
-  const setup = () => {
-    const device = new Device();
-    const id = createPage(device, device.tree(), { title: "Trip", section: MAX });
-    const server = new Y.Doc();
-    Y.applyUpdate(server, Y.encodeStateAsUpdate(device.get(id)!));
-    return { doc: device.get(id)!, server };
-  };
-  const changeOf = (doc: Y.Doc, change: () => void) => {
-    const before = Y.encodeStateVector(doc);
-    change();
-    return Y.encodeStateAsUpdate(doc, before);
-  };
-
-  /** Checks a change the way the server does, then applies it, as the server would once it accepts it. */
-  const check = (doc: Y.Doc, server: Y.Doc, change: () => void) => {
-    const update = changeOf(doc, change);
-    const touched = touchedRoots(server, update);
-    Y.applyUpdate(server, update);
-    return touched;
-  };
-
-  it("names the top-level parts of the document an update changes", () => {
-    const { doc, server } = setup();
-    expect(check(doc, server, () => metaMap(doc).set("title", "Trip!"))).toEqual(new Set(["meta"]));
-    expect(check(doc, server, () => doc.getXmlFragment("content").insert(0, [new Y.XmlText("hi")])))
-      .toEqual(new Set(["content"]));
-    expect(check(doc, server, () => setPersonAccess(doc, "nia", "full"))).toEqual(new Set(["access"]));
-  });
-
-  it("sees a deletion, and a change nested deep inside the content", () => {
-    const { doc, server } = setup();
-    check(doc, server, () => setPersonAccess(doc, "nia", "view"));
-    expect(check(doc, server, () => setPersonAccess(doc, "nia", null))).toEqual(new Set(["access"]));
-
-    const para = new Y.XmlElement("paragraph");
-    const text = new Y.XmlText("a");
-    check(doc, server, () => (para.insert(0, [text]), doc.getXmlFragment("content").insert(0, [para])));
-    expect(check(doc, server, () => text.insert(1, "b"))).toEqual(new Set(["content"]));
-  });
-
-  it("checks an update that arrived before one it depends on when that one arrives", () => {
-    const { doc, server } = setup();
-    // An insert, not a rename: every update carries the whole delete set, so a rename's deletion of
-    // the old title would also ride along with the grant.
-    const text = changeOf(doc, () => doc.getXmlFragment("content").insert(0, [new Y.XmlText("hi")]));
-    const grant = changeOf(doc, () => setPersonAccess(doc, "nia", "full"));
-    // On its own the grant can't be applied yet, so it changes nothing; the server keeps it pending.
-    expect(touchedRoots(server, grant)).toEqual(new Set());
-    Y.applyUpdate(server, grant);
-    expect(server.getMap("access").size).toBe(0);
-    // The update that completes it is charged with both.
-    expect(touchedRoots(server, text)).toEqual(new Set(["content", "access"]));
-  });
-
-  it("names nothing for an update the server already has, and leaves the server's document alone", () => {
-    const { doc, server } = setup();
-    expect(touchedRoots(server, Y.encodeStateAsUpdate(doc))).toEqual(new Set());
-    const grant = changeOf(doc, () => setPersonAccess(doc, "nia", "view"));
-    touchedRoots(server, grant);
-    expect(server.getMap("access").size).toBe(0);
   });
 });
 

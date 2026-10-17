@@ -1,5 +1,6 @@
 import { atLeast, mostPermissive, type AccessLevel, type PageAccess } from "./levels.ts";
 import type { Person } from "./people.ts";
+import type { Refusal } from "./review.ts";
 import type { Teamspace } from "./teamspaces.ts";
 import { resolveParents, type PageKind, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
 import { parseDocName, parseSection, privateSection } from "./workspace.ts";
@@ -178,7 +179,7 @@ export const canEdit = (level: AccessLevel): boolean => atLeast(level, "edit");
 
 /**
  * Why a connection at `level` may not apply an update that changes the page document's
- * `touched` top-level parts (from `touchedRoots`), or null if it may. The server refuses the
+ * `touched` top-level parts (from `previewUpdate`), or null if it may. The server refuses the
  * whole update when this returns a reason.
  * - Below Can edit, any change is refused ("read-only").
  * - Below Full access, a change to `access` is refused ("access-change-refused").
@@ -192,7 +193,7 @@ export function refuseUpdate(
   level: AccessLevel,
   touched: ReadonlySet<string>,
   kind: PageKind | "schema" = "page",
-): string | null {
+): Refusal | null {
   if (touched.size === 0) return null;
   if (canEdit(level)) return touched.has("access") && !canShare(level) ? "access-change-refused" : null;
   if (level !== "edit-content" || kind === "page") return "read-only";
