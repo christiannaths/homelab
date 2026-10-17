@@ -14,12 +14,12 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) | How do features avoid conflicts and lost edits when changes merge? | Every feature follows five CRDT rules | Accepted |
 | [ADR-NOTE-007](ADR-NOTE-007-page-editing-and-ui.md) | How do people edit pages, and how is the interface built? | BlockNote is the page editor, and Mantine is the UI library | Accepted |
 | [ADR-NOTE-008](ADR-NOTE-008-model-correctness.md) | How is the data model kept correct? | The data model is pure TypeScript, tested by unit and end-to-end tests | Accepted |
-| [ADR-NOTE-009](ADR-NOTE-009-identity.md) | How does an instance know who is editing? | Users sign in with local password accounts | Accepted |
+| [ADR-NOTE-009](ADR-NOTE-009-identity.md) | How does an instance know who is editing? | People sign in through the homelab's VoidAuth, and each device keeps its own year-long session | Accepted |
 | [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md) | How do changes reach other devices, and how is access enforced on them? | Hocuspocus is the sync server, and it checks access on every document and update | Accepted |
 | [ADR-NOTE-011](ADR-NOTE-011-access-control.md) | How does an instance control who can see and change each page? | Access follows Notion's model of teamspaces and page sharing | Accepted |
 | [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md) | How finely can access to a page be granted? | Page access levels mirror Notion's | Accepted |
 | [ADR-NOTE-013](ADR-NOTE-013-data-layout.md) | How is data laid out so each person receives only what they can open? | Each page is its own Yjs document, found through a per-person index the server writes | Accepted |
-| [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md) | How does the server handle HTTP requests and account security? | Hono serves HTTP, and Better Auth manages accounts and sessions | Accepted |
+| [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md) | How does the server handle HTTP requests and account security? | Hono serves HTTP, and Notes signs people in through VoidAuth with its own device sessions | Accepted |
 
 ## Not decided yet
 
