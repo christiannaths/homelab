@@ -38,7 +38,7 @@ The repo holds TypeScript and TSX, Markdown docs and ADRs, CSS, JSON, YAML, HTML
 
 - On this repo (Node 26.12.0, about 140 TypeScript files and 45 Markdown files), `npm run lint` takes about 3 s and `npm run format:check` about 3.5 s.
 - `oxlint-tsgolint` 7.0 is built on TypeScript 7's Go compiler, and its type-aware rules run against the repo's `tsconfig.json` files.
-- The one-time cleanup that introduced these tools formatted the repo, applied safe fixes and renamed six spike files to kebab-case. Typecheck and unit tests passed for every project afterwards, spikes included.
+- The one-time cleanup in PR #44 formatted the repo, applied safe fixes and renamed six spike files to kebab-case. Typecheck and unit tests passed for every project afterwards, spikes included.
 - `proseWrap: "never"` was chosen after aligned tables broke `tools/check-adrs.ts`, which matches index rows exactly, and made every row change when one cell grew.
 
 ## Consequences

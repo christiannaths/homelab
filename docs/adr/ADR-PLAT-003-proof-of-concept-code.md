@@ -31,5 +31,5 @@ An app's decisions are often settled by throwaway spikes before the app itself i
 
 ## Changelog
 
-- 2026-10-17: Formatting and linting cover spikes, instead of spikes staying out of every repo-wide run. Prettier, Oxlint, markdownlint, Stylelint and ls-lint run over the whole repo ([ADR-PLAT-004](ADR-PLAT-004-code-quality.md)), so that `npm run check` and the pre-commit hook hold every file to the same rules. Builds and tests still skip spikes.
+- 2026-10-17: Formatting and linting cover spikes, instead of spikes staying out of every repo-wide run. Prettier, Oxlint, markdownlint, Stylelint and ls-lint run over the whole repo ([ADR-PLAT-004](ADR-PLAT-004-code-quality.md)), so that `npm run check` and the pre-commit hook hold every file to the same rules. Builds and tests still skip spikes. Evidence: PR #44.
 - 2026-10-16: Accepted. Spikes lived in `spikes/`, and every repo-wide script, `check` included, skipped them.
