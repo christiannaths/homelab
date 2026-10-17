@@ -14,6 +14,7 @@ Each topic has exactly one ADR, and it always states the current decision. When 
 | [ADR-PLAT-001](ADR-PLAT-001-toolchain.md) | How is the code written, run and packaged? | The code is TypeScript on Node.js 26, in npm workspaces | Accepted |
 | [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md) | How do several independent apps share one repo? | The repo is an Nx monorepo of independent apps | Accepted |
 | [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md) | How is proof-of-concept code kept apart from the apps? | Spikes live in spikes/ and stay out of repo-wide runs | Accepted |
+| [ADR-PLAT-004](ADR-PLAT-004-sign-in.md) | How do people sign in to the homelab's apps? | VoidAuth signs people in to every app, and registration is by invite only | Accepted |
 
 ## Not decided yet
 
@@ -24,5 +25,4 @@ These are deliberately **not** locked in. **Human** means a product decision or 
 | **The app contract:** what every app must provide (one container, a `/data` volume, a health endpoint, environment-only config) | Notes already works this way ([ADR-NOTE-004](../../apps/notes/docs/adr/ADR-NOTE-004-hosting-and-scale.md)), but as a Notes decision | An ADR | AI, then human review |
 | **Deployment:** choosing apps, pointing at a host, running one deploy script | Each app has its own `compose.yaml` | A deploy script and its config file, tested against a VM | AI, then human |
 | **TLS modes:** a real domain with DNS-01, a private CA, or Tailscale | Documented for Notes only ([ADR-NOTE-003](../../apps/notes/docs/adr/ADR-NOTE-003-app-delivery.md)) | The deploy script supporting each mode, checked on an iPhone | AI, then human |
-| **Sign-in across apps (SSO)** | Notes uses local password accounts ([ADR-NOTE-009](../../apps/notes/docs/adr/ADR-NOTE-009-identity.md)) | Building our own `accounts` app on `oidc-provider`, or adopting Authelia | Human (decision), then AI |
 | **Where images are built** for `amd64` and `arm64` | Built locally | CI pushing to a registry such as GHCR, or building on the host | Human |
