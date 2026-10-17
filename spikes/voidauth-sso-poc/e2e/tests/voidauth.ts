@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-export const COMPOSE_FILE = fileURLToPath(new URL("../../compose.yaml", import.meta.url));
+export const COMPOSE_FILE = fileURLToPath(
+  new URL("../../compose.yaml", import.meta.url),
+);
 
 export const VOIDAUTH_PORT = 3310;
 export const APP_PORT = 4110;
@@ -16,7 +18,10 @@ export const PROJECT = "voidauth-sso-poc-e2e";
 
 export type ComposeEnv = Record<string, string>;
 
-export function composeEnv(dataDir: string, overrides: ComposeEnv = {}): ComposeEnv {
+export function composeEnv(
+  dataDir: string,
+  overrides: ComposeEnv = {},
+): ComposeEnv {
   return {
     COMPOSE_PROJECT_NAME: PROJECT,
     VOIDAUTH_DATA: dataDir,
@@ -32,15 +37,26 @@ export function composeEnv(dataDir: string, overrides: ComposeEnv = {}): Compose
   };
 }
 
-export async function compose(env: ComposeEnv, ...args: string[]): Promise<string> {
+export async function compose(
+  env: ComposeEnv,
+  ...args: string[]
+): Promise<string> {
   return composeWith(COMPOSE_FILE, env, ...args);
 }
 
-export async function composeWith(file: string, env: ComposeEnv, ...args: string[]): Promise<string> {
-  const { stdout, stderr } = await run("docker", ["compose", "-f", file, ...args], {
-    env: { ...process.env, ...env },
-    maxBuffer: 16 * 1024 * 1024,
-  });
+export async function composeWith(
+  file: string,
+  env: ComposeEnv,
+  ...args: string[]
+): Promise<string> {
+  const { stdout, stderr } = await run(
+    "docker",
+    ["compose", "-f", file, ...args],
+    {
+      env: { ...process.env, ...env },
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
   return stdout + stderr;
 }
 
@@ -48,7 +64,9 @@ export async function waitForVoidAuth(timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${VOIDAUTH_URL}/oidc/.well-known/openid-configuration`);
+      const response = await fetch(
+        `${VOIDAUTH_URL}/oidc/.well-known/openid-configuration`,
+      );
       if (response.ok) return;
     } catch {
       // not listening yet
@@ -59,14 +77,27 @@ export async function waitForVoidAuth(timeoutMs = 120_000): Promise<void> {
 }
 
 /** A password reset link from VoidAuth's output: `${APP_URL}/reset_password?id=…&challenge=…`. */
-export function parseResetLink(output: string): { link: string; userId: string; challenge: string } | undefined {
-  const link = /https?:\/\/\S+\/reset_password\?id=[\w-]+&challenge=[\w-]+/.exec(output)?.[0];
+export function parseResetLink(
+  output: string,
+): { link: string; userId: string; challenge: string } | undefined {
+  const link =
+    /https?:\/\/\S+\/reset_password\?id=[\w-]+&challenge=[\w-]+/.exec(
+      output,
+    )?.[0];
   if (!link) return undefined;
   const url = new URL(link);
-  return { link, userId: url.searchParams.get("id") as string, challenge: url.searchParams.get("challenge") as string };
+  return {
+    link,
+    userId: url.searchParams.get("id") as string,
+    challenge: url.searchParams.get("challenge") as string,
+  };
 }
 
-export async function resetPassword(userId: string, challenge: string, newPassword: string): Promise<Response> {
+export async function resetPassword(
+  userId: string,
+  challenge: string,
+  newPassword: string,
+): Promise<Response> {
   return fetch(`${VOIDAUTH_URL}/api/public/reset_password`, {
     method: "POST",
     headers: { "content-type": "application/json" },

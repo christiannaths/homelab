@@ -1,6 +1,7 @@
 # Spike 3 findings: Notion's access model on per-person sync
 
 **Goal:** check whether Notion's access model ([ADR-NOTE-011](../adr/ADR-NOTE-011-access-control.md), [ADR-NOTE-012](../adr/ADR-NOTE-012-page-permissions.md), the [access specs](../specs/access/README.md)) can be built on this app's stack, Yjs documents synced whole by Hocuspocus with a local copy on every device, when a device may only receive what its person can open ([#11](https://github.com/christiannaths/homelab/issues/11)). Four risks:
+
 1. **Each person's page tree.** A Yjs document reaches a device whole or not at all, so the old spike's single workspace document, which holds every page's title and parent, cannot stay.
 2. **Rejecting edits.** A device below Can edit applies an edit locally before the server sees it. The server must refuse it, and the device must not stay out of step or resend it forever.
 3. **Startup speed.** More, smaller documents must not make startup and sync much slower at the [ADR-NOTE-004](../adr/ADR-NOTE-004-hosting-and-scale.md) scale (about 2,000 pages, a few people).
@@ -11,12 +12,14 @@
 ## What was built
 
 The spike is [`spikes/notes-access-sync-poc/`](../../../../spikes/notes-access-sync-poc/README.md) (frozen, [ADR-PLAT-003](../../../../docs/adr/ADR-PLAT-003-proof-of-concept-code.md)), started from a copy of the [block editing spike](../../../../spikes/notes-block-editing-collaboration-poc/README.md). Its README says how to run it and how it is organised.
+
 - **Model** (pure TypeScript): the page tree, the access rules (`access.ts`: levels per page and sidebar sections), the update review (`review.ts`), people, teamspaces, sharing, overrides and databases.
 - **Server:** Hocuspocus 4.7.1 with SQLite. It keeps a catalog of every page's metadata and access in memory, writes each person's index, checks every document a connection opens and every update before applying it, and re-checks open connections when access changes.
 - **Web:** a React PWA with BlockNote and y-indexeddb: a person picker (identity is faked: the token is the person id), Private and Shared sections, a Share panel with inherited entries (each with the page it comes from; entries inherited from above a parent the device doesn't hold can't be listed, and the panel says so), read-only pages below Can edit, recovery from refusals, deletion of lost pages and an offer to keep unsynced edits. There is no web UI for teamspaces or databases; those are covered at the sync boundary. Databases have only text, number and checkbox properties and one table view.
 - Versions: Node 26.12, `@hocuspocus/server`/`provider` 4.7.1, Yjs 13.6.33, y-indexeddb 9.0.12, Playwright 1.64.1.
 
 **Tests**, in three seams (all paths below are under the spike):
+
 - **Access rules:** 133 Vitest unit tests in `model/src/`, including convergence tests for every access change and move ([ADR-NOTE-006](../adr/ADR-NOTE-006-merge-safety.md) rule 5).
 - **Sync boundary:** 81 tests in `server/testing/`. Each starts a real server process and connects Node clients as different people, then checks which documents each one receives, what the server accepts and what their contents contain.
 - **Two-browser:** 16 Playwright tests in `e2e/tests/`, plus the opt-in 2,000-page timing test (`SLOW=1`). They include two people with Can edit editing the same shared page offline, whose edits merge on reconnecting, as before access existed (story 48: "two people with Can edit both edit a shared page offline …" in [`collaboration.spec.ts`](../../../../spikes/notes-access-sync-poc/e2e/tests/collaboration.spec.ts)).
@@ -40,6 +43,7 @@ The first ticket (#12) had a sync-boundary test that two people both receive a p
 ### Ids that still reach devices
 
 Titles, names and content of what a person can't open never reach their devices. Some **ids** do, as references inside documents they can open:
+
 - **A hidden parent's id**, as the page's own `parentId`. The page's editors need it to write moves. A row given on its own names its database the same way.
 - **A teamspace's id, for a guest** given a page from that teamspace, as the page's `section`. The guest never receives the teamspace document, so never its name ([`guests.test.ts`](../../../../spikes/notes-access-sync-poc/server/testing/guests.test.ts): "given a page in a teamspace, receive that page but not the teamspace or its other pages", which checks `receivedContent()` for the name).
 
@@ -70,12 +74,13 @@ Each is in [ADR-NOTE-013](../adr/ADR-NOTE-013-data-layout.md) with its reasons. 
 **Holds.** Per-person sync is as fast as the old spike's whole-workspace sync on the same machine, once three bugs in code copied from the old spike were fixed (below). Startup grows with the number of documents a person can open, not with the size of the workspace.
 
 Measured with [`e2e/tests/access-scale.spec.ts`](../../../../spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts) (`SLOW=1`), which seeds a 2,272-page workspace into the server's storage ([`server/testing/seed.ts`](../../../../spikes/notes-access-sync-poc/server/testing/seed.ts), checked by [`seed.test.ts`](../../../../spikes/notes-access-sync-poc/server/testing/seed.test.ts)): Private pages for Olive (workspace owner) and Max (member), an open and a private teamspace, two databases of 300 and 100 rows, and pages and rows shared with Max and with a guest, Gus.
+
 - **Setup:** headless Chromium 141 driven by Playwright 1.64 (which expects Chromium 156; it worked, but treat this as a caveat on the numbers), localhost, a shared 4-core container with a load average of 3 to 7 from other agents' browsers.
 - **Samples:** each scenario 3 times per run, in 3 runs: 9 samples, shown as **median (min–max)**.
 - **Baseline:** the old spike's gate test ([ADR-NOTE-010](../adr/ADR-NOTE-010-sync-and-access-checks.md), `SLOW=1`, 2,001 documents on one device), run interleaved on the same machine; 3 samples from its 3 passing runs.
 
 | Scenario | [ADR-NOTE-010](../adr/ADR-NOTE-010-sync-and-access-checks.md) gate | Old spike, same machine (n=3) | Olive: owner, 1,973 docs | Max: member, 1,252 docs | Gus: guest, 31 docs |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | New device downloads everything it can open | 9.4 s | 7.3 s (7.2–8.0) | **5.8 s** (5.5–6.8) | 3.7 s (3.5–4.0) | 0.5 s (0.4–0.6) |
 | Reconnect until everything has re-synced | 1.7–2.0 s | 1.7 s (1.5–2.0), n=9 | **1.7 s** (1.6–2.0) | 0.7 s (0.6–0.9) | – |
 | Server restart until both devices have re-synced | 7.5 s | 7.6 s (7.0–8.1) | **4.5 s** (4.1–5.9) for both | 4.1 s (2.4–5.1) | – |
@@ -134,6 +139,7 @@ The differences the Notion check found in the [access specs](../specs/access/REA
 ### Three bugs in code copied from the frozen spike
 
 The timing test found these in the web sync code copied from [`notes-block-editing-collaboration-poc`](../../../../spikes/notes-block-editing-collaboration-poc/README.md). They are fixed in this spike only: **the frozen spike still has all three**, and the real app's sync layer must not copy them. Each is guarded by the after-every-phase checks in [`access-scale.spec.ts`](../../../../spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts).
+
 1. **Going offline could leave the badge on "Synced" for about 36 s** (about 1 offline switch in 3). `socket.disconnect()` only starts the WebSocket's closing handshake, which can't finish without a network, and the provider says "connected" until the `close` event. `SyncManager.goOffline` now dispatches `close` on the socket itself. **This is also why the old spike's [ADR-NOTE-010](../adr/ADR-NOTE-010-sync-and-access-checks.md) gate test fails now and then:** it failed 2 of 5 runs here on exactly this, the `sync-badge` `/Offline/` timeout.
 2. **A read-only document could stay "Syncing" forever after a reload** (about 1 reload in 5, always the person's index). The provider was created before IndexedDB had loaded, so a stored copy that landed after the handshake went out as a live update, which a read-only connection answers with `SyncStatus(false)`. Providers are now created once the local copy has loaded. As a bonus, the handshake's state vector then tells the server what the device has, and the server stops sending every document in full on each start.
 3. **Startup was quadratic.** Documents finish loading one task at a time, and on each one the sidebar rebuilt the whole tree and re-rendered every row, and the sync badge recounted every document. Both now publish at most every 100 ms during a burst. Olive's warm reload went from 19.7 s to 5.9 s, and her new device from 11.0 s to 5.8 s.
@@ -147,6 +153,7 @@ The timing test found these in the web sync code copied from [`notes-block-editi
 ## Choices Notion doesn't document
 
 The spike had to choose in places where Notion's help centre says nothing. They are recorded here, in the specs and in "Not decided yet" in the [index](../adr/README.md), for a product decision:
+
 - **Moves (a spike choice):** the destination needs Can edit, so even Full access can't move a page into someone else's Private section or under a page the mover can only view; Can edit may move a page only where nobody's access changes; any move that changes someone's level needs Full access on the page ([`review.test.ts`](../../../../spikes/notes-access-sync-poc/model/src/review.test.ts)).
 - **Databases:** a Can edit content person can trash rows (a row's `deletedAt` is row data), and the database page's own body counts as structure ([`database.test.ts`](../../../../spikes/notes-access-sync-poc/model/src/database.test.ts)).
 - **Guests:** a guest's new subpage inherits its parent's level rather than giving them Full access, and nothing stops a guest with Full access from setting general access on a shared page ([`guests.test.ts`](../../../../spikes/notes-access-sync-poc/model/src/guests.test.ts)).

@@ -22,7 +22,13 @@ const notesIndex = `# Architecture Decision Records: Notes
 | [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md) | How do edits merge? | Yjs | Accepted |
 `;
 
-const adr = (id: string, title: string, dependsOn: string, dependencyOf: string, body = "") => `# ${id}. ${title}
+const adr = (
+  id: string,
+  title: string,
+  dependsOn: string,
+  dependencyOf: string,
+  body = "",
+) => `# ${id}. ${title}
 
 - Status: Accepted
 - Date: 2026-10-17
@@ -48,7 +54,12 @@ const valid = (): Map<string, string> =>
     ["docs/adr/README.md", registry],
     [
       "docs/adr/ADR-PLAT-001-toolchain.md",
-      adr("ADR-PLAT-001", "How is the code built?", "none", "[ADR-NOTE-001](../../apps/notes/docs/adr/ADR-NOTE-001-offline-use.md)"),
+      adr(
+        "ADR-PLAT-001",
+        "How is the code built?",
+        "none",
+        "[ADR-NOTE-001](../../apps/notes/docs/adr/ADR-NOTE-001-offline-use.md)",
+      ),
     ],
     ["apps/notes/docs/adr/README.md", notesIndex],
     [
@@ -73,7 +84,12 @@ const valid = (): Map<string, string> =>
     ["apps/notes/web/src/sync.ts", "// ADR-NOTE-002: every edit merges.\n"],
   ]);
 
-const edit = (files: Map<string, string>, path: string, from: string | RegExp, to: string) => {
+const edit = (
+  files: Map<string, string>,
+  path: string,
+  from: string | RegExp,
+  to: string,
+) => {
   const text = files.get(path)!;
   const next = text.replace(from, to);
   assert.notEqual(next, text, `fixture edit did not apply to ${path}`);
@@ -87,7 +103,10 @@ test("a repo that follows every rule has no problems", () => {
 
 test("a link to an ADR file that does not exist is reported, wherever it is", () => {
   const files = valid();
-  files.set("apps/notes/docs/specs/sync.md", "See [ADR-NOTE-002](../adr/ADR-NOTE-002-merging.md).\n");
+  files.set(
+    "apps/notes/docs/specs/sync.md",
+    "See [ADR-NOTE-002](../adr/ADR-NOTE-002-merging.md).\n",
+  );
   assert.deepEqual(checkAdrs(files), [
     "apps/notes/docs/specs/sync.md: link to ../adr/ADR-NOTE-002-merging.md does not resolve",
   ]);
@@ -96,12 +115,17 @@ test("a link to an ADR file that does not exist is reported, wherever it is", ()
 test("an ID that names no ADR is reported, in docs and in code", () => {
   const files = valid();
   edit(files, "apps/notes/web/src/sync.ts", "ADR-NOTE-002", "ADR-NOTE-009");
-  assert.deepEqual(checkAdrs(files), ["apps/notes/web/src/sync.ts: ADR-NOTE-009 does not exist"]);
+  assert.deepEqual(checkAdrs(files), [
+    "apps/notes/web/src/sync.ts: ADR-NOTE-009 does not exist",
+  ]);
 });
 
 test("a link whose text names a different ADR from its target is reported", () => {
   const files = valid();
-  files.set("apps/notes/docs/specs/sync.md", "See [ADR-NOTE-001](../adr/ADR-NOTE-002-merging-edits.md).\n");
+  files.set(
+    "apps/notes/docs/specs/sync.md",
+    "See [ADR-NOTE-001](../adr/ADR-NOTE-002-merging-edits.md).\n",
+  );
   assert.deepEqual(checkAdrs(files), [
     "apps/notes/docs/specs/sync.md: link text ADR-NOTE-001 points at ADR-NOTE-002-merging-edits.md",
   ]);
@@ -110,15 +134,37 @@ test("a link whose text names a different ADR from its target is reported", () =
 const note2 = "apps/notes/docs/adr/ADR-NOTE-002-merging-edits.md";
 
 test("a title that is not a How question about its own ID is reported", () => {
-  const files = edit(valid(), note2, "# ADR-NOTE-002. How do edits merge?", "# ADR-NOTE-002. Yjs merges edits");
-  edit(files, "apps/notes/docs/adr/README.md", "How do edits merge?", "Yjs merges edits");
-  assert.deepEqual(checkAdrs(files), [`${note2}: title must read "# ADR-NOTE-002. How …?"`]);
+  const files = edit(
+    valid(),
+    note2,
+    "# ADR-NOTE-002. How do edits merge?",
+    "# ADR-NOTE-002. Yjs merges edits",
+  );
+  edit(
+    files,
+    "apps/notes/docs/adr/README.md",
+    "How do edits merge?",
+    "Yjs merges edits",
+  );
+  assert.deepEqual(checkAdrs(files), [
+    `${note2}: title must read "# ADR-NOTE-002. How …?"`,
+  ]);
 });
 
 test("a status or date outside the format is reported", () => {
-  const files = edit(valid(), note2, "- Status: Accepted", "- Status: Superseded");
+  const files = edit(
+    valid(),
+    note2,
+    "- Status: Accepted",
+    "- Status: Superseded",
+  );
   edit(files, note2, "- Date: 2026-10-17", "- Date: October 17");
-  edit(files, "apps/notes/docs/adr/README.md", "| Yjs | Accepted |", "| Yjs | Superseded |");
+  edit(
+    files,
+    "apps/notes/docs/adr/README.md",
+    "| Yjs | Accepted |",
+    "| Yjs | Superseded |",
+  );
   assert.deepEqual(checkAdrs(files), [
     `${note2}: Status must be Proposed, Accepted or Deprecated`,
     `${note2}: Date must be YYYY-MM-DD`,
@@ -127,8 +173,18 @@ test("a status or date outside the format is reported", () => {
 
 test("sections must be the template's, in its order, with the required ones present", () => {
   const files = edit(valid(), note2, "## Evidence\n- A test.\n\n", "");
-  edit(files, note2, "## Consequences", "## Notes\n- Extra.\n\n## Consequences");
-  edit(files, note2, "## Context", "## Changelog\n- 2026-10-17: Accepted.\n\n## Context");
+  edit(
+    files,
+    note2,
+    "## Consequences",
+    "## Notes\n- Extra.\n\n## Consequences",
+  );
+  edit(
+    files,
+    note2,
+    "## Context",
+    "## Changelog\n- 2026-10-17: Accepted.\n\n## Context",
+  );
   assert.deepEqual(checkAdrs(files), [
     `${note2}: sections must be Context, Decision, Alternatives considered (optional), Evidence, Consequences, Changelog (optional), in that order; found Changelog, Context, Decision, Notes, Consequences`,
   ]);
@@ -139,27 +195,58 @@ test("an ADR outside its namespace's folder is reported", () => {
   const text = files.get(note2)!;
   files.delete(note2);
   files.set("docs/adr/ADR-NOTE-002-merging-edits.md", text);
-  for (const [file, content] of files) files.set(file, content.replaceAll("ADR-NOTE-002-merging-edits.md", "../../../../docs/adr/ADR-NOTE-002-merging-edits.md"));
+  for (const [file, content] of files)
+    files.set(
+      file,
+      content.replaceAll(
+        "ADR-NOTE-002-merging-edits.md",
+        "../../../../docs/adr/ADR-NOTE-002-merging-edits.md",
+      ),
+    );
   const problems = checkAdrs(files);
-  assert.ok(problems.includes("docs/adr/ADR-NOTE-002-merging-edits.md: NOTE ADRs belong in apps/notes/docs/adr/"), problems.join("\n"));
+  assert.ok(
+    problems.includes(
+      "docs/adr/ADR-NOTE-002-merging-edits.md: NOTE ADRs belong in apps/notes/docs/adr/",
+    ),
+    problems.join("\n"),
+  );
 });
 
 const note1 = "apps/notes/docs/adr/ADR-NOTE-001-offline-use.md";
 const plat1 = "docs/adr/ADR-PLAT-001-toolchain.md";
 
 test("an ADR the body mentions must be in Depends on or Dependency of", () => {
-  const files = edit(valid(), note2, "- A cost.", "- A cost for [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md).");
-  assert.deepEqual(checkAdrs(files), [`${note2}: mentions ADR-PLAT-001 but lists it in neither Depends on nor Dependency of`]);
+  const files = edit(
+    valid(),
+    note2,
+    "- A cost.",
+    "- A cost for [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md).",
+  );
+  assert.deepEqual(checkAdrs(files), [
+    `${note2}: mentions ADR-PLAT-001 but lists it in neither Depends on nor Dependency of`,
+  ]);
 });
 
 test("the Changelog may mention any ADR", () => {
-  const files = edit(valid(), note2, "- A cost.\n", "- A cost.\n\n## Changelog\n- 2026-10-17: Moved here from [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md).\n");
+  const files = edit(
+    valid(),
+    note2,
+    "- A cost.\n",
+    "- A cost.\n\n## Changelog\n- 2026-10-17: Moved here from [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md).\n",
+  );
   assert.deepEqual(checkAdrs(files), []);
 });
 
 test("dependency lists mirror each other", () => {
-  const files = edit(valid(), note1, "- Dependency of: [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)", "- Dependency of: none");
-  assert.deepEqual(checkAdrs(files), [`${note2}: depends on ADR-NOTE-001, which does not list it under Dependency of`]);
+  const files = edit(
+    valid(),
+    note1,
+    "- Dependency of: [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)",
+    "- Dependency of: none",
+  );
+  assert.deepEqual(checkAdrs(files), [
+    `${note2}: depends on ADR-NOTE-001, which does not list it under Dependency of`,
+  ]);
 });
 
 test("a dependency list is sorted, names each ADR once and shares none with the other list", () => {
@@ -177,9 +264,21 @@ test("a dependency list is sorted, names each ADR once and shares none with the 
 });
 
 test("a PLAT ADR depends only on PLAT ADRs", () => {
-  const files = edit(valid(), plat1, "- Depends on: none", "- Depends on: [ADR-NOTE-002](../../apps/notes/docs/adr/ADR-NOTE-002-merging-edits.md)");
-  edit(files, note2, "- Dependency of: none", "- Dependency of: [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)");
-  assert.deepEqual(checkAdrs(files), [`${plat1}: PLAT ADRs depend only on PLAT ADRs, not ADR-NOTE-002`]);
+  const files = edit(
+    valid(),
+    plat1,
+    "- Depends on: none",
+    "- Depends on: [ADR-NOTE-002](../../apps/notes/docs/adr/ADR-NOTE-002-merging-edits.md)",
+  );
+  edit(
+    files,
+    note2,
+    "- Dependency of: none",
+    "- Dependency of: [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)",
+  );
+  assert.deepEqual(checkAdrs(files), [
+    `${plat1}: PLAT ADRs depend only on PLAT ADRs, not ADR-NOTE-002`,
+  ]);
 });
 
 test("a gap in a namespace's numbers is reported", () => {
@@ -187,13 +286,21 @@ test("a gap in a namespace's numbers is reported", () => {
   const text = files.get(note2)!.replace("# ADR-NOTE-002.", "# ADR-NOTE-003.");
   files.delete(note2);
   files.set("apps/notes/docs/adr/ADR-NOTE-003-merging-edits.md", text);
-  for (const [file, content] of files) files.set(file, content.replaceAll("ADR-NOTE-002", "ADR-NOTE-003"));
-  assert.deepEqual(checkAdrs(files), ["apps/notes/docs/adr/: NOTE numbers must run 1, 2, 3… with no gaps; found 1, 3"]);
+  for (const [file, content] of files)
+    files.set(file, content.replaceAll("ADR-NOTE-002", "ADR-NOTE-003"));
+  assert.deepEqual(checkAdrs(files), [
+    "apps/notes/docs/adr/: NOTE numbers must run 1, 2, 3… with no gaps; found 1, 3",
+  ]);
 });
 
 test("each folder's index has one row per ADR, matching its title and status", () => {
   const index = "apps/notes/docs/adr/README.md";
-  const files = edit(valid(), index, "| How do edits merge? | Yjs | Accepted |", "| How are edits merged? | Yjs | Proposed |");
+  const files = edit(
+    valid(),
+    index,
+    "| How do edits merge? | Yjs | Accepted |",
+    "| How are edits merged? | Yjs | Proposed |",
+  );
   edit(files, index, /\| \[ADR-NOTE-001\].*\n/, "");
   assert.deepEqual(checkAdrs(files), [
     `${index}: has no row for ADR-NOTE-001`,
@@ -203,6 +310,9 @@ test("each folder's index has one row per ADR, matching its title and status", (
 
 test("links inside code are examples, not links", () => {
   const files = valid();
-  files.set(".agents/skills/adr/SKILL.md", "Write `[ADR-NOTE-001](ADR-NOTE-001-offline-use.md)`.\n\n```md\n[ADR-NOTE-002](ADR-NOTE-002-x.md)\n```\n");
+  files.set(
+    ".agents/skills/adr/SKILL.md",
+    "Write `[ADR-NOTE-001](ADR-NOTE-001-offline-use.md)`.\n\n```md\n[ADR-NOTE-002](ADR-NOTE-002-x.md)\n```\n",
+  );
   assert.deepEqual(checkAdrs(files), []);
 });

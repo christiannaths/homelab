@@ -5,7 +5,7 @@ Decisions that are **locked in** for the Notes app (LocalNotion), based on the r
 An ADR is written only once a decision is settled. Open questions go in **Not decided yet** below. Notes ADRs use the `NOTE` namespace.
 
 | ID | Problem | Decision | Status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | [ADR-NOTE-001](ADR-NOTE-001-offline-use.md) | How does the app keep working without a network? | The app works fully offline with everything its person can open | Accepted |
 | [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md) | How do edits from several devices come together? | Yjs stores all shared data | Accepted |
 | [ADR-NOTE-003](ADR-NOTE-003-app-delivery.md) | How does the app reach people's Macs and iPhones? | The client is a PWA installed on macOS and iOS | Accepted |
@@ -26,7 +26,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 These are deliberately **not** locked in for Notes, and the current implementation is replaceable. Each item lists what would settle it and who does the work: **human** means testing on real devices, or a product decision; **AI** means work that can be automated or built in the sandbox.
 
 | Topic | Where it stands | What would settle it | Who |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Public read-only publishing of pages and subpages** | Not built. Access is settled ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)), and devices only receive what their person can open ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)) | A product decision on what a published page shows, then a design for serving it to people with no account | Human (decision), then AI |
 | **Access details Notion doesn't document** | The access spike chose: Can edit may move a page only where nobody's access changes; Can edit content may trash rows, and a database's own body counts as structure; a guest's new subpage inherits its parent's level; a guest with Full access may set general access; workspace owners may only toggle a teamspace's default flag in teamspaces they are not in ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md)) | A product decision on each, checked against Notion where its help centre can be read | Human (decision), then AI |
 | **Select, multi-value and relation properties, very large databases, and blocks shared between pages** | Each row is its own document so it can be shared alone ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)). A select's option names would reach anyone given one row, so the spike left selects out. A 2,000-row database is 2,002 documents | A design for where option names and references live under single-row sharing, and a measurement of very large databases | AI, then human review |

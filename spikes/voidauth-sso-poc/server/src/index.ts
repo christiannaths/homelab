@@ -21,8 +21,16 @@ const app = createApp({
     clientSecret: env("NOTES_CLIENT_SECRET", "notes-spike-secret"),
     redirectUri: `${baseUrl}/callback`,
   },
-  ...(adminUser && adminPassword ? { voidauthAdmin: new VoidAuthAdmin(voidauthUrl, adminUser, adminPassword) } : {}),
+  ...(adminUser && adminPassword
+    ? {
+        voidauthAdmin: new VoidAuthAdmin(voidauthUrl, adminUser, adminPassword),
+      }
+    : {}),
 });
 
 const port = Number(new URL(baseUrl).port || 80);
-app.server.listen(port, () => console.log(`Notes stand-in on ${baseUrl}, signing in through ${voidauthUrl}`));
+app.server.listen(port, () =>
+  console.log(
+    `Notes stand-in on ${baseUrl}, signing in through ${voidauthUrl}`,
+  ),
+);

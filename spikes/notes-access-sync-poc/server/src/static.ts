@@ -16,13 +16,18 @@ const MIME: Record<string, string> = {
 };
 
 /** Serves the built PWA, falling back to index.html for client-side routes. */
-export function serveStatic(root: string, req: IncomingMessage, res: ServerResponse): boolean {
+export function serveStatic(
+  root: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): boolean {
   if (req.method !== "GET" && req.method !== "HEAD") return false;
 
   const url = new URL(req.url ?? "/", "http://localhost");
   let file = path.normalize(path.join(root, decodeURIComponent(url.pathname)));
   if (!file.startsWith(root)) return false;
-  if (!existsSync(file) || statSync(file).isDirectory()) file = path.join(root, "index.html");
+  if (!existsSync(file) || statSync(file).isDirectory())
+    file = path.join(root, "index.html");
   if (!existsSync(file)) return false;
 
   const name = path.basename(file);
@@ -30,10 +35,11 @@ export function serveStatic(root: string, req: IncomingMessage, res: ServerRespo
   const immutable = file.includes(`${path.sep}assets${path.sep}`);
   res.writeHead(200, {
     "Content-Type": MIME[path.extname(file)] ?? "application/octet-stream",
-    "Cache-Control":
-      immutable ? "public, max-age=31536000, immutable"
-      : name === "sw.js" ? "no-cache, no-store"
-      : "no-cache",
+    "Cache-Control": immutable
+      ? "public, max-age=31536000, immutable"
+      : name === "sw.js"
+        ? "no-cache, no-store"
+        : "no-cache",
   });
   if (req.method === "HEAD") res.end();
   else createReadStream(file).pipe(res);

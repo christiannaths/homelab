@@ -49,20 +49,28 @@ export class Store {
   /** Names of the stored documents that start with `prefix`. */
   names(prefix: string): string[] {
     return (
-      this.db.prepare("SELECT name FROM documents WHERE substr(name, 1, ?) = ?").all(prefix.length, prefix) as {
+      this.db
+        .prepare("SELECT name FROM documents WHERE substr(name, 1, ?) = ?")
+        .all(prefix.length, prefix) as {
         name: string;
       }[]
     ).map((r) => r.name);
   }
 
   count(): number {
-    return (this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as { n: number }).n;
+    return (
+      this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as {
+        n: number;
+      }
+    ).n;
   }
 
   /** Everyone in the workspace, in the order they were added. */
   people(): Person[] {
     return (
-      this.db.prepare("SELECT id, name, role FROM people ORDER BY created_at, rowid").all() as {
+      this.db
+        .prepare("SELECT id, name, role FROM people ORDER BY created_at, rowid")
+        .all() as {
         id: string;
         name: string;
         role: string;
@@ -72,7 +80,9 @@ export class Store {
 
   addPerson(person: Person): void {
     this.db
-      .prepare("INSERT INTO people (id, name, role, created_at) VALUES (?, ?, ?, ?)")
+      .prepare(
+        "INSERT INTO people (id, name, role, created_at) VALUES (?, ?, ?, ?)",
+      )
       .run(person.id, person.name, person.role, Date.now());
   }
 

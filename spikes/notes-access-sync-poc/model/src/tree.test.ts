@@ -3,15 +3,36 @@ import * as Y from "yjs";
 import { sidebarSections } from "./access.ts";
 import { buildTree, flattenVisible, type PageMeta } from "./tree.ts";
 import {
-  createPage, metaMap, movePage, privateSection, readMeta, restorePage, trashPage, type PageDocs,
+  createPage,
+  metaMap,
+  movePage,
+  privateSection,
+  readMeta,
+  restorePage,
+  trashPage,
+  type PageDocs,
 } from "./workspace.ts";
 
 const MAX = privateSection("max");
-const page = (id: string, parentId: string | null, order = "a0", extra: Partial<PageMeta> = {}): PageMeta => ({
-  id, title: id, kind: "page", parentId, section: MAX, order, createdAt: 0, ...extra,
+const page = (
+  id: string,
+  parentId: string | null,
+  order = "a0",
+  extra: Partial<PageMeta> = {},
+): PageMeta => ({
+  id,
+  title: id,
+  kind: "page",
+  parentId,
+  section: MAX,
+  order,
+  createdAt: 0,
+  ...extra,
 });
 const shape = (pages: PageMeta[]) =>
-  flattenVisible(buildTree(pages), () => true).map((n) => `${"  ".repeat(n.depth)}${n.page.id}`);
+  flattenVisible(buildTree(pages), () => true).map(
+    (n) => `${"  ".repeat(n.depth)}${n.page.id}`,
+  );
 
 /** A device: the page documents it holds, one Y.Doc per page. */
 class Device implements PageDocs {
@@ -25,13 +46,18 @@ class Device implements PageDocs {
     return doc;
   }
   tree() {
-    return buildTree([...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []));
+    return buildTree(
+      [...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []),
+    );
   }
   titles() {
-    return flattenVisible(this.tree(), () => true).map((n) => "  ".repeat(n.depth) + n.page.title);
+    return flattenVisible(this.tree(), () => true).map(
+      (n) => "  ".repeat(n.depth) + n.page.title,
+    );
   }
   idOf(title: string) {
-    return [...this.tree().byId.values()].find((n) => n.page.title === title)!.page.id;
+    return [...this.tree().byId.values()].find((n) => n.page.title === title)!
+      .page.id;
   }
 }
 
@@ -47,29 +73,51 @@ function sync(x: Device, y: Device, ids?: string[]) {
 
 describe("buildTree", () => {
   it("nests pages and sorts siblings by order key", () => {
-    expect(shape([page("b", null, "a1"), page("a", null, "a0"), page("c", "a", "a0")])).toEqual(["a", "  c", "b"]);
+    expect(
+      shape([
+        page("b", null, "a1"),
+        page("a", null, "a0"),
+        page("c", "a", "a0"),
+      ]),
+    ).toEqual(["a", "  c", "b"]);
   });
 
   it("puts pages with a missing parent, or a database parent, at the top level", () => {
-    const pages = [page("db", null, "a0", { kind: "database" }), page("x", "db", "a1"), page("y", "gone", "a2")];
+    const pages = [
+      page("db", null, "a0", { kind: "database" }),
+      page("x", "db", "a1"),
+      page("y", "gone", "a2"),
+    ];
     expect(shape(pages)).toEqual(["db", "x", "y"]);
   });
 
   it("breaks a cycle at its smallest id, whatever order the pages are listed in", () => {
-    const pages = [page("b", "c"), page("c", "a"), page("a", "b"), page("d", "b")];
+    const pages = [
+      page("b", "c"),
+      page("c", "a"),
+      page("a", "b"),
+      page("d", "b"),
+    ];
     const expected = ["a", "  c", "    b", "      d"];
     expect(shape(pages)).toEqual(expected);
     expect(shape([...pages].reverse())).toEqual(expected);
   });
 
   it("hides the subtree of a trashed page and lists only the trashed page itself in trash", () => {
-    const t = buildTree([page("a", null), page("b", "a", "a0", { deletedAt: 5 }), page("c", "b")]);
+    const t = buildTree([
+      page("a", null),
+      page("b", "a", "a0", { deletedAt: 5 }),
+      page("c", "b"),
+    ]);
     expect([...t.byId.keys()]).toEqual(["a"]);
     expect(t.trash.map((p) => p.id)).toEqual(["b"]);
   });
 
   it("gives every page its top-level ancestor's section, whatever its own field says", () => {
-    const t = buildTree([page("a", null), page("b", "a", "a0", { section: "private:stale" })]);
+    const t = buildTree([
+      page("a", null),
+      page("b", "a", "a0", { section: "private:stale" }),
+    ]);
     expect(t.byId.get("b")!.section).toBe(MAX);
   });
 });
@@ -79,7 +127,9 @@ describe("sidebar sections", () => {
     const pages = [
       page("mine", null),
       page("child", "mine"),
-      page("orphan", "hidden-parent", "a1", { section: privateSection("olive") }),
+      page("orphan", "hidden-parent", "a1", {
+        section: privateSection("olive"),
+      }),
     ];
     const s = sidebarSections(buildTree(pages), "max");
     expect(s.private.map((n) => n.page.id)).toEqual(["mine"]);
@@ -87,7 +137,10 @@ describe("sidebar sections", () => {
   });
 
   it("keeps the page a cycle is broken at in my Private section", () => {
-    const s = sidebarSections(buildTree([page("a", "b"), page("b", "a")]), "max");
+    const s = sidebarSections(
+      buildTree([page("a", "b"), page("b", "a")]),
+      "max",
+    );
     expect(s.private.map((n) => n.page.id)).toEqual(["a"]);
     expect(s.shared).toEqual([]);
   });
@@ -112,8 +165,16 @@ describe("page operations on per-page documents", () => {
     const d = new Device();
     const a = createPage(d, d.tree(), { title: "Diary", section: MAX });
     const b = createPage(d, d.tree(), { title: "Secret", parentId: a });
-    expect(metaMap(d.get(a)!).toJSON()).toMatchObject({ title: "Diary", parentId: null, section: MAX });
-    expect(metaMap(d.get(b)!).toJSON()).toMatchObject({ title: "Secret", parentId: a, section: MAX });
+    expect(metaMap(d.get(a)!).toJSON()).toMatchObject({
+      title: "Diary",
+      parentId: null,
+      section: MAX,
+    });
+    expect(metaMap(d.get(b)!).toJSON()).toMatchObject({
+      title: "Secret",
+      parentId: a,
+      section: MAX,
+    });
     expect(JSON.stringify(d.get(a)!.toJSON())).not.toContain("Secret");
   });
 
@@ -216,7 +277,9 @@ describe("concurrent edits under the per-page split (two devices, offline, then 
 
   it("a three-page cycle is broken the same way on every device, whatever order the documents arrive in", () => {
     const origin = new Device();
-    const [a, b, c] = ["A", "B", "C"].map((title) => createPage(origin, origin.tree(), { title, section: MAX }));
+    const [a, b, c] = ["A", "B", "C"].map((title) =>
+      createPage(origin, origin.tree(), { title, section: MAX }),
+    );
     const devices = [new Device(), new Device(), new Device()];
     for (const d of devices) sync(origin, d);
     // Each device moves one page offline, closing a cycle between them.
@@ -238,7 +301,10 @@ describe("concurrent edits under the per-page split (two devices, offline, then 
   it("a page whose parent a device never receives sits at the top level there, the same on every device", () => {
     const max = new Device();
     const diary = createPage(max, max.tree(), { title: "Diary", section: MAX });
-    const entry = createPage(max, max.tree(), { title: "Entry", parentId: diary });
+    const entry = createPage(max, max.tree(), {
+      title: "Entry",
+      parentId: diary,
+    });
     // Two devices that only receive the subpage (as a person who can open it but not its parent).
     const x = new Device();
     const y = new Device();

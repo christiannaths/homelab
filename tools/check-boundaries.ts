@@ -14,7 +14,10 @@ import path from "node:path";
 /** The parts of `nx graph --file` output this script reads. */
 interface ProjectGraph {
   nodes: Record<string, { data: { tags: string[] } }>;
-  dependencies: Record<string, { target: string; type: "static" | "dynamic" | "implicit" }[]>;
+  dependencies: Record<
+    string,
+    { target: string; type: "static" | "dynamic" | "implicit" }[]
+  >;
 }
 
 const dir = mkdtempSync(path.join(tmpdir(), "nx-graph-"));
@@ -24,11 +27,20 @@ const nx = spawnSync("npx", ["nx", "graph", `--file=${file}`], {
   env: { ...process.env, NX_DAEMON: "false" },
 });
 // On a plugin error Nx still writes a partial graph and exits 0, so check its output too.
-const failed = nx.status !== 0 || /error occurred while processing the project graph/i.test(nx.stdout + nx.stderr);
-const graph: ProjectGraph | undefined = failed ? undefined : JSON.parse(readFileSync(file, "utf8")).graph;
+const failed =
+  nx.status !== 0 ||
+  /error occurred while processing the project graph/i.test(
+    nx.stdout + nx.stderr,
+  );
+const graph: ProjectGraph | undefined = failed
+  ? undefined
+  : // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the file is Nx's own graph output.
+    (JSON.parse(readFileSync(file, "utf8")) as { graph: ProjectGraph }).graph;
 rmSync(dir, { recursive: true, force: true });
 if (failed) {
-  console.error(`nx graph failed, so boundaries cannot be checked:\n${nx.stdout}${nx.stderr}`);
+  console.error(
+    `nx graph failed, so boundaries cannot be checked:\n${nx.stdout}${nx.stderr}`,
+  );
   process.exit(1);
 }
 const { nodes, dependencies } = graph!;
@@ -41,8 +53,10 @@ const platforms = new Set(["browser", "node", "any"]);
 
 const errors: string[] = [];
 for (const name of Object.keys(nodes)) {
-  if (!tag(name, "scope:")) errors.push(`${name}: needs exactly one scope: tag`);
-  if (!platforms.has(tag(name, "platform:") ?? "")) errors.push(`${name}: needs one platform: tag (browser, node or any)`);
+  if (!tag(name, "scope:"))
+    errors.push(`${name}: needs exactly one scope: tag`);
+  if (!platforms.has(tag(name, "platform:") ?? ""))
+    errors.push(`${name}: needs one platform: tag (browser, node or any)`);
 }
 
 for (const [source, deps] of Object.entries(dependencies)) {
@@ -50,18 +64,27 @@ for (const [source, deps] of Object.entries(dependencies)) {
     if (!nodes[target]) continue; // npm packages
     const [fromScope, toScope] = [tag(source, "scope:"), tag(target, "scope:")];
     if (toScope !== fromScope && toScope !== "shared") {
-      const allowed = fromScope === "shared" ? "scope:shared" : `scope:${fromScope} or scope:shared`;
-      errors.push(`${source} → ${target}: scope:${fromScope} may depend only on ${allowed}`);
+      const allowed =
+        fromScope === "shared"
+          ? "scope:shared"
+          : `scope:${fromScope} or scope:shared`;
+      errors.push(
+        `${source} → ${target}: scope:${fromScope} may depend only on ${allowed}`,
+      );
     }
     const [from, to] = [tag(source, "platform:"), tag(target, "platform:")];
     if (type !== "implicit" && to !== "any" && to !== from) {
-      errors.push(`${source} → ${target}: a platform:${from} project cannot import platform:${to}`);
+      errors.push(
+        `${source} → ${target}: a platform:${from} project cannot import platform:${to}`,
+      );
     }
   }
 }
 
 if (errors.length) {
-  console.error(`Module boundary violations:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
+  console.error(
+    `Module boundary violations:\n${errors.map((e) => `  - ${e}`).join("\n")}`,
+  );
   process.exit(1);
 }
 console.log(`Module boundaries OK (${Object.keys(nodes).length} projects).`);

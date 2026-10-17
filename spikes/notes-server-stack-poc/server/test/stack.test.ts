@@ -1,8 +1,16 @@
 import { afterEach, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 import {
-  createMember, device, post, setUpAdmin, signIn, start, tryUpgrade, waitFor,
-  type Device, type TestServer,
+  createMember,
+  device,
+  post,
+  setUpAdmin,
+  signIn,
+  start,
+  tryUpgrade,
+  waitFor,
+  type Device,
+  type TestServer,
 } from "./helpers.ts";
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -28,24 +36,38 @@ afterEach(async () => {
 describe("1. Hono serves the PWA and the API", () => {
   test("health, static files and the client-side route fallback", async () => {
     const s = await server();
-    expect(await (await fetch(`${s.url}/api/health`)).json()).toEqual({ ok: true, documents: 0 });
+    expect(await (await fetch(`${s.url}/api/health`)).json()).toEqual({
+      ok: true,
+      documents: 0,
+    });
     const page = await fetch(`${s.url}/index.html`);
     expect(page.headers.get("content-type")).toContain("text/html");
-    expect(await (await fetch(`${s.url}/page/some-id`)).text()).toContain("Stand-in for the Notes PWA");
+    expect(await (await fetch(`${s.url}/page/some-id`)).text()).toContain(
+      "Stand-in for the Notes PWA",
+    );
   });
 
   test("first-run setup creates the admin once, then is refused", async () => {
     const s = await server();
     const { body } = await setUpAdmin(s);
     expect(body.user.role).toBe("admin");
-    expect((await post(s, "/api/setup", { username: "mallory", password: "x".repeat(12) })).status).toBe(409);
+    expect(
+      (
+        await post(s, "/api/setup", {
+          username: "mallory",
+          password: "x".repeat(12),
+        })
+      ).status,
+    ).toBe(409);
   });
 
   test("there is no public sign-up", async () => {
     const s = await server();
     await setUpAdmin(s);
     const res = await post(s, "/api/auth/sign-up/email", {
-      email: "mallory@example.com", password: "x".repeat(12), name: "mallory",
+      email: "mallory@example.com",
+      password: "x".repeat(12),
+      name: "mallory",
     });
     expect(res.ok).toBe(false);
   });
@@ -55,7 +77,8 @@ describe("1. Hono serves the PWA and the API", () => {
     const admin = await setUpAdmin(s);
     const member = await createMember(s, admin.cookie, "sam");
     const res = await post(
-      s, "/api/auth/admin/create-user",
+      s,
+      "/api/auth/admin/create-user",
       { email: "eve@users.invalid", password: "x".repeat(12), name: "eve" },
       member.cookie,
     );
@@ -67,7 +90,14 @@ describe("1. Hono serves the PWA and the API", () => {
     await setUpAdmin(s);
     const statuses: number[] = [];
     for (let i = 0; i < 6; i++) {
-      statuses.push((await post(s, "/api/auth/sign-in/username", { username: "admin", password: "wrong" })).status);
+      statuses.push(
+        (
+          await post(s, "/api/auth/sign-in/username", {
+            username: "admin",
+            password: "wrong",
+          })
+        ).status,
+      );
     }
     expect(statuses).toContain(429);
   });
@@ -83,7 +113,9 @@ describe("2. Hocuspocus runs behind Hono through handleConnection", () => {
     const b = track(device(s, sam.cookie)).open("shared/plan");
     await Promise.all([a.synced, b.synced]);
     a.doc.getText("body").insert(0, "hello from admin");
-    await waitFor(() => b.doc.getText("body").toString() === "hello from admin");
+    await waitFor(
+      () => b.doc.getText("body").toString() === "hello from admin",
+    );
 
     for (const d of devices.splice(0)) d.destroy();
     const { dataDir } = s;
@@ -99,7 +131,9 @@ describe("2. Hocuspocus runs behind Hono through handleConnection", () => {
     const s = await server();
     const admin = await setUpAdmin(s);
     const d = track(device(s, admin.cookie));
-    const docs = Array.from({ length: 300 }, (_, i) => d.open(`shared/page-${i}`));
+    const docs = Array.from({ length: 300 }, (_, i) =>
+      d.open(`shared/page-${i}`),
+    );
     await Promise.all(docs.map((x) => x.synced));
   });
 });
@@ -109,7 +143,9 @@ describe("3. A Better Auth session cookie authenticates the sync socket", () => 
     const s = await server();
     await setUpAdmin(s);
     expect(await tryUpgrade(s)).toBe(401);
-    expect(await tryUpgrade(s, "better-auth.session_token=forged.value")).toBe(401);
+    expect(await tryUpgrade(s, "better-auth.session_token=forged.value")).toBe(
+      401,
+    );
   });
 
   test("access is decided per document on the same socket", async () => {
@@ -123,7 +159,9 @@ describe("3. A Better Auth session cookie authenticates the sync socket", () => 
     await samDevice.open("shared/plan").synced;
 
     const adminDevice = track(device(s, admin.cookie));
-    expect(await adminDevice.open(`private/${samId}/journal`).denied).toBeTruthy();
+    expect(
+      await adminDevice.open(`private/${samId}/journal`).denied,
+    ).toBeTruthy();
     // The socket stays usable for the documents admin may open.
     await adminDevice.open("shared/other").synced;
   });
@@ -141,7 +179,9 @@ describe("3. A Better Auth session cookie authenticates the sync socket", () => 
     expect(editor.provider.authorizedScope).toBe("read-write");
 
     editor.doc.getText("body").insert(0, "Bedtime is 8pm.");
-    await waitFor(() => viewer.doc.getText("body").toString() === "Bedtime is 8pm.");
+    await waitFor(
+      () => viewer.doc.getText("body").toString() === "Bedtime is 8pm.",
+    );
 
     viewer.doc.getText("body").insert(0, "Bedtime is never. ");
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -149,7 +189,9 @@ describe("3. A Better Auth session cookie authenticates the sync socket", () => 
     const onServer = s.hocuspocus.documents.get("readonly/house-manual")!;
     expect(onServer.getText("body").toString()).toBe("Bedtime is 8pm.");
     // The server drops the viewer's edit silently: it stays in the viewer's local copy.
-    expect(viewer.doc.getText("body").toString()).toBe("Bedtime is never. Bedtime is 8pm.");
+    expect(viewer.doc.getText("body").toString()).toBe(
+      "Bedtime is never. Bedtime is 8pm.",
+    );
   });
 });
 
@@ -166,20 +208,28 @@ describe("4. Long-lived sessions, and revocation stops syncing", () => {
     const admin = await setUpAdmin(s);
     // Simulate 200 days offline: the session was last extended 200 days ago, so it
     // has 165 days left. Better Auth stores dates as ISO strings.
-    const iso = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
-    s.db.prepare(`UPDATE session SET expiresAt = ?, updatedAt = ?`).run(iso(165), iso(-200));
+    const iso = (days: number) =>
+      new Date(Date.now() + days * DAY_MS).toISOString();
+    s.db
+      .prepare(`UPDATE session SET expiresAt = ?, updatedAt = ?`)
+      .run(iso(165), iso(-200));
     expect(await tryUpgrade(s, admin.cookie)).toBe("open");
     // Connecting extends the session (updateAge is a day), so active devices never expire.
-    const { expiresAt } = s.db.prepare(`SELECT expiresAt FROM session`).get() as { expiresAt: string };
+    const { expiresAt } = s.db
+      .prepare(`SELECT expiresAt FROM session`)
+      .get() as { expiresAt: string };
     expect(Date.parse(expiresAt)).toBeGreaterThan(Date.now() + 360 * DAY_MS);
   });
 
   test("an HTTP session check renews the cookie for another year", async () => {
     const s = await server();
     const admin = await setUpAdmin(s);
-    const iso = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
+    const iso = (days: number) =>
+      new Date(Date.now() + days * DAY_MS).toISOString();
     s.db.prepare(`UPDATE session SET expiresAt = ?`).run(iso(165));
-    const res = await fetch(`${s.url}/api/auth/get-session`, { headers: { cookie: admin.cookie } });
+    const res = await fetch(`${s.url}/api/auth/get-session`, {
+      headers: { cookie: admin.cookie },
+    });
     expect(res.ok).toBe(true);
     expect(res.headers.get("set-cookie")).toMatch(/Max-Age=31536000/);
   });
@@ -187,7 +237,9 @@ describe("4. Long-lived sessions, and revocation stops syncing", () => {
   test("an expired session is refused", async () => {
     const s = await server();
     const admin = await setUpAdmin(s);
-    s.db.prepare(`UPDATE session SET expiresAt = ?`).run(new Date(Date.now() - 1000).toISOString());
+    s.db
+      .prepare(`UPDATE session SET expiresAt = ?`)
+      .run(new Date(Date.now() - 1000).toISOString());
     expect(await tryUpgrade(s, admin.cookie)).toBe(401);
   });
 
@@ -198,7 +250,12 @@ describe("4. Long-lived sessions, and revocation stops syncing", () => {
     const samDevice = track(device(s, sam.cookie));
     await samDevice.open("shared/plan").synced;
 
-    const res = await post(s, "/api/auth/admin/revoke-user-sessions", { userId: sam.body.user.id }, admin.cookie);
+    const res = await post(
+      s,
+      "/api/auth/admin/revoke-user-sessions",
+      { userId: sam.body.user.id },
+      admin.cookie,
+    );
     expect(res.ok).toBe(true);
     expect(await samDevice.closed).toBe(4401);
     expect(await tryUpgrade(s, sam.cookie)).toBe(401);
@@ -214,7 +271,9 @@ describe("4. Long-lived sessions, and revocation stops syncing", () => {
     await phoneDevice.open("shared/plan").synced;
     await laptopDevice.open("shared/plan").synced;
 
-    expect((await post(s, "/api/auth/sign-out", {}, admin.cookie)).ok).toBe(true);
+    expect((await post(s, "/api/auth/sign-out", {}, admin.cookie)).ok).toBe(
+      true,
+    );
     expect(await phoneDevice.closed).toBe(4401);
     expect(await tryUpgrade(s, laptop.cookie)).toBe("open");
   });
@@ -237,6 +296,12 @@ describe("4. Long-lived sessions, and revocation stops syncing", () => {
     const after = again.open("shared/plan");
     Y.applyUpdate(after.doc, Y.encodeStateAsUpdate(local));
     await after.synced;
-    await waitFor(() => s.hocuspocus.documents.get("shared/plan")?.getText("body").toString() === "written offline");
+    await waitFor(
+      () =>
+        s.hocuspocus.documents
+          .get("shared/plan")
+          ?.getText("body")
+          .toString() === "written offline",
+    );
   });
 });

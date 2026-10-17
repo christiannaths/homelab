@@ -8,7 +8,8 @@ export interface Person {
   role: Role;
 }
 
-export type AddPersonResult = { ok: true; person: Person } | { ok: false; reason: string };
+export type AddPersonResult =
+  { ok: true; person: Person } | { ok: false; reason: string };
 
 /**
  * Decides whether `actor` may add a person, and with which role.
@@ -22,8 +23,10 @@ export function addPerson(
 ): AddPersonResult {
   const name = input.name.trim();
   if (!name) return { ok: false, reason: "A person needs a name." };
-  if (people.length === 0) return { ok: true, person: { id: input.id, name, role: "owner" } };
-  if (actor?.role !== "owner") return { ok: false, reason: "Only a workspace owner can add people." };
+  if (people.length === 0)
+    return { ok: true, person: { id: input.id, name, role: "owner" } };
+  if (actor?.role !== "owner")
+    return { ok: false, reason: "Only a workspace owner can add people." };
   return { ok: true, person: { id: input.id, name, role: input.role } };
 }
 
@@ -34,11 +37,19 @@ export function addPerson(
  * Private pages stay on the server, readable by nobody (transferring them is Enterprise-only in
  * Notion, and out of scope).
  */
-export function removePerson(people: readonly Person[], actor: Person | null, personId: string): AddPersonResult {
-  if (actor?.role !== "owner") return { ok: false, reason: "Only a workspace owner can remove people." };
+export function removePerson(
+  people: readonly Person[],
+  actor: Person | null,
+  personId: string,
+): AddPersonResult {
+  if (actor?.role !== "owner")
+    return { ok: false, reason: "Only a workspace owner can remove people." };
   const person = people.find((p) => p.id === personId);
   if (!person) return { ok: false, reason: "No such person." };
-  if (person.role === "owner" && people.filter((p) => p.role === "owner").length === 1) {
+  if (
+    person.role === "owner" &&
+    people.filter((p) => p.role === "owner").length === 1
+  ) {
     return { ok: false, reason: "The workspace needs at least one owner." };
   }
   return { ok: true, person };

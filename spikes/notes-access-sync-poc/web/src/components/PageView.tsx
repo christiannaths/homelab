@@ -4,13 +4,21 @@ import { withCollaboration } from "@blocknote/core/yjs";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import {
-  breadcrumb, canEdit, canShare, movePage, movesToPrivate, privateSection, renamePage,
-  type PageMeta, type Person, type Tree,
+  breadcrumb,
+  canEdit,
+  canShare,
+  movePage,
+  movesToPrivate,
+  privateSection,
+  renamePage,
+  type PageMeta,
+  type Person,
+  type Tree,
 } from "@homelab/notes-access-sync-poc-model";
 import { useSyncExternalStore } from "react";
 import { useLevel, useLocalReady } from "../sync/context";
 import type { LocalPages } from "../sync/pages";
-import type { DocEntry } from "../sync/SyncManager";
+import type { DocEntry } from "../sync/sync-manager";
 import { SharePanel } from "./SharePanel";
 
 /** How this person shows up in other people's cursors. */
@@ -40,10 +48,22 @@ export function PageView({ page, pages, tree, identity, me }: Props) {
   const crumbs = breadcrumb(tree, page.id).slice(0, -1);
 
   return (
-    <article className="page" data-testid="page" data-page-id={page.id} data-level={level}>
-      <nav className="breadcrumb" data-testid="breadcrumb">
+    <article
+      className="page"
+      data-testid="page"
+      data-page-id={page.id}
+      data-level={level}
+    >
+      <nav
+        className="breadcrumb"
+        data-testid="breadcrumb"
+      >
         {crumbs.map((n) => (
-          <a key={n.page.id} href={`#/page/${n.page.id}`} data-testid="breadcrumb-item">
+          <a
+            key={n.page.id}
+            href={`#/page/${n.page.id}`}
+            data-testid="breadcrumb-item"
+          >
             {n.page.title || "Untitled"}
           </a>
         ))}
@@ -58,26 +78,52 @@ export function PageView({ page, pages, tree, identity, me }: Props) {
           onChange={(e) => renamePage(entry.doc, e.target.value)}
         />
       </div>
-      {canShare(level) && me.role !== "guest" && movesToPrivate(tree, page.id, null, privateSection(me.id)) && (
-        <div className="page-actions">
-          <button
-            className="link"
-            data-testid="move-to-private"
-            onClick={() => {
-              // Story 44: moving to Private removes everyone else's access, so ask first.
-              const title = page.title || "Untitled";
-              if (!confirm(`Move “${title}” to your Private section? This removes everyone else's access to it.`)) return;
-              movePage(pages, tree, page.id, null, Number.MAX_SAFE_INTEGER, privateSection(me.id));
-            }}
-          >
-            Move to Private
-          </button>
-        </div>
+      {canShare(level) &&
+        me.role !== "guest" &&
+        movesToPrivate(tree, page.id, null, privateSection(me.id)) && (
+          <div className="page-actions">
+            <button
+              className="link"
+              data-testid="move-to-private"
+              onClick={() => {
+                // Story 44: moving to Private removes everyone else's access, so ask first.
+                const title = page.title || "Untitled";
+                if (
+                  !confirm(
+                    `Move “${title}” to your Private section? This removes everyone else's access to it.`,
+                  )
+                )
+                  return;
+                movePage(
+                  pages,
+                  tree,
+                  page.id,
+                  null,
+                  Number.MAX_SAFE_INTEGER,
+                  privateSection(me.id),
+                );
+              }}
+            >
+              Move to Private
+            </button>
+          </div>
+        )}
+      {canShare(level) && (
+        <SharePanel
+          page={page}
+          doc={entry.doc}
+          me={me}
+          pages={metas}
+        />
       )}
-      {canShare(level) && <SharePanel page={page} doc={entry.doc} me={me} pages={metas} />}
       {ready ? (
         // A fresh copy after a refused update (#18) gets a fresh editor.
-        <Editor key={`${entry.name}#${entry.generation}`} entry={entry} identity={identity} editable={editable} />
+        <Editor
+          key={`${entry.name}#${entry.generation}`}
+          entry={entry}
+          identity={identity}
+          editable={editable}
+        />
       ) : (
         <p className="muted">Loading…</p>
       )}
@@ -85,14 +131,26 @@ export function PageView({ page, pages, tree, identity, me }: Props) {
   );
 }
 
-function Editor({ entry, identity, editable }: { entry: DocEntry; identity: Identity; editable: boolean }) {
+function Editor({
+  entry,
+  identity,
+  editable,
+}: {
+  entry: DocEntry;
+  identity: Identity;
+  editable: boolean;
+}) {
   const editor = useCreateBlockNote(
     withCollaboration({
       collaboration: {
         fragment: entry.doc.getXmlFragment("content"),
         user: { ...identity },
         // The editor only mounts once the local copy has loaded, so the provider exists.
-        provider: entry.provider as unknown as { awareness: NonNullable<NonNullable<DocEntry["provider"]>["awareness"]> },
+        provider: entry.provider as unknown as {
+          awareness: NonNullable<
+            NonNullable<DocEntry["provider"]>["awareness"]
+          >;
+        },
         showCursorLabels: "always",
       },
     }),
@@ -100,7 +158,11 @@ function Editor({ entry, identity, editable }: { entry: DocEntry; identity: Iden
   );
   return (
     <div data-testid="editor">
-      <BlockNoteView editor={editor} theme="light" editable={editable} />
+      <BlockNoteView
+        editor={editor}
+        theme="light"
+        editable={editable}
+      />
     </div>
   );
 }

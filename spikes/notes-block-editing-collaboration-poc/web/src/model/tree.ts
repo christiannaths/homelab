@@ -29,7 +29,11 @@ export interface Tree {
 }
 
 export function comparePages(a: PageMeta, b: PageMeta): number {
-  return compareOrder(a.order, b.order) || a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return (
+    compareOrder(a.order, b.order) ||
+    a.createdAt - b.createdAt ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
 }
 
 /**
@@ -38,11 +42,18 @@ export function comparePages(a: PageMeta, b: PageMeta): number {
  * - a parent that doesn't exist, or is a database, becomes the root
  * - a cycle (from two concurrent moves) is broken at its smallest id, which becomes a root
  */
-export function resolveParents(pages: Map<string, PageMeta>): Map<string, string | null> {
+export function resolveParents(
+  pages: Map<string, PageMeta>,
+): Map<string, string | null> {
   const parent = new Map<string, string | null>();
   for (const p of pages.values()) {
     const target = p.parentId ? pages.get(p.parentId) : undefined;
-    parent.set(p.id, target && target.kind !== "database" && target.id !== p.id ? target.id : null);
+    parent.set(
+      p.id,
+      target && target.kind !== "database" && target.id !== p.id
+        ? target.id
+        : null,
+    );
   }
 
   const acyclic = new Set<string>();
@@ -88,7 +99,13 @@ export function buildTree(list: PageMeta[]): Tree {
 
   const byId = new Map<string, TreeNode>();
   for (const p of list) {
-    if (!isTrashed(p.id)) byId.set(p.id, { page: p, parentId: parent.get(p.id) ?? null, children: [], depth: 0 });
+    if (!isTrashed(p.id))
+      byId.set(p.id, {
+        page: p,
+        parentId: parent.get(p.id) ?? null,
+        children: [],
+        depth: 0,
+      });
   }
   const roots: TreeNode[] = [];
   for (const node of byId.values()) {
@@ -105,22 +122,35 @@ export function buildTree(list: PageMeta[]): Tree {
   sortAndDepth(roots, 0);
 
   const trash = list
-    .filter((p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)))
+    .filter(
+      (p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)),
+    )
     .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 
   return { roots, byId, trash };
 }
 
 /** True if `id` is `ancestorId` or below it in the effective tree. */
-export function isInSubtree(tree: Tree, id: string, ancestorId: string): boolean {
-  for (let cur: string | null = id; cur !== null; cur = tree.byId.get(cur)?.parentId ?? null) {
+export function isInSubtree(
+  tree: Tree,
+  id: string,
+  ancestorId: string,
+): boolean {
+  for (
+    let cur: string | null = id;
+    cur !== null;
+    cur = tree.byId.get(cur)?.parentId ?? null
+  ) {
     if (cur === ancestorId) return true;
   }
   return false;
 }
 
 /** Depth-first list of nodes, skipping the children of collapsed nodes: the sidebar's rows. */
-export function flattenVisible(tree: Tree, expanded: (id: string) => boolean): TreeNode[] {
+export function flattenVisible(
+  tree: Tree,
+  expanded: (id: string) => boolean,
+): TreeNode[] {
   const out: TreeNode[] = [];
   const walk = (nodes: TreeNode[]) => {
     for (const n of nodes) {

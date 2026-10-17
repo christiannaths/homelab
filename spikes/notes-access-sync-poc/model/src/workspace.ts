@@ -1,7 +1,13 @@
 import * as Y from "yjs";
 import { isAccessLevel, type AccessLevel, type PageAccess } from "./levels.ts";
 import { freshKeys, keyBetween, keysAreUsable } from "./order.ts";
-import { isInSubtree, type PageKind, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
+import {
+  isInSubtree,
+  type PageKind,
+  type PageMeta,
+  type Tree,
+  type TreeNode,
+} from "./tree.ts";
 
 /**
  * The document split (ticket #14, see the spike's ticket notes for the options weighed):
@@ -33,7 +39,8 @@ export type DocRef =
   | { kind: "teamspace"; teamspaceId: string };
 
 export function parseDocName(name: string): DocRef | null {
-  const [, kind, rest] = name.match(/^(page|index|teamspace|schema):(.+)$/) ?? [];
+  const [, kind, rest] =
+    name.match(/^(page|index|teamspace|schema):(.+)$/) ?? [];
   if (kind === "page") return { kind, id: rest };
   if (kind === "schema") return { kind, databaseId: rest };
   if (kind === "index") return { kind, personId: rest };
@@ -45,9 +52,12 @@ export function parseDocName(name: string): DocRef | null {
 export const privateSection = (personId: string) => `private:${personId}`;
 
 /** A teamspace's section (#17): its top-level pages start from the teamspace's default levels. */
-export const teamspaceSection = (teamspaceId: string) => `teamspace:${teamspaceId}`;
+export const teamspaceSection = (teamspaceId: string) =>
+  `teamspace:${teamspaceId}`;
 
-export type SectionRef = { kind: "private"; personId: string } | { kind: "teamspace"; teamspaceId: string };
+export type SectionRef =
+  | { kind: "private"; personId: string }
+  | { kind: "teamspace"; teamspaceId: string };
 
 export function parseSection(section: string): SectionRef | null {
   const [, kind, id] = section.match(/^(private|teamspace):(.+)$/) ?? [];
@@ -71,23 +81,37 @@ const WORKSPACE_KEY = "workspace";
 const TEAMSPACE_KEY = "teamspace";
 
 /** Sets one entry of the page's own access; `null` deletes it, so the page inherits that entry. */
-function setAccessEntry(doc: Y.Doc, key: string, level: AccessLevel | null): void {
+function setAccessEntry(
+  doc: Y.Doc,
+  key: string,
+  level: AccessLevel | null,
+): void {
   if (level === null) accessMap(doc).delete(key);
   else accessMap(doc).set(key, level);
 }
 
 /** Invites `personId` at `level`, or overrides what they inherit. `null` is Restore inherited access. */
-export function setPersonAccess(doc: Y.Doc, personId: string, level: AccessLevel | null): void {
+export function setPersonAccess(
+  doc: Y.Doc,
+  personId: string,
+  level: AccessLevel | null,
+): void {
   setAccessEntry(doc, PERSON_KEY + personId, level);
 }
 
 /** Sets general access for everyone in the workspace ("none" = Only people invited). `null` inherits it. */
-export function setWorkspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
+export function setWorkspaceAccess(
+  doc: Y.Doc,
+  level: AccessLevel | null,
+): void {
   setAccessEntry(doc, WORKSPACE_KEY, level);
 }
 
 /** In a teamspace, sets the level its members get on this page and below (#17). `null` restores the teamspace's default. */
-export function setTeamspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
+export function setTeamspaceAccess(
+  doc: Y.Doc,
+  level: AccessLevel | null,
+): void {
   setAccessEntry(doc, TEAMSPACE_KEY, level);
 }
 
@@ -100,7 +124,8 @@ export function readAccess(doc: Y.Doc): PageAccess | undefined {
     if (!isAccessLevel(value)) continue;
     if (key === WORKSPACE_KEY) workspace = value;
     else if (key === TEAMSPACE_KEY) teamspace = value;
-    else if (key.startsWith(PERSON_KEY)) people[key.slice(PERSON_KEY.length)] = value;
+    else if (key.startsWith(PERSON_KEY))
+      people[key.slice(PERSON_KEY.length)] = value;
   }
   const access: PageAccess = {};
   if (Object.keys(people).length) access.people = people;
@@ -144,16 +169,21 @@ export function readIndex(doc: Y.Doc): string[] {
  */
 export function readIndexLevels(doc: Y.Doc): Map<string, AccessLevel> {
   const levels = new Map<string, AccessLevel>();
-  for (const [id, value] of indexMap(doc)) levels.set(id, isAccessLevel(value) ? value : "view");
+  for (const [id, value] of indexMap(doc))
+    levels.set(id, isAccessLevel(value) ? value : "view");
   return levels;
 }
 
 /** Makes a page index list exactly `levels`, touching only the entries that change. Server only. */
-export function writeIndex(doc: Y.Doc, levels: ReadonlyMap<string, AccessLevel>): void {
+export function writeIndex(
+  doc: Y.Doc,
+  levels: ReadonlyMap<string, AccessLevel>,
+): void {
   const map = indexMap(doc);
   doc.transact(() => {
     for (const id of [...map.keys()]) if (!levels.has(id)) map.delete(id);
-    for (const [id, level] of levels) if (map.get(id) !== level) map.set(id, level);
+    for (const [id, level] of levels)
+      if (map.get(id) !== level) map.set(id, level);
   });
 }
 
@@ -163,7 +193,11 @@ export interface PageDocs {
   create(id: string): Y.Doc;
 }
 
-function childrenOf(tree: Tree, parentId: string | null, section: string): TreeNode[] {
+function childrenOf(
+  tree: Tree,
+  parentId: string | null,
+  section: string,
+): TreeNode[] {
   if (parentId !== null) return tree.byId.get(parentId)?.children ?? [];
   return tree.roots.filter((n) => n.section === section && !n.parentHidden);
 }
@@ -180,7 +214,9 @@ function keyForPosition(
   index: number,
   movingId?: string,
 ): string {
-  const siblings = childrenOf(tree, parentId, section).filter((n) => n.page.id !== movingId);
+  const siblings = childrenOf(tree, parentId, section).filter(
+    (n) => n.page.id !== movingId,
+  );
   let keys = siblings.map((n) => n.page.order);
   if (!keysAreUsable(keys)) {
     keys = freshKeys(siblings.length);
@@ -194,7 +230,11 @@ function keyForPosition(
 }
 
 /** The section a page goes in: its parent's effective section, or `section` at the top level. */
-function sectionFor(tree: Tree, parentId: string | null, section: string | undefined): string | null {
+function sectionFor(
+  tree: Tree,
+  parentId: string | null,
+  section: string | undefined,
+): string | null {
   if (parentId !== null) return tree.byId.get(parentId)?.section ?? null;
   return section ?? null;
 }
@@ -206,12 +246,23 @@ function sectionFor(tree: Tree, parentId: string | null, section: string | undef
 export function createPage(
   docs: PageDocs,
   tree: Tree,
-  opts: { parentId?: string | null; section?: string; kind?: PageKind; title?: string; order?: string } = {},
+  opts: {
+    parentId?: string | null;
+    section?: string;
+    kind?: PageKind;
+    title?: string;
+    order?: string;
+  } = {},
 ): string {
   const parentId = opts.parentId ?? null;
   const section = sectionFor(tree, parentId, opts.section);
-  if (section === null) throw new Error("createPage: a top-level page needs a section, a subpage a known parent");
-  const order = opts.order ?? keyForPosition(docs, tree, parentId, section, Number.MAX_SAFE_INTEGER);
+  if (section === null)
+    throw new Error(
+      "createPage: a top-level page needs a section, a subpage a known parent",
+    );
+  const order =
+    opts.order ??
+    keyForPosition(docs, tree, parentId, section, Number.MAX_SAFE_INTEGER);
   const id = crypto.randomUUID();
   const doc = docs.create(id);
   doc.transact(() => {
@@ -232,12 +283,22 @@ export function createPage(
  * a move to the top level of a Private section where the page wasn't top-level already (a reorder
  * keeps its access), or a move from another section to under a page in a Private section.
  */
-export function movesToPrivate(tree: Tree, id: string, parentId: string | null, section?: string): boolean {
+export function movesToPrivate(
+  tree: Tree,
+  id: string,
+  parentId: string | null,
+  section?: string,
+): boolean {
   const node = tree.byId.get(id);
   const to = sectionFor(tree, parentId, section ?? node?.section);
   if (to === null || parseSection(to)?.kind !== "private") return false;
   if (parentId !== null) return node?.section !== to;
-  return !(node && node.depth === 0 && !node.parentHidden && node.section === to);
+  return !(
+    node &&
+    node.depth === 0 &&
+    !node.parentHidden &&
+    node.section === to
+  );
 }
 
 /**
@@ -263,7 +324,12 @@ export function movePage(
 ): boolean {
   if (parentId !== null) {
     const target = tree.byId.get(parentId);
-    if (!target || target.page.kind === "database" || isInSubtree(tree, parentId, id)) return false;
+    if (
+      !target ||
+      target.page.kind === "database" ||
+      isInSubtree(tree, parentId, id)
+    )
+      return false;
   }
   const doc = docs.get(id);
   const node = tree.byId.get(id);
@@ -276,7 +342,8 @@ export function movePage(
     m.set("parentId", parentId);
     m.set("section", to);
     m.set("order", order);
-    if (toPrivate) for (const key of [...accessMap(doc).keys()]) accessMap(doc).delete(key);
+    if (toPrivate)
+      for (const key of [...accessMap(doc).keys()]) accessMap(doc).delete(key);
   });
   return true;
 }
@@ -290,7 +357,11 @@ export function copyPageContent(from: Y.Doc, to: Y.Doc): void {
   const blocks = from
     .getXmlFragment("content")
     .toArray()
-    .flatMap((node) => (node instanceof Y.XmlElement || node instanceof Y.XmlText ? [node.clone()] : []));
+    .flatMap((node) =>
+      node instanceof Y.XmlElement || node instanceof Y.XmlText
+        ? [node.clone()]
+        : [],
+    );
   const target = to.getXmlFragment("content");
   to.transact(() => target.insert(target.length, blocks));
 }
@@ -314,6 +385,7 @@ export function restorePage(docs: PageDocs, tree: Tree, id: string): void {
     // this device doesn't hold may be one this person can't open: leave that link alone, since
     // writing it would move the page for everyone.
     const parentId = m.get("parentId") as string | null;
-    if (parentId && docs.get(parentId) && !tree.byId.has(parentId)) m.set("parentId", null);
+    if (parentId && docs.get(parentId) && !tree.byId.has(parentId))
+      m.set("parentId", null);
   });
 }

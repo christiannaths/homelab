@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { connectAs, seedWorkspace, TestServer, type SeededWorkspace, type TestClient } from "./index.ts";
+import {
+  connectAs,
+  seedWorkspace,
+  TestServer,
+  type SeededWorkspace,
+  type TestClient,
+} from "./index.ts";
 
 // The scale seed (#22), at a small size: what each person's device receives must follow the
 // access the seed sets up, so the timings at full size measure per-person sync, not everything.
@@ -15,8 +21,15 @@ describe("scale seed", () => {
 
   beforeAll(async () => {
     seeded = seedWorkspace(server.dataDir, {
-      olivePrivate: 6, maxPrivate: 5, sharedWithMax: 2, tripForGus: 1,
-      engineering: 4, leadership: 3, tasksRows: 4, readingRows: 2, rowsForGus: 1,
+      olivePrivate: 6,
+      maxPrivate: 5,
+      sharedWithMax: 2,
+      tripForGus: 1,
+      engineering: 4,
+      leadership: 3,
+      tasksRows: 4,
+      readingRows: 2,
+      rowsForGus: 1,
     });
     await server.start();
   });
@@ -61,11 +74,15 @@ describe("scale seed", () => {
     await Promise.all([olive.syncAll(), max.syncAll()]);
     expect(olive.level(seeded.engineeringPageId)).toBe("full");
     expect(max.level(seeded.engineeringPageId)).toBe("full");
-    expect(max.pages().find((p) => p.id === seeded.engineeringPageId)?.title).toBe("Engineering 1");
+    expect(
+      max.pages().find((p) => p.id === seeded.engineeringPageId)?.title,
+    ).toBe("Engineering 1");
   });
 
   it("drops no connection and refuses nothing while the devices sync", async () => {
     expect(await server.refusals()).toEqual([]);
-    expect(server.logs.filter((l) => /closing connection/i.test(l))).toEqual([]);
+    expect(server.logs.filter((l) => /closing connection/i.test(l))).toEqual(
+      [],
+    );
   });
 });

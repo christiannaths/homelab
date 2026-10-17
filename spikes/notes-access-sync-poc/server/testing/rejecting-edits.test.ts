@@ -1,6 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { teamspaceSection, type Person } from "@homelab/notes-access-sync-poc-model";
-import { connectAs, indexDocName, pageDocName, privateSection, TestServer, waitFor, type TestClient } from "./index.ts";
+import {
+  teamspaceSection,
+  type Person,
+} from "@homelab/notes-access-sync-poc-model";
+import {
+  connectAs,
+  indexDocName,
+  pageDocName,
+  privateSection,
+  TestServer,
+  waitFor,
+  type TestClient,
+} from "./index.ts";
 
 // Rejecting edits (#18): the server refuses what a device may not write, and the device gets back
 // in step by throwing its copy of that document away and syncing it again.
@@ -29,50 +40,73 @@ describe("rejecting edits", () => {
   });
 
   /** A page of Max's, shared with Nia at `level`, and Nia's device holding it. */
-  async function sharedWithNia(title: string, body: string, level: "view" | "comment" | "edit") {
+  async function sharedWithNia(
+    title: string,
+    body: string,
+    level: "view" | "comment" | "edit",
+  ) {
     const owner = await connect(max);
     const id = await owner.createPage(title, body);
     await owner.share(id, nia.id, level);
     await owner.settled();
     const device = await connect(nia);
-    await waitFor(async () => (await device.syncAll()).includes(pageDocName(id)));
+    await waitFor(async () =>
+      (await device.syncAll()).includes(pageDocName(id)),
+    );
     expect(device.level(id)).toBe(level);
     return { id, owner, device };
   }
 
-  describe.each(["view", "comment"] as const)("an edit from a device at Can %s", (level) => {
-    let id: string;
-    let owner: TestClient;
-    let device: TestClient;
-    beforeAll(async () => {
-      ({ id, owner, device } = await sharedWithNia(`Recipes (${level})`, "Pancakes", level));
-      // A modified or buggy client: the app wouldn't offer this edit.
-      await device.writeText(id, "Hacked");
-    });
+  describe.each(["view", "comment"] as const)(
+    "an edit from a device at Can %s",
+    (level) => {
+      let id: string;
+      let owner: TestClient;
+      let device: TestClient;
+      beforeAll(async () => {
+        ({ id, owner, device } = await sharedWithNia(
+          `Recipes (${level})`,
+          "Pancakes",
+          level,
+        ));
+        // A modified or buggy client: the app wouldn't offer this edit.
+        await device.writeText(id, "Hacked");
+      });
 
-    it("is refused, and no other device ever sees it", async () => {
-      await expect.poll(() => device.refusals(pageDocName(id))).toEqual(["read-only"]);
-      expect(await server.refusals()).toContainEqual({ personId: nia.id, documentName: pageDocName(id), reason: "read-only" });
-      const fresh = await connect(max);
-      await expect.poll(() => fresh.syncAll()).toContain(pageDocName(id));
-      expect(fresh.pageText(id)).toBe("Pancakes");
-      expect(owner.pageText(id)).toBe("Pancakes");
-    });
+      it("is refused, and no other device ever sees it", async () => {
+        await expect
+          .poll(() => device.refusals(pageDocName(id)))
+          .toEqual(["read-only"]);
+        expect(await server.refusals()).toContainEqual({
+          personId: nia.id,
+          documentName: pageDocName(id),
+          reason: "read-only",
+        });
+        const fresh = await connect(max);
+        await expect.poll(() => fresh.syncAll()).toContain(pageDocName(id));
+        expect(fresh.pageText(id)).toBe("Pancakes");
+        expect(owner.pageText(id)).toBe("Pancakes");
+      });
 
-    it("leaves the device with the server's copy, still following the page, and it stops resending the edit", async () => {
-      await expect.poll(() => device.pageText(id)).toBe("Pancakes");
-      await device.settled();
-      // Later edits from others still arrive.
-      await owner.writeText(id, "Waffles");
-      await expect.poll(() => device.pageText(id)).toBe("Pancakes\nWaffles");
-      // Reconnecting syncs the whole document again: nothing refused is sent a second time.
-      await device.reconnect();
-      await device.settled();
-      expect(device.refusals(pageDocName(id))).toEqual(["read-only"]);
-      expect((await server.refusals()).filter((r) => r.documentName === pageDocName(id))).toHaveLength(1);
-      expect(owner.pageText(id)).toBe("Pancakes\nWaffles");
-    });
-  });
+      it("leaves the device with the server's copy, still following the page, and it stops resending the edit", async () => {
+        await expect.poll(() => device.pageText(id)).toBe("Pancakes");
+        await device.settled();
+        // Later edits from others still arrive.
+        await owner.writeText(id, "Waffles");
+        await expect.poll(() => device.pageText(id)).toBe("Pancakes\nWaffles");
+        // Reconnecting syncs the whole document again: nothing refused is sent a second time.
+        await device.reconnect();
+        await device.settled();
+        expect(device.refusals(pageDocName(id))).toEqual(["read-only"]);
+        expect(
+          (await server.refusals()).filter(
+            (r) => r.documentName === pageDocName(id),
+          ),
+        ).toHaveLength(1);
+        expect(owner.pageText(id)).toBe("Pancakes\nWaffles");
+      });
+    },
+  );
 
   describe("on a device with Can edit", () => {
     let id: string;
@@ -84,8 +118,12 @@ describe("rejecting edits", () => {
 
     it("an access change is refused, and the device returns to the server's access and content", async () => {
       await device.share(id, gus.id, "full");
-      await expect.poll(() => device.refusals(pageDocName(id))).toEqual(["access-change-refused"]);
-      await expect.poll(() => device.access(id)).toEqual({ people: { [nia.id]: "edit" } });
+      await expect
+        .poll(() => device.refusals(pageDocName(id)))
+        .toEqual(["access-change-refused"]);
+      await expect
+        .poll(() => device.access(id))
+        .toEqual({ people: { [nia.id]: "edit" } });
       await device.settled();
       // Still editable after recovering.
       await device.writeText(id, "Laundry");
@@ -110,7 +148,9 @@ describe("rejecting edits", () => {
       await owner.settled();
       await device.writeText(id, "Written offline");
       await device.connect().catch(() => {}); // the refused page reopens after the reconnect's sync
-      await expect.poll(() => device.refusals(pageDocName(id))).toEqual(["access-change-refused", "read-only"]);
+      await expect
+        .poll(() => device.refusals(pageDocName(id)))
+        .toEqual(["access-change-refused", "read-only"]);
       await expect.poll(() => device.pageText(id)).toBe("Dishes\nLaundry");
       await device.settled();
       expect(owner.pageText(id)).toBe("Dishes\nLaundry");
@@ -123,8 +163,13 @@ describe("rejecting edits", () => {
       await expect.poll(() => device.level(id)).toBe("edit");
       await device.writeText(id, "Ironing");
       await device.settled();
-      await expect.poll(() => owner.pageText(id)).toBe("Dishes\nLaundry\nIroning");
-      expect(device.refusals(pageDocName(id))).toEqual(["access-change-refused", "read-only"]);
+      await expect
+        .poll(() => owner.pageText(id))
+        .toBe("Dishes\nLaundry\nIroning");
+      expect(device.refusals(pageDocName(id))).toEqual([
+        "access-change-refused",
+        "read-only",
+      ]);
     });
   });
 
@@ -133,7 +178,9 @@ describe("rejecting edits", () => {
     await device.syncAll();
     const before = device.indexEntries();
     device.forgeIndexEntry("made-up-page", "full");
-    await expect.poll(() => device.refusals(indexDocName(nia.id))).toEqual(["read-only"]);
+    await expect
+      .poll(() => device.refusals(indexDocName(nia.id)))
+      .toEqual(["read-only"]);
     await expect.poll(() => device.indexEntries()).toEqual(before);
   });
 
@@ -143,30 +190,60 @@ describe("rejecting edits", () => {
     let owner: TestClient;
     let device: TestClient;
     beforeAll(async () => {
-      ({ id: trip, owner, device } = await sharedWithNia("Trip", "Flights", "edit"));
+      ({
+        id: trip,
+        owner,
+        device,
+      } = await sharedWithNia("Trip", "Flights", "edit"));
       ({ id: menu } = await sharedWithNia("Menu", "Soup", "view"));
-      await waitFor(async () => (await device.syncAll()).includes(pageDocName(menu)));
+      await waitFor(async () =>
+        (await device.syncAll()).includes(pageDocName(menu)),
+      );
     });
 
     it("in someone else's Private section is refused, and never reaches them", async () => {
-      const id = await device.createPage("Planted in Max's Private", "Boo", null, { section: privateSection(max.id) });
-      await expect.poll(() => device.refusals(pageDocName(id))).toEqual(["placement-refused"]);
+      const id = await device.createPage(
+        "Planted in Max's Private",
+        "Boo",
+        null,
+        { section: privateSection(max.id) },
+      );
+      await expect
+        .poll(() => device.refusals(pageDocName(id)))
+        .toEqual(["placement-refused"]);
       const maxPhone = await connect(max);
       await maxPhone.syncAll();
       expect(maxPhone.received()).not.toContain(pageDocName(id));
       expect(maxPhone.receivedContent()).not.toContain("Planted");
       // The device's copy is the server's: an empty document, so no page in its tree.
-      await expect.poll(() => device.pageTitles()).not.toContain("Planted in Max's Private");
+      await expect
+        .poll(() => device.pageTitles())
+        .not.toContain("Planted in Max's Private");
     });
 
     it("in a teamspace is refused unless the person can edit there", async () => {
-      const workshop = await owner.createTeamspace("Workshop", "closed", { memberLevel: "edit" });
-      const outside = await device.createPage("Not a member", "Hi", null, { section: teamspaceSection(workshop) });
-      await expect.poll(() => device.refusals(pageDocName(outside))).toEqual(["placement-refused"]);
+      const workshop = await owner.createTeamspace("Workshop", "closed", {
+        memberLevel: "edit",
+      });
+      const outside = await device.createPage("Not a member", "Hi", null, {
+        section: teamspaceSection(workshop),
+      });
+      await expect
+        .poll(() => device.refusals(pageDocName(outside)))
+        .toEqual(["placement-refused"]);
       await owner.addToTeamspace(workshop, nia.id);
       await owner.settled();
-      await expect.poll(async () => (await device.syncAll(), device.teamspace(workshop)?.members[nia.id])).toBe("member");
-      const inside = await device.createPage("Tool list", "Saw", null, { section: teamspaceSection(workshop) });
+      await expect
+        .poll(
+          async () => (
+            await device.syncAll(),
+            device.teamspace(workshop)?.members[nia.id]
+          ),
+        )
+        .toBe("member");
+      const inside = await device.createPage("Tool list", "Saw", null, {
+        section: teamspaceSection(workshop),
+      });
       await device.settled();
       await expect.poll(() => owner.syncAll()).toContain(pageDocName(inside));
       expect(device.refusals(pageDocName(inside))).toEqual([]);
@@ -174,7 +251,9 @@ describe("rejecting edits", () => {
 
     it("under a page the person can only view is refused", async () => {
       const id = await device.createPage("Dessert", "Cake", menu);
-      await expect.poll(() => device.refusals(pageDocName(id))).toEqual(["placement-refused"]);
+      await expect
+        .poll(() => device.refusals(pageDocName(id)))
+        .toEqual(["placement-refused"]);
       await owner.syncAll();
       expect(owner.pageTitles()).not.toContain("Dessert");
     });
@@ -188,12 +267,18 @@ describe("rejecting edits", () => {
     });
 
     it("that grants access its creator couldn't grant is refused, and the grant never takes effect", async () => {
-      const id = await device.createPage("Car hire", "Pick up at 9", trip, { access: { [gus.id]: "full" } });
-      await expect.poll(() => device.refusals(pageDocName(id))).toContain("access-change-refused");
+      const id = await device.createPage("Car hire", "Pick up at 9", trip, {
+        access: { [gus.id]: "full" },
+      });
+      await expect
+        .poll(() => device.refusals(pageDocName(id)))
+        .toContain("access-change-refused");
       const guest = await connect(gus);
       expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
       // The page was never taken in, so to a guest its name is a page they could still create (#19): empty.
-      expect(await guest.open(pageDocName(id))).toMatchObject({ status: "synced" });
+      expect(await guest.open(pageDocName(id))).toMatchObject({
+        status: "synced",
+      });
       expect(guest.receivedContent()).not.toContain("Pick up at 9");
     });
   });
@@ -205,17 +290,26 @@ describe("rejecting edits", () => {
     let owner: TestClient;
     let device: TestClient;
     beforeAll(async () => {
-      ({ id: garden, owner, device } = await sharedWithNia("Garden", "Spring", "edit"));
+      ({
+        id: garden,
+        owner,
+        device,
+      } = await sharedWithNia("Garden", "Spring", "edit"));
       beds = await owner.createPage("Beds", "Raised", garden);
       seeds = await owner.createPage("Seeds", "Tomatoes", garden);
       await owner.settled();
-      await waitFor(async () => (await device.syncAll()).includes(pageDocName(seeds)));
+      await waitFor(async () =>
+        (await device.syncAll()).includes(pageDocName(seeds)),
+      );
     });
-    const parentOn = (client: TestClient, id: string) => client.pages().find((p) => p.id === id)?.parentId;
+    const parentOn = (client: TestClient, id: string) =>
+      client.pages().find((p) => p.id === id)?.parentId;
 
     it("out of a shared page into the mover's own Private section is refused below Full access, and the device recovers", async () => {
       await device.move(seeds, null, { section: privateSection(nia.id) });
-      await expect.poll(() => device.refusals(pageDocName(seeds))).toEqual(["access-change-refused"]);
+      await expect
+        .poll(() => device.refusals(pageDocName(seeds)))
+        .toEqual(["access-change-refused"]);
       await expect.poll(() => parentOn(device, seeds)).toBe(garden);
       await device.settled();
       expect(parentOn(owner, seeds)).toBe(garden);
@@ -227,12 +321,16 @@ describe("rejecting edits", () => {
       await device.move(seeds, beds);
       await device.settled();
       await expect.poll(() => parentOn(owner, seeds)).toBe(beds);
-      expect(device.refusals(pageDocName(seeds))).toEqual(["access-change-refused"]);
+      expect(device.refusals(pageDocName(seeds))).toEqual([
+        "access-change-refused",
+      ]);
     });
 
     it("into someone else's Private section is refused even from Full access", async () => {
       await owner.move(beds, null, { section: privateSection(nia.id) });
-      await expect.poll(() => owner.refusals(pageDocName(beds))).toEqual(["placement-refused"]);
+      await expect
+        .poll(() => owner.refusals(pageDocName(beds)))
+        .toEqual(["placement-refused"]);
       await expect.poll(() => parentOn(owner, beds)).toBe(garden);
       expect(parentOn(device, beds)).toBe(garden);
     });
@@ -256,7 +354,15 @@ describe("rejecting edits", () => {
       const device = await connect(person);
       await device.syncAll();
       const everything = device.receivedContent();
-      for (const trace of ["Hacked", "Written offline", "Planted", "Dessert", "Car hire", "made-up-page", "Not a member"]) {
+      for (const trace of [
+        "Hacked",
+        "Written offline",
+        "Planted",
+        "Dessert",
+        "Car hire",
+        "made-up-page",
+        "Not a member",
+      ]) {
         expect(everything).not.toContain(trace);
       }
     }

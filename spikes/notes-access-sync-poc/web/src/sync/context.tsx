@@ -1,7 +1,18 @@
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { buildTree, type AccessLevel, type Tree } from "@homelab/notes-access-sync-poc-model";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  buildTree,
+  type AccessLevel,
+  type Tree,
+} from "@homelab/notes-access-sync-poc-model";
 import type { LocalPages } from "./pages";
-import type { DocEntry, SyncManager } from "./SyncManager";
+import type { DocEntry, SyncManager } from "./sync-manager";
 
 export const SyncContext = createContext<SyncManager | null>(null);
 

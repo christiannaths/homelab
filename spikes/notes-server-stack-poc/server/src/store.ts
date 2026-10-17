@@ -19,9 +19,9 @@ export class DocumentStore {
   }
 
   load(name: string): Uint8Array | null {
-    const row = this.db.prepare("SELECT state FROM documents WHERE name = ?").get(name) as
-      | { state: Uint8Array }
-      | undefined;
+    const row = this.db
+      .prepare("SELECT state FROM documents WHERE name = ?")
+      .get(name) as { state: Uint8Array } | undefined;
     return row ? new Uint8Array(row.state) : null;
   }
 
@@ -35,6 +35,10 @@ export class DocumentStore {
   }
 
   count(): number {
-    return (this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as { n: number }).n;
+    return (
+      this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as {
+        n: number;
+      }
+    ).n;
   }
 }

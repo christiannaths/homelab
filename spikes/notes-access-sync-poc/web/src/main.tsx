@@ -6,7 +6,7 @@ import { App } from "./App";
 import { PersonPicker } from "./components/PersonPicker";
 import { loadPerson, savePerson } from "./identity";
 import { SyncContext } from "./sync/context";
-import { SyncManager } from "./sync/SyncManager";
+import { SyncManager } from "./sync/sync-manager";
 import "./styles.css";
 
 registerSW({ immediate: true });
@@ -58,12 +58,22 @@ function Root() {
   const [notice] = useState(takeNotice);
   const manager = useMemo(() => (me ? managerFor(me) : null), [me]);
   const onRemoved = useCallback(() => {
-    if (manager) void signOut(manager, "You were removed from the workspace, so its pages were deleted from this device.");
+    if (manager)
+      void signOut(
+        manager,
+        "You were removed from the workspace, so its pages were deleted from this device.",
+      );
   }, [manager]);
   const onSwitchPerson = useCallback(() => {
     if (!manager) return;
     const pending = manager.getSnapshot().pendingChanges;
-    if (pending > 0 && !confirm(`${pending} change(s) haven't synced yet and will be lost. Switch anyway?`)) return;
+    if (
+      pending > 0 &&
+      !confirm(
+        `${pending} change(s) haven't synced yet and will be lost. Switch anyway?`,
+      )
+    )
+      return;
     void signOut(manager);
   }, [manager]);
 
@@ -80,7 +90,11 @@ function Root() {
   }
   return (
     <SyncContext.Provider value={manager}>
-      <App me={me} onSwitchPerson={onSwitchPerson} onRemoved={onRemoved} />
+      <App
+        me={me}
+        onSwitchPerson={onSwitchPerson}
+        onRemoved={onRemoved}
+      />
     </SyncContext.Provider>
   );
 }

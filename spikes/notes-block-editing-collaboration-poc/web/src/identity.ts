@@ -1,5 +1,21 @@
-const COLORS = ["#e03131", "#2f9e44", "#1971c2", "#f08c00", "#9c36b5", "#0c8599", "#c2255c"];
-const ADJECTIVES = ["Quiet", "Swift", "Clever", "Brave", "Calm", "Bright", "Lucky"];
+const COLORS = [
+  "#e03131",
+  "#2f9e44",
+  "#1971c2",
+  "#f08c00",
+  "#9c36b5",
+  "#0c8599",
+  "#c2255c",
+];
+const ADJECTIVES = [
+  "Quiet",
+  "Swift",
+  "Clever",
+  "Brave",
+  "Calm",
+  "Bright",
+  "Lucky",
+];
 const ANIMALS = ["Otter", "Falcon", "Badger", "Heron", "Lynx", "Panda", "Fox"];
 
 export interface Identity {
@@ -7,7 +23,7 @@ export interface Identity {
   color: string;
 }
 
-const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+const pick = <T>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
 
 /** Spike-only identity: a random name per device, until real accounts exist. */
 export function loadIdentity(): Identity {
@@ -17,7 +33,10 @@ export function loadIdentity(): Identity {
   } catch {
     // Storage unavailable: fall through to a fresh identity.
   }
-  const identity = { name: `${pick(ADJECTIVES)} ${pick(ANIMALS)}`, color: pick(COLORS) };
+  const identity = {
+    name: `${pick(ADJECTIVES)} ${pick(ANIMALS)}`,
+    color: pick(COLORS),
+  };
   try {
     localStorage.setItem("localnotion.identity", JSON.stringify(identity));
   } catch {
