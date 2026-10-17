@@ -77,7 +77,7 @@ export function reviewUpdate(
   try {
     if (touched.size === 0) return null;
     if (level !== null) {
-      const refused = asRefusal(refuseUpdate(level, touched, ref?.kind === "schema" ? "schema" : before?.kind));
+      const refused = refuseUpdate(level, touched, ref?.kind === "schema" ? "schema" : before?.kind);
       if (refused || !mayMove) return refused;
       const after = readMeta(before.id, copy);
       return after ? reviewMove(workspace, personId, level, before, after) : null;
@@ -85,7 +85,7 @@ export function reviewUpdate(
     const meta = ref?.kind === "page" ? readMeta(ref.id, copy) : null;
     const placed = meta ? placementLevel(workspace, personId, meta) : "none";
     if (!meta || !mayPlace(workspace, meta, placed)) return "placement-refused";
-    return asRefusal(refuseUpdate(placed, touched, meta.kind));
+    return refuseUpdate(placed, touched, meta.kind);
   } finally {
     copy.destroy();
   }
@@ -155,5 +155,3 @@ function writesPlacement(doc: Y.Doc, update: Uint8Array): boolean {
     return !(origin instanceof Y.Item) || isPlacementKey(origin.parentSub);
   });
 }
-
-const asRefusal =(reason: string | null): Refusal | null => (reason === null ? null : isRefusal(reason) ? reason : "read-only");

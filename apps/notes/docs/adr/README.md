@@ -17,8 +17,8 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [10](0010-yjs-13-until-stack-supports-14.md) | Yjs stays on version 13 until the whole stack supports 14 | 2, 8, 9, 12 | Accepted |
 | [11](0011-local-password-accounts.md) | Users sign in with local password accounts | 1, 4, 5, 6 | Accepted |
 | [12](0012-hocuspocus-sync-server.md) | Hocuspocus is the sync server | 1, 2, 6, 11 | Superseded by [19](0019-hocuspocus-checks-every-document-and-update.md) |
-| [13](0013-notion-style-access.md) | Access follows Notion's model of teamspaces and page sharing | 1, 11, 12 | Accepted |
-| [14](0014-notion-page-access-levels.md) | Page access levels mirror Notion's | 12, 13 | Accepted |
+| [13](0013-notion-style-access.md) | Access follows Notion's model of teamspaces and page sharing | 11 | Accepted |
+| [14](0014-notion-page-access-levels.md) | Page access levels mirror Notion's | 13 | Accepted |
 | [17](0017-per-page-documents-and-per-person-index.md) | Each page is its own Yjs document, found through a per-person index the server writes | 2, 7, 11, 13, 14, 18 | Accepted |
 | [18](0018-works-offline-on-what-its-person-can-open.md) | The app works fully offline with everything its person can open | 4, 11, 13 | Accepted |
 | [19](0019-hocuspocus-checks-every-document-and-update.md) | Hocuspocus is the sync server, and it checks access on every document and update | 2, 6, 11, 13, 14, 17, 18 | Accepted |
