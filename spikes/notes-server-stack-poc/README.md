@@ -1,6 +1,6 @@
 # Notes: server stack (proof of concept)
 
-A server-only spike for the [Notes app](../../apps/notes/README.md). It checks whether **Hono**, **Hocuspocus** and **Better Auth** work together as the Notes server, as proposed in [`research/06-framework-options.md`](../../apps/notes/docs/research/06-framework-options.md). The findings are in [`research/07-server-stack-spike-findings.md`](../../apps/notes/docs/research/07-server-stack-spike-findings.md).
+A server-only spike for the [Notes app](../../apps/notes/README.md). It checks whether **Hono**, **Hocuspocus** and **Better Auth** work together as the Notes server, as proposed in [`research/08-framework-options.md`](../../apps/notes/docs/research/08-framework-options.md). The findings are in [`research/09-server-stack-spike-findings.md`](../../apps/notes/docs/research/09-server-stack-spike-findings.md).
 
 > Status: **frozen** once its findings are recorded ([ADR 16](../../docs/adr/0016-spikes-stay-out-of-repo-wide-runs.md)). It is left out of the repo-wide scripts; run it by name, as below.
 

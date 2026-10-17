@@ -3,7 +3,7 @@
 - Status: Proposed
 - Date: 2026-10-16
 - Depends on: [ADR 1](0001-works-offline.md), [ADR 11](0011-local-password-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md)
-- Dependency of: [ADR 14](0014-notion-page-access-levels.md)
+- Dependency of: [ADR 14](0014-notion-page-access-levels.md), [ADR 20](0020-hono-http-and-better-auth-accounts.md)
 
 ## Context
 An instance serves a few trusted people, but not everything is for everyone: drafts and journals are personal, and outsiders such as a contractor or babysitter need a handful of pages and nothing else. Several custom models were explored (partial shares of spaces, rules for new pages, a single sharing tree). Their extra flexibility did not justify the cost of a model users would have to learn. Notion's model is familiar to the intended users, and covers these cases. Each device holds a local copy of what its user can open ([ADR 1](0001-works-offline.md)), so access also decides what reaches each device.

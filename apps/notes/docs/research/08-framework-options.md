@@ -94,7 +94,7 @@ Per-person sync (ADR 13 and ADR 14) is custom work whatever you pick:
 
 ## Next step
 
-The server picks were tested in [`spikes/notes-server-stack-poc/`](../../../../spikes/notes-server-stack-poc/README.md). See [`07-server-stack-spike-findings.md`](07-server-stack-spike-findings.md).
+The server picks were tested in [`spikes/notes-server-stack-poc/`](../../../../spikes/notes-server-stack-poc/README.md). See [`09-server-stack-spike-findings.md`](09-server-stack-spike-findings.md).
 
 ## Sources
 
