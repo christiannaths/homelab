@@ -93,7 +93,7 @@ export function reviewUpdate(
 
 /**
  * Whether `personId`, at `level` on an existing page, may move it from where `before` places it to
- * where `after` does (a new `parentId` or `section`). Notion-style rules (ADR 14):
+ * where `after` does (a new `parentId` or `section`). Notion-style rules (ADR-NOTE-012):
  * - The destination must be somewhere the mover could create the page (`placementLevel` at least
  *   Can edit), so nobody can put a page in someone else's Private section, or under a page they
  *   can only view, even with Full access to the page itself.

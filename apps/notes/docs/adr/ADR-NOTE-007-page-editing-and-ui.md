@@ -1,12 +1,12 @@
-# 8. BlockNote is the page editor, and Mantine is the UI library
+# ADR-NOTE-007. How do people edit pages, and how is the interface built?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 2](0002-yjs-stores-shared-data.md)
-- Dependency of: [ADR 10](0010-yjs-13-until-stack-supports-14.md)
+- Depends on: [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)
+- Dependency of: none
 
 ## Context
-A Notion-style block editor with live collaboration on Yjs ([ADR 2](0002-yjs-stores-shared-data.md)) is the largest single UI component, and building one from scratch is not worthwhile. BlockNote draws its menus and toolbars through one of three interchangeable UI packages: `@blocknote/mantine`, `@blocknote/shadcn` or `@blocknote/ariakit`. All three provide the same editor components, because `@blocknote/react` defines one component interface that each implements, so choosing between them is really choosing the UI library for the whole app. The goal is mostly default styles, adjusted at a high level: semantic colours, border radius, depth (shadows) and font, in light and dark.
+A Notion-style block editor with live collaboration on Yjs ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) is the largest single UI component, and building one from scratch is not worthwhile. BlockNote draws its menus and toolbars through one of three interchangeable UI packages: `@blocknote/mantine`, `@blocknote/shadcn` or `@blocknote/ariakit`. All three provide the same editor components, because `@blocknote/react` defines one component interface that each implements, so choosing between them is really choosing the UI library for the whole app. The goal is mostly default styles, adjusted at a high level: semantic colours, border radius, depth (shadows) and font, in light and dark.
 
 ## Decision
 - **BlockNote edits page bodies** (`@blocknote/core`, `@blocknote/react`; MPL-2.0). It is bound to a Yjs XML fragment that holds the page body, through `@blocknote/core/yjs`.
@@ -15,18 +15,18 @@ A Notion-style block editor with live collaboration on Yjs ([ADR 2](0002-yjs-sto
 - **One set of design tokens styles both.** The app defines semantic tokens once (colours, radius, elevation and font, for light and dark). Those tokens feed Mantine's theme and BlockNote's `--bn-*` variables, so the editor and the app always match.
 - The client UI uses **React**, which BlockNote and Mantine require.
 
+## Alternatives considered
+- **`@blocknote/shadcn` with shadcn/ui:** 59 components, Tailwind across the whole app, and depth taken from Tailwind classes inside its components.
+- **`@blocknote/ariakit` with Ariakit:** about 27 unstyled primitives, with no date picker, toasts or drawer, and most shadows hard-coded, so changing depth means per-class overrides.
+
 ## Evidence
 - PR #1: live co-editing, cursors and presence, offline edits merging inside a paragraph, and server persistence.
 - PR #2: database row pages reuse the same editor.
 - Theming, comparing the CSS the three packages ship (v0.56):
   - All three follow BlockNote's variables for colours and radius.
   - `@blocknote/mantine` also routes depth through the shared variables (`--bn-shadow-light` and `--bn-shadow-medium`, used in about 10 places). It is also the only one with a typed `theme` prop for light and dark.
-  - `@blocknote/ariakit` hard-codes most shadows, so changing depth means per-class overrides.
-  - `@blocknote/shadcn` takes depth from Tailwind classes inside its components.
 - Component breadth for the rest of the app:
   - Mantine 9 has about 100 components (281 exported parts) plus add-ons, including a drawer (for the phone sidebar), a ⌘K command palette, date pickers, multi-select and tags inputs, toasts, context menus, modals, file drop zones, a tree and charts.
-  - shadcn/ui has 59 components and needs Tailwind across the whole app.
-  - Ariakit has about 27 unstyled primitives, with no date picker, toasts or drawer.
 
 ## Consequences
 - The page-body format is BlockNote's ProseMirror schema stored in Yjs. Markdown import and export go through BlockNote's conversion helpers.

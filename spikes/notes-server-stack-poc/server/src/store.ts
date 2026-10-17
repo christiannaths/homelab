@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 /**
- * Stores each Yjs document as one merged binary state (ADR 6), in the same SQLite
+ * Stores each Yjs document as one merged binary state (ADR-NOTE-005), in the same SQLite
  * file as Better Auth's tables.
  */
 export class DocumentStore {

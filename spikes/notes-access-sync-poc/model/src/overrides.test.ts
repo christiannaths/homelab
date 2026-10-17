@@ -76,7 +76,7 @@ describe("overriding inherited access", () => {
 
 describe("most permissive wins across sources", () => {
   it("a per-person No access doesn't beat general access: they keep the general level", () => {
-    // ADR 14 and Notion: restricting one person only replaces their own entry.
+    // ADR-NOTE-012 and Notion: restricting one person only replaces their own entry.
     const ws = tripTree({ trip: { workspace: "comment", people: { nia: "edit" } }, packing: { people: { nia: "none" } } });
     expect(levels(ws, "nia")).toEqual({ trip: "edit", packing: "comment", shoes: "comment", laces: "comment" });
   });

@@ -1,4 +1,4 @@
-/** Notion's page access levels (ADR 14), most permissive first. */
+/** Notion's page access levels (ADR-NOTE-012), most permissive first. */
 export const ACCESS_LEVELS = ["full", "edit", "edit-content", "comment", "view", "none"] as const;
 
 export type AccessLevel = (typeof ACCESS_LEVELS)[number];
@@ -28,7 +28,7 @@ export function atLeast(level: AccessLevel, required: AccessLevel): boolean {
  *
  * Stored in the page's own document (the `access` map, one key per entry: `person:<id>` and
  * `workspace`), so it reaches exactly the people who can open the page, and concurrent changes to
- * different entries merge (ADR 7 rule 4).
+ * different entries merge (ADR-NOTE-006 rule 4).
  */
 export interface PageAccess {
   people?: Readonly<Record<string, AccessLevel>>;

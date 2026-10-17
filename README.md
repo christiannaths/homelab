@@ -1,6 +1,6 @@
 # Homelab
 
-Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and apps never depend on each other ([ADR 15](docs/adr/0015-nx-monorepo.md)).
+Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and apps never depend on each other ([ADR-PLAT-002](docs/adr/ADR-PLAT-002-repo-structure.md)).
 
 ## Apps
 | App | What it is |
@@ -8,7 +8,7 @@ Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app i
 | [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace (starting fresh) |
 
 ## Spikes
-Throwaway proofs of concept that settled an app's decisions. They are kept frozen and still build, but repo-wide commands skip them ([ADR 16](docs/adr/0016-spikes-stay-out-of-repo-wide-runs.md)).
+Throwaway proofs of concept that settled an app's decisions. They are kept frozen and still build, but repo-wide commands skip them ([ADR-PLAT-003](docs/adr/ADR-PLAT-003-proof-of-concept-code.md)).
 
 | Spike | What it settled |
 |---|---|
@@ -19,7 +19,7 @@ Requires **Node.js 26+**. With [mise](https://mise.jdx.dev), run `mise install` 
 
 ```sh
 npm install
-npm run check             # module boundaries, typecheck and unit tests for every project except spikes
+npm run check             # module boundaries, ADR rules, typecheck and unit tests for every project except spikes
 npm run build
 npm run test:e2e          # every app's end-to-end tests
 ```

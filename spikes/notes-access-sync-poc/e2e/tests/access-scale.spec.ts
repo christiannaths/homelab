@@ -3,8 +3,8 @@ import { expect, test, type Browser, type BrowserContext, type Page } from "@pla
 import { connectAs, DEFAULT_LAYOUT, seedWorkspace, TestServer, type SeedLayout } from "@homelab/notes-access-sync-poc-server/testing";
 import type { Person } from "@homelab/notes-access-sync-poc-model";
 
-// Startup and sync speed at the ADR 4 scale (#22), the same scenarios as the old spike's opt-in
-// sync-scale test (the ADR 12 gate), but with per-person sync: each device receives only what its
+// Startup and sync speed at the ADR-NOTE-004 scale (#22), the same scenarios as the old spike's opt-in
+// sync-scale test (the ADR-NOTE-010 gate), but with per-person sync: each device receives only what its
 // person can open. Slow, so opt-in:
 //   SLOW=1 PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium npx nx e2e notes-access-sync-poc-e2e -- access-scale
 // SCALE_REPEATS (default 3) repeats each measurement; SCALE (default 1) shrinks the seeded

@@ -31,7 +31,7 @@ export interface Teamspace {
 /**
  * A teamspace document (`teamspace:<id>`) holds its `settings` map (name, kind, isDefault,
  * memberLevel, workspaceLevel, createdAt) and its `members` map (person id → role), one key per
- * field and per member, so a rename, a default change and concurrent joins all merge (ADR 7
+ * field and per member, so a rename, a default change and concurrent joins all merge (ADR-NOTE-006
  * rule 4). It reaches exactly the people who may see the teamspace's name (`teamspaceAccess`).
  */
 export const settingsMap = (doc: Y.Doc) => doc.getMap<unknown>("settings");
@@ -39,7 +39,7 @@ export const membersMap = (doc: Y.Doc) => doc.getMap<unknown>("members");
 
 const KINDS: readonly TeamspaceKind[] = ["open", "closed", "private"];
 
-/** Writes a new teamspace, owned by `owner`, in one transaction (ADR 7 rule 2). */
+/** Writes a new teamspace, owned by `owner`, in one transaction (ADR-NOTE-006 rule 2). */
 export function createTeamspace(
   doc: Y.Doc,
   opts: { name: string; kind: TeamspaceKind; owner: string; memberLevel?: AccessLevel; workspaceLevel?: AccessLevel; isDefault?: boolean },

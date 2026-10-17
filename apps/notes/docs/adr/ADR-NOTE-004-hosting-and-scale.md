@@ -1,9 +1,9 @@
-# 4. Each instance is a self-hosted homelab server for a few trusted users
+# ADR-NOTE-004. How is the app hosted, and for how many people?
 
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 1](0001-works-offline.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md), [ADR 20](0020-hono-http-and-better-auth-accounts.md)
+- Dependency of: [ADR-NOTE-001](ADR-NOTE-001-offline-use.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md)
 
 ## Context
 LocalNotion is meant for private, self-hosted instances. Each instance serves a handful of people who trust each other and the server.
@@ -19,5 +19,5 @@ LocalNotion is meant for private, self-hosted instances. Each instance serves a 
 - PR #1: the Docker image builds and runs on `node:26-slim`, serving the app and sync from one process.
 
 ## Consequences
-- The scale target is hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Other decisions rely on that, for example syncing the whole workspace to each device ([ADR 1](0001-works-offline.md)).
-- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 11](0011-local-password-accounts.md)), not on encryption at rest.
+- The scale target is hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Other decisions rely on that, for example syncing everything a person can open, up to the whole workspace, to each of their devices ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
+- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR-NOTE-009](ADR-NOTE-009-identity.md)), not on encryption at rest.

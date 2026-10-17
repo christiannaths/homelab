@@ -17,7 +17,7 @@ export interface ServerOptions {
   webRoot: string;
   /** 0 picks a free port. */
   port: number;
-  /** The address devices use, e.g. the HTTPS name from `tailscale serve` (ADR 3). */
+  /** The address devices use, e.g. the HTTPS name from `tailscale serve` (ADR-NOTE-003). */
   baseURL: string;
   secret: string;
 }
@@ -51,13 +51,13 @@ export async function startServer({ dataDir, webRoot, port, baseURL, secret }: S
   const hocuspocus = new Hocuspocus<SyncContext>({
     debounce: 1000,
     maxDebounce: 10_000,
-    // ADR 12: the whole workspace syncs over one socket.
+    // ADR-NOTE-010: the whole workspace syncs over one socket.
     maxPendingDocuments: 20_000,
     maxUnauthenticatedQueueMessages: 100_000,
     maxUnauthenticatedQueueSize: 256 * 1024 * 1024,
 
     // Runs for every document a socket opens. The session was already checked when
-    // the socket opened, so this only decides access to this one document (ADR 13, 14).
+    // the socket opened, so this only decides access to this one document (ADR-NOTE-011, ADR-NOTE-012).
     // A stand-in for real access rules: "private/<userId>/…" is only for its owner,
     // and "readonly/…" is read-only for everyone but admins.
     async onAuthenticate({ context, documentName, connectionConfig }) {
@@ -81,7 +81,7 @@ export async function startServer({ dataDir, webRoot, port, baseURL, secret }: S
 
   app.get("/api/health", (c) => c.json({ ok: true, documents: store.count() }));
 
-  // First run: create the admin account (ADR 11). Refused once any account exists.
+  // First run: create the admin account (ADR-NOTE-009). Refused once any account exists.
   app.post("/api/setup", async (c) => {
     const { n } = db.prepare(`SELECT COUNT(*) AS n FROM "user"`).get() as { n: number };
     if (n > 0) return c.json({ error: "Already set up" }, 409);

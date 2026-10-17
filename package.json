@@ -24,7 +24,8 @@
     "test": "nx run-many -t test --exclude=tag:spike",
     "test:e2e": "nx run-many -t e2e --exclude=tag:spike",
     "boundaries": "node tools/check-boundaries.ts",
-    "check": "npm run boundaries && nx run-many -t typecheck test --exclude=tag:spike"
+    "adrs": "node tools/check-adrs.ts",
+    "check": "npm run boundaries && npm run adrs && nx run-many -t typecheck test --exclude=tag:spike"
   },
   "devDependencies": {
     "nx": "^23.3.0"

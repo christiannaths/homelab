@@ -15,3 +15,7 @@ The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 ### Domain docs
 
 Platform ADRs are in `docs/adr/`, and each app keeps its own in `apps/<app>/docs/adr/` (for example `apps/notes/docs/adr/`). See `docs/agents/domain.md`.
+
+### ADRs
+
+To record or edit an ADR, use this repo's own `adr` skill (`.agents/skills/adr/`, not part of `mattpocock/skills`): it replaces `domain-modeling`'s `ADR-FORMAT.md`. Each topic keeps one ADR, edited in place with a Changelog entry when its decision changes.

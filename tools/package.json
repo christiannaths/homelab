@@ -7,7 +7,8 @@
     "tags": ["scope:tools", "platform:node"]
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"*.test.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -41,7 +41,7 @@ export interface ShareEntries {
 /**
  * The Share menu's view of `pageId`: every per-person entry and the general access it has, with
  * where each comes from. Built from `pages`, the page documents a device holds, so it follows the
- * same derived tree (ADR 7) as the access rules. Section members and teamspace defaults are not
+ * same derived tree (ADR-NOTE-006) as the access rules. Section members and teamspace defaults are not
  * entries.
  */
 export function shareEntries(pages: readonly PageMeta[], pageId: string): ShareEntries {

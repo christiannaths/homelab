@@ -42,7 +42,7 @@ export interface SeedLayout {
 
 /**
  * The default: 2,272 page documents. Olive can open 1,972 of them (about the 2,001 documents of
- * the ADR 12 gate), Max 1,251 and Gus 30.
+ * the ADR-NOTE-010 gate), Max 1,251 and Gus 30.
  */
 export const DEFAULT_LAYOUT: SeedLayout = {
   olivePrivate: 700,

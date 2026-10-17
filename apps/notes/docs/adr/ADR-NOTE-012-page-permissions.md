@@ -1,12 +1,12 @@
-# 14. Page access levels mirror Notion's
+# ADR-NOTE-012. How finely can access to a page be granted?
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 13](0013-notion-style-access.md)
-- Dependency of: [ADR 17](0017-per-page-documents-and-per-person-index.md), [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
+- Depends on: [ADR-NOTE-011](ADR-NOTE-011-access-control.md)
+- Dependency of: [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-013](ADR-NOTE-013-data-layout.md)
 
 ## Context
-The access model ([ADR 13](0013-notion-style-access.md)) decides who can open a page. Some people should only read or comment on what they can open: a babysitter's house manual, an accountant's yearly summary. Notion's access levels are familiar to the intended users, so copying them avoids teaching a new permission model.
+The access model ([ADR-NOTE-011](ADR-NOTE-011-access-control.md)) decides who can open a page. Some people should only read or comment on what they can open: a babysitter's house manual, an accountant's yearly summary. Notion's access levels are familiar to the intended users, so copying them avoids teaching a new permission model.
 
 ## Decision
 - **Every grant of access carries one of Notion's levels:**
@@ -30,7 +30,6 @@ The access model ([ADR 13](0013-notion-style-access.md)) decides who can open a 
 - The levels follow Notion's help centre ("Sharing & permissions"). Notion does not document who may move a shared page, so the move rule is the spike's choice.
 
 ## Consequences
-- The sync server checks, for each document and each update, whether the person may make that change, and rejects it otherwise ([ADR 19](0019-hocuspocus-checks-every-document-and-update.md)).
-- Can edit content means checking which parts of a database an update changes. The split puts structure and rows in different documents to make that check simple ([ADR 17](0017-per-page-documents-and-per-person-index.md)).
+- The sync server checks, for each document and each update, whether the person may make that change, and rejects it otherwise ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
+- Can edit content means checking which parts of a database an update changes. The split puts structure and rows in different documents to make that check simple ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)).
 - Read-only copies still work offline. Only editing is unavailable.
-- Comments are a prerequisite for Can comment to mean anything (see "Not decided yet" in the [index](README.md)).
