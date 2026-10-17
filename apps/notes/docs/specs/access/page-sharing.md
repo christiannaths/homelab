@@ -43,7 +43,7 @@ Only people with Full access can change entries. Others see the list read-only.
 - **Shared:**
   - for the person who shared: Private pages they have shared with others move here;
   - for the recipient: pages shared with them directly that are not in a teamspace they belong to, each with its subpages.
-- **Moving a page to Private** removes everyone else's access to that page. Explicit invites on its subpages stay, so each such subpage moves to the top of its invitee's Shared section; subpages that only inherited go with the page. Notion confirms the first part; the subpage part comes from a third-party guide. The move asks first, naming who loses access.
+- **Moving a page to Private** removes everyone else's access to that page. Explicit invites on its subpages stay, so each such subpage moves to the top of its invitee's Shared section; subpages that only inherited go with the page. This is Notion's behaviour, and LocalNotion follows it (Notion's help centre states the first part, and a third-party guide the subpage part: item 2 of the [Notion check](../../research/06-notion-access-verification.md)). The move asks first, naming who loses access.
 - **Moving a page into a teamspace, or under a different parent,** changes what it inherits. If that changes who can see it, the move asks first and names the people affected. Such a move is a change of access, so it needs Full access on the page; Can edit may move a page only where nobody's access changes **(LocalNotion choice)**.
 
 ## Pages you can only partly reach

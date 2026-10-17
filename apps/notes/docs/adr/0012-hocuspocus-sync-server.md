@@ -3,7 +3,7 @@
 - Status: Superseded by [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
 - Date: 2026-10-16
 - Depends on: [ADR 1](0001-works-offline.md), [ADR 2](0002-yjs-stores-shared-data.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md)
-- Dependency of: [ADR 10](0010-yjs-13-until-stack-supports-14.md), [ADR 13](0013-notion-style-access.md), [ADR 14](0014-notion-page-access-levels.md)
+- Dependency of: [ADR 10](0010-yjs-13-until-stack-supports-14.md)
 
 ## Context
 Hocuspocus relays Yjs updates ([ADR 2](0002-yjs-stores-shared-data.md)) between devices and the server's storage ([ADR 6](0006-sqlite-server-storage.md)), and authenticates each document a connection opens. With whole-workspace sync ([ADR 1](0001-works-offline.md)), its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnected large workspaces in a loop during PR #1. The alternative was a small custom sync server on the standard Yjs protocol.

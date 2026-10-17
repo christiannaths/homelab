@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 12](0012-hocuspocus-sync-server.md), [ADR 13](0013-notion-style-access.md)
+- Depends on: [ADR 13](0013-notion-style-access.md)
 - Dependency of: [ADR 17](0017-per-page-documents-and-per-person-index.md), [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
 
 ## Context
