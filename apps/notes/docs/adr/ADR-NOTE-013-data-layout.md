@@ -6,9 +6,11 @@
 - Dependency of: [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)
 
 ## Context
+
 A Yjs document reaches a device whole or not at all, and a device may only receive what its person can open ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-001](ADR-NOTE-001-offline-use.md)). The first two spikes kept the whole page tree, every page's title and parent, in one workspace document, and every row of a database in the database's document. Either would carry titles and values to people who must not see them, because any page can be shared on its own or restricted to No access, including a single database row ([ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)). Access data has the same problem: a private teamspace's name, or who a page is shared with, must only reach the people allowed to see it. All shared data is Yjs ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)), and every structure must merge under the CRDT rules ([ADR-NOTE-006](ADR-NOTE-006-merge-safety.md)).
 
 ## Decision
+
 - **A document is the unit of access.** Each document holds only data that goes to exactly the same people, and nothing is copied into several documents.
 - **`page:<id>`: one document per page**, holding:
   - `meta`, one key per field: `title`, `kind` (page, database or row), `parentId`, `section`, `order`, `createdAt` and `deletedAt`;
@@ -26,6 +28,7 @@ A Yjs document reaches a device whole or not at all, and a device may only recei
 - **A page id the server has never seen** can be opened by any member, and by a guest, so it can be created there. The server reviews the first update where it places the page ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)). This is safe only because ids are random UUIDs.
 
 ## Alternatives considered
+
 - **A filtered tree document per person, written by the server** from a canonical tree. Clients would edit their projection, so the server would translate every write back and fan it out, becoming a merge point. Offline moves would conflict with the server's re-projection, so the server would write repairs (against [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) rule 1). Every title would be stored once per person.
 - **One tree document per Private section or teamspace.** A subpage restricted to No access, or shared on its own, would still have its title in the container's document.
 - **A separate `meta:<id>` document beside each page.** It doubles the documents, both must always carry the same access, and "meta without content" becomes a state to handle. It was kept as the fallback in case startup was slow, which it was not.
@@ -34,6 +37,7 @@ A Yjs document reaches a device whole or not at all, and a device may only recei
 - **Every row's cells in the database document**, as in the first spikes (a row shared alone would carry every other row's values), **a copy of the properties in every row** (fanned out on each property change), and **the properties inside the database page** (it would carry the views and the title to people given one row).
 
 ## Evidence
+
 - The access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), risk 1), in `spikes/notes-access-sync-poc/`:
   - `server/testing/sync-boundary.test.ts`: Private pages never reach anyone else's device, by document or by title in anything received; a person's index is read-only and refused to everyone else.
   - `server/testing/overrides.test.ts`: a page reachable without its parent arrives at the top of Shared with no document or title of the hidden parent.
@@ -42,6 +46,7 @@ A Yjs document reaches a device whole or not at all, and a device may only recei
 - `e2e/tests/access-scale.spec.ts`: at 2,272 pages, startup and sync stay within the old gate, and grow with the documents a person can open (findings, risk 3).
 
 ## Consequences
+
 - **Startup cost is per document.** A person's devices load one document per page they can open, plus their index. A 2,000-row database is 2,002 documents, where the first spikes had one.
 - The sidebar is complete only once every page document has loaded locally (5.8 s for 1,973 documents in the spike), not after one small document.
 - The server decodes every page's `meta` and `access` to work out levels and write indexes, at startup and on each change.

@@ -6,9 +6,11 @@
 - Dependency of: [ADR-NOTE-001](ADR-NOTE-001-offline-use.md), [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md), [ADR-NOTE-013](ADR-NOTE-013-data-layout.md), [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md)
 
 ## Context
+
 An instance serves a few trusted people, but not everything is for everyone: drafts and journals are personal, and outsiders such as a contractor or babysitter need a handful of pages and nothing else. Notion's model is familiar to the intended users, and covers these cases. Each device holds a local copy of what its user can open ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)), so access also decides what reaches each device, and every document is synced whole ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
 
 ## Decision
+
 - **Access copies Notion's model**, as described in the [access specs](../specs/access/README.md):
   - **Workspace roles:** workspace owner, member and guest. One instance is one workspace.
   - **Teamspaces:** open, closed or private, optionally default, each with owners, members and default access levels. Teamspace owners always have Full access on its pages. On an open teamspace, workspace members who have not joined still open its pages, at the teamspace's level for non-members (Can view, Can comment or Can edit).
@@ -21,9 +23,11 @@ An instance serves a few trusted people, but not everything is for everyone: dra
 - **Access changes are ordinary edits:** they work offline, and concurrent changes converge to the same result on every device.
 
 ## Alternatives considered
+
 - **A custom access model:** partial shares of spaces, rules for new pages, or a single sharing tree. Their extra flexibility does not justify the cost of a model users would have to learn.
 
 ## Evidence
+
 - The access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md)) built the model on per-person sync and tested it in `spikes/notes-access-sync-poc/`:
   - `server/testing/sync-boundary.test.ts`, `server/testing/overrides.test.ts`, `server/testing/teamspaces.test.ts`, `server/testing/guests.test.ts` and `server/testing/databases.test.ts`: each person receives exactly what they can open, with no hidden title, teamspace name or row value anywhere in what arrives. A private teamspace's name reaches workspace owners and members only, and an open teamspace's pages reach members who have not joined.
   - `server/testing/losing-access.test.ts` and `e2e/tests/losing-access.spec.ts`: lost pages leave devices online and offline, moves and removals included, and unsynced edits are offered back as a Private page.
@@ -33,6 +37,7 @@ An instance serves a few trusted people, but not everything is for everyone: dra
 - The model follows Notion's help centre ("Sharing & permissions", "Intro to teamspaces", "Who's who in a workspace"), checked item by item in [`research/06-notion-access-verification.md`](../research/06-notion-access-verification.md). The differences it found are applied to the specs.
 
 ## Consequences
+
 - Each device keeps everything its person can open, and data stays on it until the next sync after access is lost ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
 - Pages, the page tree, databases and access data are split across Yjs documents so that each document goes to exactly the people allowed to see it ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)).
 - The sync server checks access for each document and each update, not only the session on each connection ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).

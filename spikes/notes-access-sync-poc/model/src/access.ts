@@ -1,8 +1,19 @@
-import { atLeast, mostPermissive, type AccessLevel, type PageAccess } from "./levels.ts";
+import {
+  atLeast,
+  mostPermissive,
+  type AccessLevel,
+  type PageAccess,
+} from "./levels.ts";
 import type { Person } from "./people.ts";
 import type { Refusal } from "./review.ts";
 import type { Teamspace } from "./teamspaces.ts";
-import { resolveParents, type PageKind, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
+import {
+  resolveParents,
+  type PageKind,
+  type PageMeta,
+  type Tree,
+  type TreeNode,
+} from "./tree.ts";
 import { parseDocName, parseSection, privateSection } from "./workspace.ts";
 
 export type { AccessLevel, PageAccess } from "./levels.ts";
@@ -61,17 +72,27 @@ const byIdCache = new WeakMap<Workspace, Map<string, PageMeta>>();
  */
 function pagesById(workspace: Workspace): ReadonlyMap<string, PageMeta> {
   let byId = byIdCache.get(workspace);
-  if (!byId) byIdCache.set(workspace, (byId = new Map(workspace.pages.map((p) => [p.id, p]))));
+  if (!byId)
+    byIdCache.set(
+      workspace,
+      (byId = new Map(workspace.pages.map((p) => [p.id, p]))),
+    );
   return byId;
 }
 
 /** A page of the workspace by id, or undefined. */
-export function pageById(workspace: Workspace, id: string): PageMeta | undefined {
+export function pageById(
+  workspace: Workspace,
+  id: string,
+): PageMeta | undefined {
   return pagesById(workspace).get(id);
 }
 
 /** A person in the workspace by id, or undefined. */
-export function personById(workspace: Workspace, id: string): Person | undefined {
+export function personById(
+  workspace: Workspace,
+  id: string,
+): Person | undefined {
   return workspace.people.find((p) => p.id === id);
 }
 
@@ -79,12 +100,16 @@ export function personById(workspace: Workspace, id: string): Person | undefined
  * Every page's resolved access, trashed pages included (trash doesn't change who can open a page).
  * Cached per `Workspace` object, which callers must treat as immutable.
  */
-export function resolveAccess(workspace: Workspace): Map<string, ResolvedAccess> {
+export function resolveAccess(
+  workspace: Workspace,
+): Map<string, ResolvedAccess> {
   const cached = resolvedCache.get(workspace);
   if (cached) return cached;
   const pages = pagesById(workspace);
   const parent = resolveParents(pages);
-  const teamspaces = new Map((workspace.teamspaces ?? []).map((t) => [t.id, t]));
+  const teamspaces = new Map(
+    (workspace.teamspaces ?? []).map((t) => [t.id, t]),
+  );
   const resolved = new Map<string, ResolvedAccess>();
   const resolve = (id: string): ResolvedAccess => {
     const known = resolved.get(id);
@@ -94,7 +119,10 @@ export function resolveAccess(workspace: Workspace): Map<string, ResolvedAccess>
     const page = pages.get(id)!;
     const inherited: ResolvedAccess =
       up === null ? sectionDefaults(page.section, teamspaces) : resolve(up);
-    const result = applyTeamspaceOverride(applyOwnAccess(inherited, page.access), page.access);
+    const result = applyTeamspaceOverride(
+      applyOwnAccess(inherited, page.access),
+      page.access,
+    );
     resolved.set(id, result);
     return result;
   };
@@ -111,12 +139,21 @@ const NO_MEMBERS: ReadonlySet<string> = new Set();
  * the members' default level, and on an open teamspace everyone else in the workspace the
  * non-member level (as general access, which a page can override like any general access).
  */
-function sectionDefaults(section: string, teamspaces: ReadonlyMap<string, Teamspace>): ResolvedAccess {
+function sectionDefaults(
+  section: string,
+  teamspaces: ReadonlyMap<string, Teamspace>,
+): ResolvedAccess {
   const s = parseSection(section);
-  const ts = s?.kind === "teamspace" ? teamspaces.get(s.teamspaceId) : undefined;
+  const ts =
+    s?.kind === "teamspace" ? teamspaces.get(s.teamspaceId) : undefined;
   if (!ts) {
     return {
-      section, people: new Map(), workspace: "none", teamspaceMembers: NO_MEMBERS, teamspaceOwners: NO_MEMBERS, teamspace: "none",
+      section,
+      people: new Map(),
+      workspace: "none",
+      teamspaceMembers: NO_MEMBERS,
+      teamspaceOwners: NO_MEMBERS,
+      teamspace: "none",
     };
   }
   return {
@@ -124,38 +161,64 @@ function sectionDefaults(section: string, teamspaces: ReadonlyMap<string, Teamsp
     people: new Map(),
     workspace: ts.kind === "open" ? ts.workspaceLevel : "none",
     teamspaceMembers: new Set(Object.keys(ts.members)),
-    teamspaceOwners: new Set(Object.entries(ts.members).filter(([, role]) => role === "owner").map(([id]) => id)),
+    teamspaceOwners: new Set(
+      Object.entries(ts.members)
+        .filter(([, role]) => role === "owner")
+        .map(([id]) => id),
+    ),
     teamspace: ts.memberLevel,
   };
 }
 
 /** Step 2, for teamspace members: a page's own members' level replaces the default for it and its subpages. */
-function applyTeamspaceOverride(resolved: ResolvedAccess, own: PageAccess | undefined): ResolvedAccess {
-  return own?.teamspace === undefined ? resolved : { ...resolved, teamspace: own.teamspace };
+function applyTeamspaceOverride(
+  resolved: ResolvedAccess,
+  own: PageAccess | undefined,
+): ResolvedAccess {
+  return own?.teamspace === undefined
+    ? resolved
+    : { ...resolved, teamspace: own.teamspace };
 }
 
 /** Step 2: the page's own entries replace the inherited ones, key by key. */
-function applyOwnAccess(inherited: ResolvedAccess, own: PageAccess | undefined): ResolvedAccess {
+function applyOwnAccess(
+  inherited: ResolvedAccess,
+  own: PageAccess | undefined,
+): ResolvedAccess {
   if (!own || (!own.people && own.workspace === undefined)) return inherited;
   const people = new Map(inherited.people);
-  for (const [personId, level] of Object.entries(own.people ?? {})) people.set(personId, level);
-  return { ...inherited, people, workspace: own.workspace ?? inherited.workspace };
+  for (const [personId, level] of Object.entries(own.people ?? {}))
+    people.set(personId, level);
+  return {
+    ...inherited,
+    people,
+    workspace: own.workspace ?? inherited.workspace,
+  };
 }
 
 /** Step 3: one person's level on a page, from the page's resolved access. */
 export function levelOf(person: Person, access: ResolvedAccess): AccessLevel {
   const s = parseSection(access.section);
   // Guests have no Private section (#19): a page that names one gives them nothing of its own.
-  if (s?.kind === "private" && s.personId === person.id && person.role !== "guest") return "full";
+  if (
+    s?.kind === "private" &&
+    s.personId === person.id &&
+    person.role !== "guest"
+  )
+    return "full";
   if (access.teamspaceOwners.has(person.id)) return "full";
   let level = access.people.get(person.id) ?? "none";
-  if (access.teamspaceMembers.has(person.id)) level = mostPermissive(level, access.teamspace);
+  if (access.teamspaceMembers.has(person.id))
+    level = mostPermissive(level, access.teamspace);
   if (person.role !== "guest") level = mostPermissive(level, access.workspace);
   return level;
 }
 
 /** The level `personId` has on each page they can open. Pages missing from the map are "none". */
-export function pageLevels(workspace: Workspace, personId: string): Map<string, AccessLevel> {
+export function pageLevels(
+  workspace: Workspace,
+  personId: string,
+): Map<string, AccessLevel> {
   const levels = new Map<string, AccessLevel>();
   const person = personById(workspace, personId);
   if (!person) return levels;
@@ -167,7 +230,10 @@ export function pageLevels(workspace: Workspace, personId: string): Map<string, 
 }
 
 /** The ids of the pages `personId` can open: what their page index lists, and what reaches their devices. */
-export function visiblePageIds(workspace: Workspace, personId: string): Set<string> {
+export function visiblePageIds(
+  workspace: Workspace,
+  personId: string,
+): Set<string> {
   return new Set(pageLevels(workspace, personId).keys());
 }
 
@@ -195,17 +261,22 @@ export function refuseUpdate(
   kind: PageKind | "schema" = "page",
 ): Refusal | null {
   if (touched.size === 0) return null;
-  if (canEdit(level)) return touched.has("access") && !canShare(level) ? "access-change-refused" : null;
+  if (canEdit(level))
+    return touched.has("access") && !canShare(level)
+      ? "access-change-refused"
+      : null;
   if (level !== "edit-content" || kind === "page") return "read-only";
   if (touched.has("access")) return "access-change-refused";
   return kind === "row" ? null : "structure-refused";
 }
 
 /** Can edit content and above may add a row to a database (#20). */
-export const canEditContent = (level: AccessLevel): boolean => atLeast(level, "edit-content");
+export const canEditContent = (level: AccessLevel): boolean =>
+  atLeast(level, "edit-content");
 
 /** View and Comment open a document read-only: the server applies none of the person's updates. */
-export const readOnlyAt = (level: AccessLevel): boolean => level === "view" || level === "comment";
+export const readOnlyAt = (level: AccessLevel): boolean =>
+  level === "view" || level === "comment";
 
 /** A person's sidebar sections, each a list of top-level tree nodes in order. */
 export interface SidebarSections {
@@ -227,7 +298,9 @@ export function isSharedByMe(page: PageMeta, personId: string): boolean {
   const own = page.access;
   if (!own) return false;
   if (own.workspace !== undefined && own.workspace !== "none") return true;
-  return Object.entries(own.people ?? {}).some(([id, level]) => id !== personId && level !== "none");
+  return Object.entries(own.people ?? {}).some(
+    ([id, level]) => id !== personId && level !== "none",
+  );
 }
 
 /**
@@ -241,14 +314,34 @@ export function isSharedByMe(page: PageMeta, personId: string): boolean {
  * in Shared too: it was shared with them on its own (#19). Without it, every top-level teamspace
  * page goes under its teamspace.
  */
-export function sidebarSections(tree: Tree, personId: string, teamspaceIds?: ReadonlySet<string>): SidebarSections {
+export function sidebarSections(
+  tree: Tree,
+  personId: string,
+  teamspaceIds?: ReadonlySet<string>,
+): SidebarSections {
   const mine = privateSection(personId);
-  const sections: SidebarSections = { shared: [], private: [], teamspaces: new Map() };
+  const sections: SidebarSections = {
+    shared: [],
+    private: [],
+    teamspaces: new Map(),
+  };
   for (const node of tree.roots) {
     const s = parseSection(node.section);
-    if (s?.kind === "teamspace" && !node.parentHidden && (!teamspaceIds || teamspaceIds.has(s.teamspaceId))) {
-      sections.teamspaces.set(s.teamspaceId, [...(sections.teamspaces.get(s.teamspaceId) ?? []), node]);
-    } else if (node.section === mine && !node.parentHidden && !isSharedByMe(node.page, personId)) sections.private.push(node);
+    if (
+      s?.kind === "teamspace" &&
+      !node.parentHidden &&
+      (!teamspaceIds || teamspaceIds.has(s.teamspaceId))
+    ) {
+      sections.teamspaces.set(s.teamspaceId, [
+        ...(sections.teamspaces.get(s.teamspaceId) ?? []),
+        node,
+      ]);
+    } else if (
+      node.section === mine &&
+      !node.parentHidden &&
+      !isSharedByMe(node.page, personId)
+    )
+      sections.private.push(node);
     else sections.shared.push(node);
   }
   return sections;
@@ -263,7 +356,11 @@ export function sidebarSections(tree: Tree, personId: string, teamspaceIds?: Rea
  *   one, and nothing on a private one.
  * - Guests: nothing. A teamspace the server has never seen is one being created: Full for members.
  */
-export function teamspaceAccess(workspace: Workspace, person: Person, teamspaceId: string): AccessLevel {
+export function teamspaceAccess(
+  workspace: Workspace,
+  person: Person,
+  teamspaceId: string,
+): AccessLevel {
   if (person.role === "guest") return "none";
   const ts = workspace.teamspaces?.find((t) => t.id === teamspaceId);
   if (!ts) return "full";
@@ -274,7 +371,10 @@ export function teamspaceAccess(workspace: Workspace, person: Person, teamspaceI
 }
 
 /** The teamspaces whose documents `personId` may open, with their level: what their page index lists. */
-export function visibleTeamspaces(workspace: Workspace, personId: string): Map<string, AccessLevel> {
+export function visibleTeamspaces(
+  workspace: Workspace,
+  personId: string,
+): Map<string, AccessLevel> {
   const out = new Map<string, AccessLevel>();
   const person = personById(workspace, personId);
   if (!person) return out;
@@ -304,7 +404,8 @@ export function schemaAccess(
   const mine = levels ?? pageLevels(workspace, person.id);
   const level = mine.get(databaseId);
   if (level) return level;
-  const isRow = (p: PageMeta) => p.kind === "row" && p.parentId === databaseId && mine.has(p.id);
+  const isRow = (p: PageMeta) =>
+    p.kind === "row" && p.parentId === databaseId && mine.has(p.id);
   return workspace.pages.some(isRow) ? "view" : "none";
 }
 
@@ -322,8 +423,10 @@ export function documentAccess(
   const doc = parseDocName(documentName);
   if (!person || !doc) return "none";
   if (doc.kind === "index") return doc.personId === personId ? "view" : "none";
-  if (doc.kind === "teamspace") return teamspaceAccess(workspace, person, doc.teamspaceId);
-  if (doc.kind === "schema") return schemaAccess(workspace, person, doc.databaseId, levels);
+  if (doc.kind === "teamspace")
+    return teamspaceAccess(workspace, person, doc.teamspaceId);
+  if (doc.kind === "schema")
+    return schemaAccess(workspace, person, doc.databaseId, levels);
   if (pageById(workspace, doc.id)) {
     return (levels ?? pageLevels(workspace, personId)).get(doc.id) ?? "none";
   }

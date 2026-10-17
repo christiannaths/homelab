@@ -1,11 +1,25 @@
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type * as Y from "yjs";
 import {
-  readRows, readSchema, readView, rowsMap, schemaMap, viewsMap,
-  type Property, type Row, type ViewConfig,
+  readRows,
+  readSchema,
+  readView,
+  rowsMap,
+  schemaMap,
+  viewsMap,
+  type Property,
+  type Row,
+  type ViewConfig,
 } from "../model/database";
 import { buildTree, type Tree } from "../model/tree";
-import type { DocEntry, SyncManager } from "./SyncManager";
+import type { DocEntry, SyncManager } from "./sync-manager";
 import { pagesMap, readPages } from "./workspace";
 
 export const SyncContext = createContext<SyncManager | null>(null);
@@ -37,7 +51,11 @@ export function useLocalReady(entry: DocEntry | undefined): boolean {
 }
 
 /** Re-reads `read(doc)` whenever any of the given shared types change. */
-function useYState<T>(doc: Y.Doc, types: (doc: Y.Doc) => Y.AbstractType<any>[], read: (doc: Y.Doc) => T): T {
+function useYState<T>(
+  doc: Y.Doc,
+  types: (doc: Y.Doc) => Y.AbstractType<any>[],
+  read: (doc: Y.Doc) => T,
+): T {
   const [state, setState] = useState(() => read(doc));
   useEffect(() => {
     const update = () => setState(read(doc));
@@ -67,10 +85,18 @@ export interface DatabaseState {
   readMs: number;
 }
 
-const databaseTypes = (doc: Y.Doc) => [schemaMap(doc), rowsMap(doc), viewsMap(doc)];
+const databaseTypes = (doc: Y.Doc) => [
+  schemaMap(doc),
+  rowsMap(doc),
+  viewsMap(doc),
+];
 const readDatabase = (doc: Y.Doc): DatabaseState => {
   const started = performance.now();
-  const state = { schema: readSchema(doc), rows: readRows(doc), view: readView(doc) };
+  const state = {
+    schema: readSchema(doc),
+    rows: readRows(doc),
+    view: readView(doc),
+  };
   return { ...state, readMs: performance.now() - started };
 };
 

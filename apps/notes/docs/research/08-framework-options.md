@@ -9,7 +9,7 @@ Measured against the first spike ([`spikes/notes-block-editing-collaboration-poc
 **Skip a full-stack framework.** Next.js, React Router in framework mode, TanStack Start and similar tools would add little here and would get in the way. **Add three focused libraries** where the planned work is heavy and easy to get wrong:
 
 | Pick | Replaces | Value | Why |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Better Auth** | Hand-written accounts and sessions (ADR-NOTE-009) | High | Security code you would otherwise write yourself, and its defaults already match ADR-NOTE-009 |
 | **Hono** (on `@hono/node-server`) | Using Hocuspocus's `onRequest` with `throw null`, plus the hand-written static server | Medium to high | The server is about to gain a real HTTP API: sign-in, setup, invites, people, sharing, teamspaces, attachments |
 | **TanStack Router** (client only, hash history) | Regex hash routes in `App.tsx` | Medium | Many more screens are coming, and database view state (filters, sorts) belongs in the URL |
@@ -25,7 +25,7 @@ What these frameworks offer is server rendering, server data loaders and actions
 - The server cannot query Yjs data (ADR-NOTE-002), so there is no server data for loaders to fetch.
 - The service worker precaches the app shell (ADR-NOTE-003). Server-rendered HTML works against that, and it would be a second code path.
 - One Node process serves everything (ADR-NOTE-004), and that process belongs to Hocuspocus.
-- The client glue a framework would replace is small: `SyncManager.ts` plus `context.tsx` come to about 240 lines.
+- The client glue a framework would replace is small: `sync-manager.ts` plus `context.tsx` come to about 240 lines.
 - Risk to the toolchain: the repo is on TypeScript 7 and avoids Nx plugins (ADR-PLAT-002). Frameworks that rely on compiler plugins and code generation are more likely to break against that than small libraries are. ADR-PLAT-002 already ran into this with typescript-eslint.
 
 Svelte, Vue and Solid frameworks are ruled out by ADR-NOTE-007, which requires React for BlockNote and Mantine.
@@ -98,11 +98,11 @@ The server picks were tested in [`spikes/notes-server-stack-poc/`](../../../../s
 
 ## Sources
 
-- Better Auth, SQLite adapter with `node:sqlite`: https://better-auth.com/docs/adapters/sqlite
-- Better Auth, security (scrypt default, rate limiting, sessions): https://better-auth.com/docs/reference/security
-- Better Auth, username plugin: https://better-auth.com/docs/plugins/username
-- Hocuspocus, server examples (Hono, `handleConnection`): https://tiptap.dev/docs/hocuspocus/server/examples
-- Hocuspocus, authentication and read-only: https://tiptap.dev/docs/hocuspocus/guides/authentication
-- Hono, WebSocket helper (`@hono/node-ws` deprecated): https://hono.dev/helpers/websocket
-- Drizzle, Node SQLite driver: https://orm.drizzle.team/docs/connect-node-sqlite
+- Better Auth, SQLite adapter with `node:sqlite`: <https://better-auth.com/docs/adapters/sqlite>
+- Better Auth, security (scrypt default, rate limiting, sessions): <https://better-auth.com/docs/reference/security>
+- Better Auth, username plugin: <https://better-auth.com/docs/plugins/username>
+- Hocuspocus, server examples (Hono, `handleConnection`): <https://tiptap.dev/docs/hocuspocus/server/examples>
+- Hocuspocus, authentication and read-only: <https://tiptap.dev/docs/hocuspocus/guides/authentication>
+- Hono, WebSocket helper (`@hono/node-ws` deprecated): <https://hono.dev/helpers/websocket>
+- Drizzle, Node SQLite driver: <https://orm.drizzle.team/docs/connect-node-sqlite>
 - Installed `@hocuspocus/server` v4 type definitions (`readOnly`, `beforeHandleMessage`)

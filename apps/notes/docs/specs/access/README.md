@@ -6,7 +6,7 @@
 LocalNotion copies **Notion's** sharing and permissions model, so it behaves the way Notion users already expect. These specs describe that model, adapted to a self-hosted instance for a few trusted people.
 
 | Spec | Covers |
-|---|---|
+| --- | --- |
 | [People and workspace roles](people-and-roles.md) | Workspace owners, members and guests; inviting people; changing roles |
 | [Teamspaces](teamspaces.md) | Open, closed and private teamspaces; teamspace owners and members; teamspace settings |
 | [Page sharing](page-sharing.md) | The Share menu, access levels, general access, inheritance and overrides, the Private and Shared sidebar sections |
@@ -14,9 +14,9 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 ## Terms
 
 | LocalNotion | Notion | Note |
-|---|---|---|
+| --- | --- | --- |
 | Instance | Workspace | One instance is one workspace. The specs say "workspace" to match Notion. |
-| Admin ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)) | Workspace owner | |
+| Admin ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)) | Workspace owner |  |
 | Account | Member or guest | Every person has a local password account. |
 
 ## Adapted from Notion, not copied

@@ -1,9 +1,18 @@
 import {
-  accessMap, indexDocName, indexMap, metaMap, pageDocName, parseDocName, readIndexLevels, readMeta,
-  type AccessLevel, type PageDocs, type PageMeta,
+  accessMap,
+  indexDocName,
+  indexMap,
+  metaMap,
+  pageDocName,
+  parseDocName,
+  readIndexLevels,
+  readMeta,
+  type AccessLevel,
+  type PageDocs,
+  type PageMeta,
 } from "@homelab/notes-access-sync-poc-model";
 import type * as Y from "yjs";
-import type { DocEntry, SyncManager } from "./SyncManager";
+import type { DocEntry, SyncManager } from "./sync-manager";
 
 /**
  * The page documents on this device, and their metadata: everything the sidebar is built from.
@@ -141,7 +150,9 @@ export class LocalPages implements PageDocs {
    * and is about to be deleted: read-only until then.
    */
   indexedLevel(pageId: string): AccessLevel {
-    return this.levels.get(pageId) ?? (this.indexed.has(pageId) ? "view" : "full");
+    return (
+      this.levels.get(pageId) ?? (this.indexed.has(pageId) ? "view" : "full")
+    );
   }
 
   private watch(id: string): DocEntry {

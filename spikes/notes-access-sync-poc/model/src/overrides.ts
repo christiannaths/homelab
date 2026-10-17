@@ -1,5 +1,10 @@
 import type { AccessLevel } from "./levels.ts";
-import { resolveParents, type PageMeta, type Tree, type TreeNode } from "./tree.ts";
+import {
+  resolveParents,
+  type PageMeta,
+  type Tree,
+  type TreeNode,
+} from "./tree.ts";
 
 /**
  * Views of how a page's access is inherited and overridden, for the Share menu and the page
@@ -44,12 +49,16 @@ export interface ShareEntries {
  * same derived tree (ADR-NOTE-006) as the access rules. Section members and teamspace defaults are not
  * entries.
  */
-export function shareEntries(pages: readonly PageMeta[], pageId: string): ShareEntries {
+export function shareEntries(
+  pages: readonly PageMeta[],
+  pageId: string,
+): ShareEntries {
   const byId = new Map(pages.map((p) => [p.id, p]));
   const parent = resolveParents(byId);
   // This page, then each ancestor up to the top level.
   const chain: PageMeta[] = [];
-  for (let id: string | null = pageId; id !== null; id = parent.get(id) ?? null) chain.push(byId.get(id)!);
+  for (let id: string | null = pageId; id !== null; id = parent.get(id) ?? null)
+    chain.push(byId.get(id)!);
   const top = chain[chain.length - 1];
 
   const people: ShareEntry[] = [];
@@ -58,7 +67,12 @@ export function shareEntries(pages: readonly PageMeta[], pageId: string): ShareE
     for (const [personId, level] of Object.entries(p.access?.people ?? {})) {
       if (seen.has(personId)) continue;
       seen.add(personId);
-      const below = i === 0 ? chain.slice(1).find((a) => a.access?.people?.[personId] !== undefined) : undefined;
+      const below =
+        i === 0
+          ? chain
+              .slice(1)
+              .find((a) => a.access?.people?.[personId] !== undefined)
+          : undefined;
       const entry: ShareEntry = { personId, level, from: p.id };
       if (below) entry.overrides = below.access!.people![personId];
       people.push(entry);
@@ -68,12 +82,22 @@ export function shareEntries(pages: readonly PageMeta[], pageId: string): ShareE
   const general = chain.findIndex((p) => p.access?.workspace !== undefined);
   let workspace: GeneralAccess = { level: "none", from: null };
   if (general !== -1) {
-    workspace = { level: chain[general].access!.workspace!, from: chain[general].id };
-    const below = general === 0 ? chain.slice(1).find((p) => p.access?.workspace !== undefined) : undefined;
+    workspace = {
+      level: chain[general].access!.workspace!,
+      from: chain[general].id,
+    };
+    const below =
+      general === 0
+        ? chain.slice(1).find((p) => p.access?.workspace !== undefined)
+        : undefined;
     if (below) workspace.overrides = below.access!.workspace!;
   }
 
-  return { people, workspace, inheritsFromHidden: top.parentId !== null && !byId.has(top.parentId) };
+  return {
+    people,
+    workspace,
+    inheritsFromHidden: top.parentId !== null && !byId.has(top.parentId),
+  };
 }
 
 /**
@@ -83,7 +107,11 @@ export function shareEntries(pages: readonly PageMeta[], pageId: string): ShareE
  */
 export function breadcrumb(tree: Tree, pageId: string): TreeNode[] {
   const out: TreeNode[] = [];
-  for (let node = tree.byId.get(pageId); node; node = node.parentId ? tree.byId.get(node.parentId) : undefined) {
+  for (
+    let node = tree.byId.get(pageId);
+    node;
+    node = node.parentId ? tree.byId.get(node.parentId) : undefined
+  ) {
     out.unshift(node);
   }
   return out;

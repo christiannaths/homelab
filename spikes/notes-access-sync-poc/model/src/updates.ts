@@ -16,7 +16,10 @@ import * as Y from "yjs";
  * To check deeper than the top level (Can edit content on a database), walk `changed` the same
  * way and report the path below the root instead of just its name.
  */
-export function previewUpdate(doc: Y.Doc, update: Uint8Array): { touched: Set<string>; copy: Y.Doc } {
+export function previewUpdate(
+  doc: Y.Doc,
+  update: Uint8Array,
+): { touched: Set<string>; copy: Y.Doc } {
   const copy = new Y.Doc();
   Y.applyUpdate(copy, Y.encodeStateAsUpdate(doc));
   const touched = new Set<Y.AbstractType<any>>();

@@ -1,6 +1,6 @@
 import type * as Y from "yjs";
 import { rowsMap } from "../model/database";
-import type { SyncManager } from "./SyncManager";
+import type { SyncManager } from "./sync-manager";
 import { databaseDocName, pageDocName, pagesMap } from "./workspace";
 
 /**
@@ -9,7 +9,10 @@ import { databaseDocName, pageDocName, pagesMap } from "./workspace";
  * page body. Trashed pages are included so they can be restored offline.
  * Returns a function that stops watching.
  */
-export function keepWorkspaceLocal(manager: SyncManager, workspace: Y.Doc): () => void {
+export function keepWorkspaceLocal(
+  manager: SyncManager,
+  workspace: Y.Doc,
+): () => void {
   const watchedDbs = new Map<string, () => void>();
 
   const watchDatabase = (dbId: string) => {

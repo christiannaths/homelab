@@ -4,7 +4,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { TestProject } from "vitest/node";
-import { compose, composeEnv, parseResetLink, resetPassword, waitForVoidAuth } from "./voidauth.ts";
+import {
+  compose,
+  composeEnv,
+  parseResetLink,
+  resetPassword,
+  waitForVoidAuth,
+} from "./voidauth.ts";
 
 export const ADMIN_PASSWORD = "violet-quartz-harbour-71";
 
@@ -42,12 +48,18 @@ async function bootstrap(env: Record<string, string>) {
   let log = "";
   for (let i = 0; i < 60 && !parseResetLink(log); i++) {
     log = await compose(env, "logs", "voidauth");
-    if (!parseResetLink(log)) await new Promise((resolve) => setTimeout(resolve, 500));
+    if (!parseResetLink(log))
+      await new Promise((resolve) => setTimeout(resolve, 500));
   }
   const reset = parseResetLink(log);
   if (!reset) throw new Error(`No first-run link in VoidAuth's log:\n${log}`);
-  const response = await resetPassword(reset.userId, reset.challenge, ADMIN_PASSWORD);
-  if (!response.ok) throw new Error(`Setting the admin password failed: ${response.status}`);
+  const response = await resetPassword(
+    reset.userId,
+    reset.challenge,
+    ADMIN_PASSWORD,
+  );
+  if (!response.ok)
+    throw new Error(`Setting the admin password failed: ${response.status}`);
 
   return log;
 }

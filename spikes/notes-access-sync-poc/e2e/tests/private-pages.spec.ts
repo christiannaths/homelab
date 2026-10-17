@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { TestServer } from "@homelab/notes-access-sync-poc-server/testing";
-import { addSubpage, createPage, editor, openAs, section, storedDocNames, treeRow, waitForSynced } from "./helpers.ts";
+import {
+  addSubpage,
+  createPage,
+  editor,
+  openAs,
+  section,
+  storedDocNames,
+  treeRow,
+  waitForSynced,
+} from "./helpers.ts";
 
 let server: TestServer;
 
@@ -13,7 +22,9 @@ test.afterEach(async () => {
   await server.stop();
 });
 
-test("a member's Private pages reach their own devices and nobody else's", async ({ browser }) => {
+test("a member's Private pages reach their own devices and nobody else's", async ({
+  browser,
+}) => {
   const owner = await server.addPerson("Alice");
   await server.addPerson("Bob", "member", owner);
 
@@ -21,15 +32,23 @@ test("a member's Private pages reach their own devices and nobody else's", async
   const laptop = await openAs(browser, server.url, "Bob");
   const route = await createPage(laptop, "Bob's journal", "Dear diary");
   await addSubpage(laptop, "Bob's journal", "Gift ideas");
-  await expect(section(laptop, "private").getByTestId("tree-row")).toHaveText([/Bob's journal/, /Gift ideas/]);
+  await expect(section(laptop, "private").getByTestId("tree-row")).toHaveText([
+    /Bob's journal/,
+    /Gift ideas/,
+  ]);
   await waitForSynced(laptop);
   const journalId = route.replace("#/page/", "");
 
   // His phone gets both, in its Private section, from the page documents it received.
   const phone = await openAs(browser, server.url, "Bob");
-  await expect(section(phone, "private").getByTestId("tree-row")).toHaveText([/Bob's journal/]);
+  await expect(section(phone, "private").getByTestId("tree-row")).toHaveText([
+    /Bob's journal/,
+  ]);
   await treeRow(phone, "Bob's journal").getByTestId("tree-toggle").click();
-  await expect(section(phone, "private").getByTestId("tree-row")).toHaveText([/Bob's journal/, /Gift ideas/]);
+  await expect(section(phone, "private").getByTestId("tree-row")).toHaveText([
+    /Bob's journal/,
+    /Gift ideas/,
+  ]);
   await phone.goto(`${server.url}/${route}`);
   await expect(editor(phone)).toContainText("Dear diary");
 

@@ -8,9 +8,23 @@
 //   await server.start();
 //   seeded.people.olive / .max / .gus;  seeded.pageCount
 import {
-  addProperty, createTeamspace, DEFAULT_VIEW, freshKeys, metaMap, pageDocName, privateSection, schemaDocName,
-  setCell, setPersonAccess, setTeamspaceMember, teamspaceDocName, teamspaceSection, viewsMap,
-  type AccessLevel, type PageKind, type Person,
+  addProperty,
+  createTeamspace,
+  DEFAULT_VIEW,
+  freshKeys,
+  metaMap,
+  pageDocName,
+  privateSection,
+  schemaDocName,
+  setCell,
+  setPersonAccess,
+  setTeamspaceMember,
+  teamspaceDocName,
+  teamspaceSection,
+  viewsMap,
+  type AccessLevel,
+  type PageKind,
+  type Person,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 import { Store } from "../src/store.ts";
@@ -70,7 +84,10 @@ const PARAGRAPH =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
 
 /** Writes the workspace into `dataDir`'s database. The server must not be running. */
-export function seedWorkspace(dataDir: string, layout: SeedLayout = DEFAULT_LAYOUT): SeededWorkspace {
+export function seedWorkspace(
+  dataDir: string,
+  layout: SeedLayout = DEFAULT_LAYOUT,
+): SeededWorkspace {
   const store = new Store(dataDir);
   const person = (name: string, role: Person["role"]): Person => {
     const p: Person = { id: crypto.randomUUID(), name, role };
@@ -91,7 +108,14 @@ export function seedWorkspace(dataDir: string, layout: SeedLayout = DEFAULT_LAYO
 
   /** Writes one page document; `fill` adds to it (access, cells) in the same transaction. */
   const page = (
-    opts: { title: string; section: string; order: string; parentId?: string | null; kind?: PageKind; body?: boolean },
+    opts: {
+      title: string;
+      section: string;
+      order: string;
+      parentId?: string | null;
+      kind?: PageKind;
+      body?: boolean;
+    },
     fill?: (doc: Y.Doc) => void,
   ): string => {
     const id = crypto.randomUUID();
@@ -117,48 +141,84 @@ export function seedWorkspace(dataDir: string, layout: SeedLayout = DEFAULT_LAYO
     const tops = freshKeys(Math.ceil(count / 10));
     const ids: string[] = [];
     for (let g = 0, n = 0; n < count; g++) {
-      const parentId = page({ title: `${prefix} ${++n}`, section, order: tops[g] });
+      const parentId = page({
+        title: `${prefix} ${++n}`,
+        section,
+        order: tops[g],
+      });
       ids.push(parentId);
       const children = freshKeys(Math.min(9, count - n));
-      for (const order of children) page({ title: `${prefix} ${++n}`, section, order, parentId });
+      for (const order of children)
+        page({ title: `${prefix} ${++n}`, section, order, parentId });
     }
     return ids;
   };
 
   /** A top-level page shared with `who` at `level`, with `count` subpages that inherit it. */
-  const sharedPage = (title: string, section: string, who: Person, level: AccessLevel, count: number) => {
-    const parentId = page({ title, section, order: "a0" }, (doc) => setPersonAccess(doc, who.id, level));
-    for (const [i, order] of freshKeys(count).entries()) page({ title: `${title} ${i + 1}`, section, order, parentId });
+  const sharedPage = (
+    title: string,
+    section: string,
+    who: Person,
+    level: AccessLevel,
+    count: number,
+  ) => {
+    const parentId = page({ title, section, order: "a0" }, (doc) =>
+      setPersonAccess(doc, who.id, level),
+    );
+    for (const [i, order] of freshKeys(count).entries())
+      page({ title: `${title} ${i + 1}`, section, order, parentId });
   };
 
   /** A database with three properties and `rows` rows. Returns the row ids. */
-  const database = (title: string, section: string, rows: number, rowAccess?: (i: number) => [Person, AccessLevel] | null) => {
-    const id = page({ title, section, order: "a1", kind: "database" }, (doc) => {
-      const view = new Y.Map<unknown>();
-      view.set("sort", null);
-      view.set("filter", "");
-      viewsMap(doc).set(DEFAULT_VIEW, view);
-    });
+  const database = (
+    title: string,
+    section: string,
+    rows: number,
+    rowAccess?: (i: number) => [Person, AccessLevel] | null,
+  ) => {
+    const id = page(
+      { title, section, order: "a1", kind: "database" },
+      (doc) => {
+        const view = new Y.Map<unknown>();
+        view.set("sort", null);
+        view.set("filter", "");
+        viewsMap(doc).set(DEFAULT_VIEW, view);
+      },
+    );
     const schema = new Y.Doc();
     const points = addProperty(schema, "Points", "number");
     const done = addProperty(schema, "Done", "checkbox");
     const notes = addProperty(schema, "Notes", "text");
     save(schemaDocName(id), schema);
     for (const [i, order] of freshKeys(rows).entries()) {
-      page({ title: `${title} row ${i + 1}`, section, order, parentId: id, kind: "row", body: false }, (doc) => {
-        setCell(doc, points, (i * 7919) % 100);
-        if (i % 3 === 2) setCell(doc, done, true);
-        if (i % 5 === 0) {
-          setCell(doc, notes, `Note for row ${i + 1}`);
-          writeParagraphs(doc, [`Row ${i + 1}`, PARAGRAPH]);
-        }
-        const share = rowAccess?.(i);
-        if (share) setPersonAccess(doc, share[0].id, share[1]);
-      });
+      page(
+        {
+          title: `${title} row ${i + 1}`,
+          section,
+          order,
+          parentId: id,
+          kind: "row",
+          body: false,
+        },
+        (doc) => {
+          setCell(doc, points, (i * 7919) % 100);
+          if (i % 3 === 2) setCell(doc, done, true);
+          if (i % 5 === 0) {
+            setCell(doc, notes, `Note for row ${i + 1}`);
+            writeParagraphs(doc, [`Row ${i + 1}`, PARAGRAPH]);
+          }
+          const share = rowAccess?.(i);
+          if (share) setPersonAccess(doc, share[0].id, share[1]);
+        },
+      );
     }
   };
 
-  const teamspace = (name: string, kind: "open" | "private", members: Person[]): string => {
+  const teamspace = (
+    name: string,
+    kind: "open" | "private",
+    members: Person[],
+  ): string => {
     const id = crypto.randomUUID();
     const doc = new Y.Doc();
     createTeamspace(doc, { name, kind, owner: olive.id });
@@ -170,22 +230,46 @@ export function seedWorkspace(dataDir: string, layout: SeedLayout = DEFAULT_LAYO
   const olivePrivate = privateSection(olive.id);
   pages("Olive private", olivePrivate, layout.olivePrivate);
   pages("Max private", privateSection(max.id), layout.maxPrivate);
-  sharedPage("Shared with Max", olivePrivate, max, "edit", layout.sharedWithMax);
+  sharedPage(
+    "Shared with Max",
+    olivePrivate,
+    max,
+    "edit",
+    layout.sharedWithMax,
+  );
   sharedPage("Trip", olivePrivate, gus, "edit", layout.tripForGus);
   database("Reading list", olivePrivate, layout.readingRows);
 
   const engineering = teamspaceSection(teamspace("Engineering", "open", [max]));
-  const [engineeringPageId] = pages("Engineering", engineering, layout.engineering);
-  database("Tasks", engineering, layout.tasksRows, (i) => (i < layout.rowsForGus ? [gus, "view"] : null));
-  pages("Leadership", teamspaceSection(teamspace("Leadership", "private", [])), layout.leadership);
+  const [engineeringPageId] = pages(
+    "Engineering",
+    engineering,
+    layout.engineering,
+  );
+  database("Tasks", engineering, layout.tasksRows, (i) =>
+    i < layout.rowsForGus ? [gus, "view"] : null,
+  );
+  pages(
+    "Leadership",
+    teamspaceSection(teamspace("Leadership", "private", [])),
+    layout.leadership,
+  );
 
   store.close();
-  return { people: { olive, max, gus }, pageCount, documentCount, engineeringPageId };
+  return {
+    people: { olive, max, gus },
+    pageCount,
+    documentCount,
+    engineeringPageId,
+  };
 }
 
 /** A heading and 30 paragraphs, shaped the way BlockNote stores them. */
 function writeBody(doc: Y.Doc, title: string): void {
-  writeParagraphs(doc, [title, ...Array.from({ length: 30 }, (_, i) => `Paragraph ${i + 1}. ${PARAGRAPH}`)]);
+  writeParagraphs(doc, [
+    title,
+    ...Array.from({ length: 30 }, (_, i) => `Paragraph ${i + 1}. ${PARAGRAPH}`),
+  ]);
 }
 
 function writeParagraphs(doc: Y.Doc, texts: string[]): void {

@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { createPage, editor, editorText, openApp, waitForServiceWorker, waitForSynced } from "./helpers";
+import {
+  createPage,
+  editor,
+  editorText,
+  openApp,
+  waitForServiceWorker,
+  waitForSynced,
+} from "./helpers";
 import { TestServer } from "./server";
 
 let server: TestServer;
@@ -33,10 +40,14 @@ test("two users see each other's edits live", async ({ browser }) => {
   await expect.poll(() => editorText(alice)).toBe("Hello from Alice and Bob");
 
   // Presence: Alice sees Bob's cursor label.
-  await expect(alice.locator(".bn-collaboration-cursor__label").first()).toBeVisible();
+  await expect(
+    alice.locator(".bn-collaboration-cursor__label").first(),
+  ).toBeVisible();
 });
 
-test("app cold-starts with no network and offline edits merge on reconnect", async ({ browser }) => {
+test("app cold-starts with no network and offline edits merge on reconnect", async ({
+  browser,
+}) => {
   const aliceCtx = await browser.newContext();
   const alice = await aliceCtx.newPage();
   const bob = await (await browser.newContext()).newPage();
@@ -64,7 +75,10 @@ test("app cold-starts with no network and offline edits merge on reconnect", asy
   await bob.goto(`${server.url}/${hash}`);
   await expect(editor(bob)).toContainText("Packed passport.");
   // Put the caret at the very start of the first paragraph.
-  await bob.locator(".bn-inline-content").first().click({ position: { x: 1, y: 8 } });
+  await bob
+    .locator(".bn-inline-content")
+    .first()
+    .click({ position: { x: 1, y: 8 } });
   await bob.keyboard.type("Bob: ");
   await expect.poll(() => editorText(bob)).toBe("Bob: Packed passport.");
   await expect(editor(bob)).not.toContainText("Bought adapters");
@@ -74,12 +88,16 @@ test("app cold-starts with no network and offline edits merge on reconnect", asy
   await waitForSynced(alice);
   for (const p of [alice, bob]) {
     await p.goto(`${server.url}/${hash}`);
-    await expect.poll(() => editorText(p)).toBe("Bob: Packed passport. Bought adapters offline.");
+    await expect
+      .poll(() => editorText(p))
+      .toBe("Bob: Packed passport. Bought adapters offline.");
   }
   await expect(bob.getByTestId("page-tree")).toContainText("Offline-only page");
 });
 
-test("edits made while the server is down sync after it restarts, and data survives restarts", async ({ browser }) => {
+test("edits made while the server is down sync after it restarts, and data survives restarts", async ({
+  browser,
+}) => {
   const alice = await (await browser.newContext()).newPage();
   await openApp(alice, server.url);
   await waitForServiceWorker(alice);

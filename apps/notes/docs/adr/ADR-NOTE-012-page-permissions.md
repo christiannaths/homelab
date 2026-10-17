@@ -6,9 +6,11 @@
 - Dependency of: [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-013](ADR-NOTE-013-data-layout.md)
 
 ## Context
+
 The access model ([ADR-NOTE-011](ADR-NOTE-011-access-control.md)) decides who can open a page. Some people should only read or comment on what they can open: a babysitter's house manual, an accountant's yearly summary. Notion's access levels are familiar to the intended users, so copying them avoids teaching a new permission model.
 
 ## Decision
+
 - **Every grant of access carries one of Notion's levels:**
   - **Full access:** read, comment, edit, and share.
   - **Can edit:** read, comment and edit, but not share.
@@ -22,6 +24,7 @@ The access model ([ADR-NOTE-011](ADR-NOTE-011-access-control.md)) decides who ca
 - Until comments exist, Can comment behaves like Can view.
 
 ## Evidence
+
 - The access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md)), in `spikes/notes-access-sync-poc/`:
   - `model/src/access.test.ts` and `model/src/overrides.test.ts`: each level as invited, expand, restrict, Restore inherited access, and most permissive wins across sources, including No access against general access.
   - `server/testing/rejecting-edits.test.ts` and `e2e/tests/rejecting-edits.spec.ts`: Can view and Can comment open read-only online and offline, a forged edit is refused and the device recovers, and access changes and access-changing moves are refused below Full access.
@@ -30,6 +33,7 @@ The access model ([ADR-NOTE-011](ADR-NOTE-011-access-control.md)) decides who ca
 - The levels follow Notion's help centre ("Sharing & permissions"). Notion does not document who may move a shared page, so the move rule is the spike's choice.
 
 ## Consequences
+
 - The sync server checks, for each document and each update, whether the person may make that change, and rejects it otherwise ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
 - Can edit content means checking which parts of a database an update changes. The split puts structure and rows in different documents to make that check simple ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)).
 - Read-only copies still work offline. Only editing is unavailable.

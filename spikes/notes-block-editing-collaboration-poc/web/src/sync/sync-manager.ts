@@ -1,4 +1,7 @@
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import {
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+} from "@hocuspocus/provider";
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 
@@ -44,18 +47,22 @@ export class SyncManager {
   private allLocalLoadedMs?: number;
   private allSyncedMs?: number;
 
-  constructor(url: string, private token: () => string | null) {
+  constructor(
+    url: string,
+    private token: () => string | null,
+  ) {
     this.socket = new HocuspocusProviderWebsocket({
       url,
       // Keep retrying forever: offline is a normal state, not an error.
       maxAttempts: 0,
       maxDelay: 10_000,
       onStatus: ({ status }) => {
-        this.connection = status as ConnectionState;
+        this.connection = status;
         // Whatever was synced before is unconfirmed until each doc re-syncs after
         // reconnecting (the provider emits onSynced again). Without this, the badge
         // would say "Synced" right after reconnecting, before anything was exchanged.
-        if (status !== "connected") for (const e of this.entries.values()) e.synced = false;
+        if (status !== "connected")
+          for (const e of this.entries.values()) e.synced = false;
         this.notify();
       },
     });

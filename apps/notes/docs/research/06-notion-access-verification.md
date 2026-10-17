@@ -12,7 +12,7 @@
 ## Summary
 
 | # | Spec item | Result |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Indicator when a page's access differs from its parent | Partly matches |
 | 2 | Moving a page to Private keeps explicit invites on its subpages | Couldn't confirm from Notion (third party agrees) |
 | 3 | Only workspace owners invite members; a setting lets members invite | **Differs** |
@@ -27,8 +27,8 @@ Items 2, 6 and 8 change what the spike must test (see the last section).
 ## 1. Indicator when access differs from the parent
 
 - **Spec** ([page-sharing.md](../specs/access/page-sharing.md), Inheritance): "A page whose access differs from its parent shows a small indicator in the Share menu."
-- **Notion:** no help page found describes the indicator. Third-party guides describe it only for *narrowed* access: "If you change a page's permissions in any way that reduces access compared to the page's parent, that page becomes Restricted" ([Thomas Frank](https://thomasjfrank.com/notion-sharing-permissions-the-ultimate-guide/)), with a message that "this page does not inherit all sharing settings from the parent page" and a **Restore** button ([MashTips](https://mashtips.com/share-notion-page-and-manage-permissions/)).
-- **Result:** partly matches. The spec already has "Restricted" and **Restore inherited access** for restricted entries; nothing shows Notion marks pages whose access was only *expanded*.
+- **Notion:** no help page found describes the indicator. Third-party guides describe it only for _narrowed_ access: "If you change a page's permissions in any way that reduces access compared to the page's parent, that page becomes Restricted" ([Thomas Frank](https://thomasjfrank.com/notion-sharing-permissions-the-ultimate-guide/)), with a message that "this page does not inherit all sharing settings from the parent page" and a **Restore** button ([MashTips](https://mashtips.com/share-notion-page-and-manage-permissions/)).
+- **Result:** partly matches. The spec already has "Restricted" and **Restore inherited access** for restricted entries; nothing shows Notion marks pages whose access was only _expanded_.
 - **Proposed wording:** "A page that restricts what it inherits shows **Restricted** in the Share menu, with **Restore inherited access**. Pages that only add access show no indicator." Or keep the general indicator as a deliberate LocalNotion choice and drop "(verify)".
 
 ## 2. Moving a page to Private
@@ -42,7 +42,7 @@ Items 2, 6 and 8 change what the spike must test (see the last section).
 
 - **Spec** ([people-and-roles.md](../specs/access/people-and-roles.md), Inviting people): only workspace owners invite members; "In Notion, members can sometimes invite too, depending on a workspace setting. Here, that setting is off by default."
 - **Notion:** regular members "can't change workspace settings or invite new members into the workspace"; workspace owners "can change workspace settings and invite new members"; membership admins (Enterprise) can invite but not change settings ([Who's who in a workspace](https://www.notion.com/help/whos-who-in-a-workspace), [Adding members, admins & guests](https://www.notion.com/help/guides/adding-members-admins-and-guests)). A member without invite access instead gets "the option to request to add a member" ([Manage members, admins & guests](https://www.notion.com/help/add-members-admins-guests-and-groups)). The workspace setting is **"Allow members to request adding other members"** (Plus plan and up), under Security ([Workspace settings](https://www.notion.com/help/workspace-settings)); owners and membership admins approve or decline requests.
-- **Result:** differs. Owners-only inviting matches, but Notion's setting lets members *request* an invite, not send one.
+- **Result:** differs. Owners-only inviting matches, but Notion's setting lets members _request_ an invite, not send one.
 - **Proposed wording:** "Only workspace owners can invite people to the workspace as **members**. A workspace setting, **Allow members to request adding other members**, lets members ask; a workspace owner approves or declines. Here it is off by default." (Or leave requests out of this version.)
 
 ## 4. Transferring a removed person's private pages

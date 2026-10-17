@@ -18,6 +18,8 @@ describe("Devices", () => {
 
   it("sets an HttpOnly, Secure, SameSite=Lax cookie lasting 30 days", () => {
     const cookie = new Devices().cookie("abc");
-    expect(cookie).toBe("notes_device=abc; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000");
+    expect(cookie).toBe(
+      "notes_device=abc; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000",
+    );
   });
 });

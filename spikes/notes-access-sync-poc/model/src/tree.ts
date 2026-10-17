@@ -47,7 +47,11 @@ export interface Tree {
 }
 
 export function comparePages(a: PageMeta, b: PageMeta): number {
-  return compareOrder(a.order, b.order) || a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return (
+    compareOrder(a.order, b.order) ||
+    a.createdAt - b.createdAt ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
 }
 
 /**
@@ -56,11 +60,16 @@ export function comparePages(a: PageMeta, b: PageMeta): number {
  * - a parent that doesn't exist becomes the root, and so does a database, except for its rows
  * - a cycle (from two concurrent moves) is broken at its smallest id, which becomes a root
  */
-export function resolveParents(pages: ReadonlyMap<string, PageMeta>): Map<string, string | null> {
+export function resolveParents(
+  pages: ReadonlyMap<string, PageMeta>,
+): Map<string, string | null> {
   const parent = new Map<string, string | null>();
   for (const p of pages.values()) {
     const target = p.parentId ? pages.get(p.parentId) : undefined;
-    const allowed = target && target.id !== p.id && (target.kind !== "database" || p.kind === "row");
+    const allowed =
+      target &&
+      target.id !== p.id &&
+      (target.kind !== "database" || p.kind === "row");
     parent.set(p.id, allowed ? target.id : null);
   }
 
@@ -109,7 +118,14 @@ export function buildTree(list: PageMeta[]): Tree {
   for (const p of list) {
     if (!isTrashed(p.id)) {
       const parentHidden = p.parentId !== null && !pages.has(p.parentId);
-      byId.set(p.id, { page: p, parentId: parent.get(p.id) ?? null, section: p.section, parentHidden, children: [], depth: 0 });
+      byId.set(p.id, {
+        page: p,
+        parentId: parent.get(p.id) ?? null,
+        section: p.section,
+        parentHidden,
+        children: [],
+        depth: 0,
+      });
     }
   }
   const roots: TreeNode[] = [];
@@ -117,7 +133,11 @@ export function buildTree(list: PageMeta[]): Tree {
     if (node.parentId === null) roots.push(node);
     else byId.get(node.parentId)!.children.push(node);
   }
-  const sortAndDepth = (nodes: TreeNode[], depth: number, section: string | null) => {
+  const sortAndDepth = (
+    nodes: TreeNode[],
+    depth: number,
+    section: string | null,
+  ) => {
     nodes.sort((a, b) => comparePages(a.page, b.page));
     for (const n of nodes) {
       n.depth = depth;
@@ -128,15 +148,25 @@ export function buildTree(list: PageMeta[]): Tree {
   sortAndDepth(roots, 0, null);
 
   const trash = list
-    .filter((p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)))
+    .filter(
+      (p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)),
+    )
     .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 
   return { roots, byId, trash };
 }
 
 /** True if `id` is `ancestorId` or below it in the effective tree. */
-export function isInSubtree(tree: Tree, id: string, ancestorId: string): boolean {
-  for (let cur: string | null = id; cur !== null; cur = tree.byId.get(cur)?.parentId ?? null) {
+export function isInSubtree(
+  tree: Tree,
+  id: string,
+  ancestorId: string,
+): boolean {
+  for (
+    let cur: string | null = id;
+    cur !== null;
+    cur = tree.byId.get(cur)?.parentId ?? null
+  ) {
     if (cur === ancestorId) return true;
   }
   return false;
@@ -146,12 +176,20 @@ export function isInSubtree(tree: Tree, id: string, ancestorId: string): boolean
  * Depth-first list of nodes, skipping the children of collapsed nodes: the sidebar's lines. A
  * database's children are its rows, which the database shows itself, so they are never listed.
  */
-export function flattenVisible(tree: Pick<Tree, "roots">, expanded: (id: string) => boolean): TreeNode[] {
+export function flattenVisible(
+  tree: Pick<Tree, "roots">,
+  expanded: (id: string) => boolean,
+): TreeNode[] {
   const out: TreeNode[] = [];
   const walk = (nodes: TreeNode[]) => {
     for (const n of nodes) {
       out.push(n);
-      if (n.children.length && n.page.kind !== "database" && expanded(n.page.id)) walk(n.children);
+      if (
+        n.children.length &&
+        n.page.kind !== "database" &&
+        expanded(n.page.id)
+      )
+        walk(n.children);
     }
   };
   walk(tree.roots);
@@ -163,7 +201,9 @@ export function flattenVisible(tree: Pick<Tree, "roots">, expanded: (id: string)
  * the derived tree (`resolveParents`), so a page with a missing parent, or the page a cycle is
  * broken at, falls back to its own section.
  */
-export function effectiveSections(list: readonly PageMeta[]): Map<string, string> {
+export function effectiveSections(
+  list: readonly PageMeta[],
+): Map<string, string> {
   const pages = new Map(list.map((p) => [p.id, p]));
   const parent = resolveParents(pages);
   const sections = new Map<string, string>();

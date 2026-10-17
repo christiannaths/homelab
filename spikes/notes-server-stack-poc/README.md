@@ -5,6 +5,7 @@ A server-only spike for the [Notes app](../../apps/notes/README.md). It checks w
 > Status: **frozen** once its findings are recorded ([ADR-PLAT-003](../../docs/adr/ADR-PLAT-003-proof-of-concept-code.md)). It is left out of the repo-wide scripts; run it by name, as below.
 
 ## What it shows
+
 1. **Hono serves the PWA and the API**: health, first-run setup, Better Auth's routes, static files with a fallback for client-side routes.
 2. **Hocuspocus runs behind Hono** through `handleConnection`, with no server of its own, carrying many documents over one socket and storing them in SQLite.
 3. **A Better Auth session cookie authenticates the sync socket.** A missing, forged or expired session is refused with 401 before the upgrade. Access is then decided per document, including read-only documents.
@@ -13,12 +14,14 @@ A server-only spike for the [Notes app](../../apps/notes/README.md). It checks w
 The access rules are stand-ins for [ADR-NOTE-011](../../apps/notes/docs/adr/ADR-NOTE-011-access-control.md): `private/<userId>/…` documents are only for their owner, and `readonly/…` documents are read-only for everyone but admins.
 
 ## Layout
+
 - `server/src/app.ts`: the Hono app, the `/sync` upgrade route and the Hocuspocus instance
 - `server/src/auth.ts`: the Better Auth configuration
 - `server/src/store.ts`: Yjs document storage, in the same SQLite file as the accounts
 - `server/test/`: Vitest tests that start real servers and connect real Hocuspocus providers
 
 ## Run it
+
 From the repo root:
 
 ```sh

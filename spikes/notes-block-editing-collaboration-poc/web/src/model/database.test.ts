@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import {
-  addProperty, addRow, addSelectOption, computeView, ensureDatabase, readRows, readSchema, readView,
-  setCell, setSort, TITLE,
+  addProperty,
+  addRow,
+  addSelectOption,
+  computeView,
+  ensureDatabase,
+  readRows,
+  readSchema,
+  readView,
+  setCell,
+  setSort,
+  TITLE,
 } from "./database";
 
 function sampleDb() {
@@ -19,7 +28,9 @@ function sampleDb() {
 }
 
 const titles = (doc: Y.Doc, filter = "") =>
-  computeView(readRows(doc), readSchema(doc), readView(doc), filter).map((r) => r.cells[TITLE]);
+  computeView(readRows(doc), readSchema(doc), readView(doc), filter).map(
+    (r) => r.cells[TITLE],
+  );
 
 describe("database views", () => {
   it("keeps rows in creation order by default", () => {
@@ -51,7 +62,9 @@ describe("database views", () => {
   it("clearing a cell removes it", () => {
     const { doc, num, rows } = sampleDb();
     setCell(doc, rows[0], num, null);
-    expect(readRows(doc).find((r) => r.id === rows[0])?.cells[num]).toBeUndefined();
+    expect(
+      readRows(doc).find((r) => r.id === rows[0])?.cells[num],
+    ).toBeUndefined();
   });
 
   it("merges concurrent edits to different cells of the same row", () => {
@@ -84,13 +97,25 @@ describe("database views", () => {
     doc.transact(() => {
       let last: string | null = null;
       for (let i = 0; i < 5000; i++) {
-        const id = addRow(doc, { [TITLE]: `Row ${i}`, [num]: (i * 7919) % 1000 }, last);
-        last = doc.getMap<Y.Map<unknown>>("rows").get(id)!.get("_order") as string;
+        const id = addRow(
+          doc,
+          { [TITLE]: `Row ${i}`, [num]: (i * 7919) % 1000 },
+          last,
+        );
+        last = doc
+          .getMap<Y.Map<unknown>>("rows")
+          .get(id)!
+          .get("_order") as string;
       }
     });
     setSort(doc, { propId: num, dir: "desc" });
     const started = performance.now();
-    const view = computeView(readRows(doc), readSchema(doc), readView(doc), "row 1");
+    const view = computeView(
+      readRows(doc),
+      readSchema(doc),
+      readView(doc),
+      "row 1",
+    );
     const ms = performance.now() - started;
     expect(view.length).toBeGreaterThan(1000);
     expect(ms).toBeLessThan(500);

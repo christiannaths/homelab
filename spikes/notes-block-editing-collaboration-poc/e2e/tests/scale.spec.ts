@@ -14,7 +14,9 @@ test("startup and sync with 100+ documents", async ({ browser }) => {
     // Two batches: more than Hocuspocus's default limit of 100 pending docs per connection.
     for (let i = 0; i < 2; i++) {
       await alice.getByTestId("seed-100").click();
-      await expect(alice.getByTestId("seed-status")).toHaveText(/Created 100 pages/);
+      await expect(alice.getByTestId("seed-status")).toHaveText(
+        /Created 100 pages/,
+      );
     }
     await waitForSynced(alice);
     await expect(alice.getByTestId("diag-total")).toHaveText("201");
@@ -25,9 +27,15 @@ test("startup and sync with 100+ documents", async ({ browser }) => {
     const bobCtx = await browser.newContext();
     const bob = await bobCtx.newPage();
     await bob.goto(`${server.url}/#/diagnostics`);
-    await expect(bob.getByTestId("diag-total")).toHaveText("201", { timeout: 60_000 });
-    await expect(bob.getByTestId("diag-synced")).toHaveText("201", { timeout: 60_000 });
-    results["new device: all 201 docs synced"] = (await bob.getByTestId("diag-synced-ms").textContent())!;
+    await expect(bob.getByTestId("diag-total")).toHaveText("201", {
+      timeout: 60_000,
+    });
+    await expect(bob.getByTestId("diag-synced")).toHaveText("201", {
+      timeout: 60_000,
+    });
+    results["new device: all 201 docs synced"] = (await bob
+      .getByTestId("diag-synced-ms")
+      .textContent())!;
     await waitForServiceWorker(bob);
     await waitForSynced(bob);
 
@@ -35,21 +43,34 @@ test("startup and sync with 100+ documents", async ({ browser }) => {
     await bob.reload();
     await expect(bob.getByTestId("diag-local")).toHaveText("201");
     await expect(bob.getByTestId("diag-synced")).toHaveText("201");
-    results["warm start online: all docs loaded locally"] = (await bob.getByTestId("diag-local-ms").textContent())!;
-    results["warm start online: all docs synced"] = (await bob.getByTestId("diag-synced-ms").textContent())!;
+    results["warm start online: all docs loaded locally"] = (await bob
+      .getByTestId("diag-local-ms")
+      .textContent())!;
+    results["warm start online: all docs synced"] = (await bob
+      .getByTestId("diag-synced-ms")
+      .textContent())!;
 
     // Warm start offline.
     await bobCtx.setOffline(true);
     await bob.reload();
     await expect(bob.getByTestId("diag-local")).toHaveText("201");
-    results["warm start offline: all docs loaded locally"] = (await bob.getByTestId("diag-local-ms").textContent())!;
+    results["warm start offline: all docs loaded locally"] = (await bob
+      .getByTestId("diag-local-ms")
+      .textContent())!;
 
     console.log("\nScale results (201 docs, each ~30 paragraphs):");
     for (const [k, v] of Object.entries(results)) console.log(`  ${k}: ${v}`);
-    test.info().annotations.push(...Object.entries(results).map(([type, description]) => ({ type, description })));
+    test.info().annotations.push(
+      ...Object.entries(results).map(([type, description]) => ({
+        type,
+        description,
+      })),
+    );
 
     const ms = (s: string) => Number(s.replace(/[^\d]/g, ""));
-    expect(ms(results["warm start offline: all docs loaded locally"])).toBeLessThan(10_000);
+    expect(
+      ms(results["warm start offline: all docs loaded locally"]),
+    ).toBeLessThan(10_000);
   } finally {
     await server.stop();
   }

@@ -10,12 +10,18 @@ export function compareOrder(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-export function keyBetween(before: string | null, after: string | null): string {
+export function keyBetween(
+  before: string | null,
+  after: string | null,
+): string {
   return generateKeyBetween(before || null, after || null);
 }
 
 /** Fresh keys for siblings whose existing keys are missing or tied, or for a batch appended after `after`. */
-export function freshKeys(count: number, after: string | null = null): string[] {
+export function freshKeys(
+  count: number,
+  after: string | null = null,
+): string[] {
   return generateNKeysBetween(after || null, null, count);
 }
 

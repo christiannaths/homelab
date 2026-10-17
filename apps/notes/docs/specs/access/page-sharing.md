@@ -6,7 +6,7 @@
 ## Access levels
 
 | Level | Can |
-|---|---|
+| --- | --- |
 | **Full access** | Read, comment, edit, and share with anyone, including changing other people's access |
 | **Can edit** | Read, comment and edit, but not share |
 | **Can edit content** (databases only) | Add and edit rows and their property values, but not change the database's properties, views, sorts or filters |
@@ -21,9 +21,9 @@ The UI does not offer what a level does not allow. The server also rejects edits
 Every page has a **Share** button. It lists:
 
 1. **An invite field:** add members or guests by name, choose a level, then **Invite**.
-2. **People with access**, each with their level and where it comes from: "Invited", or inherited "from *Parent page*" or "from *Kitchen remodel* teamspace".
+2. **People with access**, each with their level and where it comes from: "Invited", or inherited "from _Parent page_" or "from _Kitchen remodel_ teamspace".
 3. **General access**, with options depending on where the page lives:
-   - in a teamspace: "*Teamspace* members" at a level, or "Only people invited";
+   - in a teamspace: "_Teamspace_ members" at a level, or "Only people invited";
    - in Private: "Only people invited" (the default), or "Everyone in the workspace" at a level.
 
 Only people with Full access can change entries. Others see the list read-only.

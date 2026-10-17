@@ -5,7 +5,8 @@ A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: ever
 The `notes` app in the [homelab monorepo](../../README.md).
 
 > Status: **starting fresh.** No code yet. The app is built against the decisions already settled:
-> - [`docs/adr/`](docs/adr/README.md): the Notes ADRs, including what is deliberately *not* decided yet, plus the [platform ADRs](../../docs/adr/README.md) for the whole repo
+>
+> - [`docs/adr/`](docs/adr/README.md): the Notes ADRs, including what is deliberately _not_ decided yet, plus the [platform ADRs](../../docs/adr/README.md) for the whole repo
 > - [`docs/specs/`](docs/specs): the feature specs
 > - [`docs/research/`](docs/research): the landscape survey, requirements, architecture sketch and spike findings
 >

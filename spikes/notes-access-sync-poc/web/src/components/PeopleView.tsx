@@ -1,6 +1,10 @@
 import type { Person, Role } from "@homelab/notes-access-sync-poc-model";
 import { useEffect, useState } from "react";
-import { fetchPeople, requestAddPerson, requestRemovePerson } from "../identity";
+import {
+  fetchPeople,
+  requestAddPerson,
+  requestRemovePerson,
+} from "../identity";
 
 /** The workspace's people. An owner can add members and guests, and remove people. */
 export function PeopleView({ me }: { me: Person }) {
@@ -9,7 +13,8 @@ export function PeopleView({ me }: { me: Person }) {
   const [role, setRole] = useState<Role>("member");
   const [error, setError] = useState<string | null>(null);
 
-  const reload = () => fetchPeople().then(setPeople, (e: Error) => setError(e.message));
+  const reload = () =>
+    fetchPeople().then(setPeople, (e: Error) => setError(e.message));
   useEffect(() => {
     reload();
   }, []);
@@ -19,7 +24,10 @@ export function PeopleView({ me }: { me: Person }) {
       <h1>People</h1>
       <ul className="people">
         {people.map((p) => (
-          <li key={p.id} data-testid="person-row">
+          <li
+            key={p.id}
+            data-testid="person-row"
+          >
             {p.name} <span className="muted">{p.role}</span>
             {me.role === "owner" && p.id !== me.id && (
               <>
@@ -62,13 +70,26 @@ export function PeopleView({ me }: { me: Person }) {
             }
           }}
         >
-          <input data-testid="add-person-name" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <select data-testid="add-person-role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          <input
+            data-testid="add-person-name"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <select
+            data-testid="add-person-role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+          >
             <option value="member">member</option>
             <option value="guest">guest</option>
             <option value="owner">owner</option>
           </select>
-          <button data-testid="add-person-submit" type="submit" disabled={!name.trim()}>
+          <button
+            data-testid="add-person-submit"
+            type="submit"
+            disabled={!name.trim()}
+          >
             Add
           </button>
         </form>

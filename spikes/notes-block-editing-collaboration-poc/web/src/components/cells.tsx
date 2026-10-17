@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import type * as Y from "yjs";
-import { addSelectOption, setCell, type CellValue, type Property } from "../model/database";
+import {
+  addSelectOption,
+  setCell,
+  type CellValue,
+  type Property,
+} from "../model/database";
 
 interface CellProps {
   doc: Y.Doc;
@@ -15,7 +20,13 @@ interface CellProps {
  * Writing on every keystroke would let a remote edit to the same cell move the
  * caret mid-word. Cells are last-writer-wins, unlike page bodies.
  */
-function DraftInput({ value, commit, type = "text", className, testId }: {
+function DraftInput({
+  value,
+  commit,
+  type = "text",
+  className,
+  testId,
+}: {
   value: string;
   commit: (v: string) => void;
   type?: "text" | "number";
@@ -61,7 +72,9 @@ export function CellEditor({ doc, rowId, prop, value, className }: CellProps) {
           testId={testId}
           type="number"
           value={value === undefined || value === null ? "" : String(value)}
-          commit={(v) => set(v.trim() === "" || Number.isNaN(Number(v)) ? null : Number(v))}
+          commit={(v) =>
+            set(v.trim() === "" || Number.isNaN(Number(v)) ? null : Number(v))
+          }
         />
       );
     case "checkbox":
@@ -101,7 +114,10 @@ export function CellEditor({ doc, rowId, prop, value, className }: CellProps) {
         >
           <option value="">—</option>
           {prop.options.map((o) => (
-            <option key={o.id} value={o.id}>
+            <option
+              key={o.id}
+              value={o.id}
+            >
               {o.name}
             </option>
           ))}
@@ -114,7 +130,13 @@ export function CellEditor({ doc, rowId, prop, value, className }: CellProps) {
         <DraftInput
           className={className}
           testId={testId}
-          value={typeof value === "string" ? value : value == null ? "" : String(value)}
+          value={
+            typeof value === "string"
+              ? value
+              : value == null
+                ? ""
+                : String(value)
+          }
           commit={(v) => set(v)}
         />
       );

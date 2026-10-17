@@ -39,7 +39,11 @@ export class DocumentStore {
   }
 
   count(): number {
-    return (this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as { n: number }).n;
+    return (
+      this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as {
+        n: number;
+      }
+    ).n;
   }
 
   close(): void {

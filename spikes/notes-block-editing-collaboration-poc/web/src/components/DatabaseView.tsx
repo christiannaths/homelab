@@ -2,12 +2,21 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import {
-  addProperty, addRow, computeView, deleteProperty, deleteRow, PROP_TYPES, renameProperty,
-  setSort, TITLE, type PropType, type Property,
+  addProperty,
+  addRow,
+  computeView,
+  deleteProperty,
+  deleteRow,
+  PROP_TYPES,
+  renameProperty,
+  setSort,
+  TITLE,
+  type PropType,
+  type Property,
 } from "../model/database";
 import type { PageMeta } from "../model/tree";
 import { useDatabase, useLocalReady, useSyncManager } from "../sync/context";
-import type { DocEntry } from "../sync/SyncManager";
+import type { DocEntry } from "../sync/sync-manager";
 import { databaseDocName, renamePage, trashPage } from "../sync/workspace";
 import { CellEditor } from "./cells";
 
@@ -30,17 +39,32 @@ export function DatabaseView({ page, workspace }: Props) {
           value={page.title}
           onChange={(e) => renamePage(workspace, page.id, e.target.value)}
         />
-        <button className="trash" onClick={() => { trashPage(workspace, page.id); location.hash = "#/"; }}>
+        <button
+          className="trash"
+          onClick={() => {
+            trashPage(workspace, page.id);
+            location.hash = "#/";
+          }}
+        >
           Delete
         </button>
       </div>
-      {ready ? <Table key={entry.name} entry={entry} dbId={page.id} /> : <p className="muted">Loading…</p>}
+      {ready ? (
+        <Table
+          key={entry.name}
+          entry={entry}
+          dbId={page.id}
+        />
+      ) : (
+        <p className="muted">Loading…</p>
+      )}
     </article>
   );
 }
 
 const ROW_HEIGHT = 36;
-const columnWidth = (p: Property) => (p.type === "title" ? 260 : p.type === "checkbox" ? 90 : 170);
+const columnWidth = (p: Property) =>
+  p.type === "title" ? 260 : p.type === "checkbox" ? 90 : 170;
 
 function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
   const doc = entry.doc;
@@ -62,10 +86,20 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
   if (!db.schema.some((p) => p.id === TITLE)) {
     // Only the creating device initialises a database (see createDatabase), so a
     // device that hasn't synced it yet waits rather than writing a competing schema.
-    return <p className="muted" data-testid="db-waiting">Waiting for this database to sync…</p>;
+    return (
+      <p
+        className="muted"
+        data-testid="db-waiting"
+      >
+        Waiting for this database to sync…
+      </p>
+    );
   }
 
-  const template = [...db.schema.map((p) => `${columnWidth(p)}px`), "40px"].join(" ");
+  const template = [
+    ...db.schema.map((p) => `${columnWidth(p)}px`),
+    "40px",
+  ].join(" ");
   const sort = db.view.sort;
 
   const cycleSort = (p: Property) => {
@@ -85,18 +119,41 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
           data-testid="db-filter"
         />
         <AddProperty onAdd={(name, type) => addProperty(doc, name, type)} />
-        <span className="muted db-stats" data-testid="db-stats" data-rows={rows.length}>
-          {rows.length.toLocaleString()} {rows.length === 1 ? "row" : "rows"} · read {db.readMs.toFixed(0)} ms ·
-          view {ms.toFixed(0)} ms
+        <span
+          className="muted db-stats"
+          data-testid="db-stats"
+          data-rows={rows.length}
+        >
+          {rows.length.toLocaleString()} {rows.length === 1 ? "row" : "rows"} ·
+          read {db.readMs.toFixed(0)} ms · view {ms.toFixed(0)} ms
         </span>
       </div>
-      <div className="db-scroll" ref={scrollRef} data-testid="db-scroll">
-        <div className="db-grid db-header" style={{ gridTemplateColumns: template }}>
+      <div
+        className="db-scroll"
+        ref={scrollRef}
+        data-testid="db-scroll"
+      >
+        <div
+          className="db-grid db-header"
+          style={{ gridTemplateColumns: template }}
+        >
           {db.schema.map((p) => (
-            <div key={p.id} className="db-th" data-testid="db-column">
-              <button className="db-th-name" onClick={() => cycleSort(p)} title="Sort">
+            <div
+              key={p.id}
+              className="db-th"
+              data-testid="db-column"
+            >
+              <button
+                className="db-th-name"
+                onClick={() => cycleSort(p)}
+                title="Sort"
+              >
                 {p.name}
-                {sort?.propId === p.id ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
+                {sort?.propId === p.id
+                  ? sort.dir === "asc"
+                    ? " ↑"
+                    : " ↓"
+                  : ""}
               </button>
               <span className="db-th-actions">
                 <button
@@ -109,7 +166,13 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
                   ✎
                 </button>
                 {p.id !== TITLE && (
-                  <button title="Delete property" onClick={() => confirm(`Delete "${p.name}"?`) && deleteProperty(doc, p.id)}>
+                  <button
+                    title="Delete property"
+                    onClick={() =>
+                      confirm(`Delete "${p.name}"?`) &&
+                      deleteProperty(doc, p.id)
+                    }
+                  >
                     ×
                   </button>
                 )}
@@ -118,7 +181,9 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
           ))}
           <div />
         </div>
-        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        <div
+          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+        >
           {virtualizer.getVirtualItems().map((v) => {
             const row = rows[v.index];
             return (
@@ -126,19 +191,41 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
                 key={row.id}
                 className="db-grid db-row"
                 data-testid="db-row"
-                style={{ gridTemplateColumns: template, transform: `translateY(${v.start}px)`, height: ROW_HEIGHT }}
+                style={{
+                  gridTemplateColumns: template,
+                  transform: `translateY(${v.start}px)`,
+                  height: ROW_HEIGHT,
+                }}
               >
                 {db.schema.map((p) => (
-                  <div key={p.id} className="db-td">
-                    <CellEditor doc={doc} rowId={row.id} prop={p} value={row.cells[p.id]} className="cell-input" />
+                  <div
+                    key={p.id}
+                    className="db-td"
+                  >
+                    <CellEditor
+                      doc={doc}
+                      rowId={row.id}
+                      prop={p}
+                      value={row.cells[p.id]}
+                      className="cell-input"
+                    />
                     {p.type === "title" && (
-                      <a className="open-row" href={`#/row/${dbId}/${row.id}`} title="Open as page" data-testid="open-row">
+                      <a
+                        className="open-row"
+                        href={`#/row/${dbId}/${row.id}`}
+                        title="Open as page"
+                        data-testid="open-row"
+                      >
                         ↗
                       </a>
                     )}
                   </div>
                 ))}
-                <button className="row-delete" title="Delete row" onClick={() => deleteRow(doc, row.id)}>
+                <button
+                  className="row-delete"
+                  title="Delete row"
+                  onClick={() => deleteRow(doc, row.id)}
+                >
                   ×
                 </button>
               </div>
@@ -152,7 +239,9 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
         onClick={() => {
           addRow(doc);
           // Show the new row: it's last in the default order.
-          requestAnimationFrame(() => virtualizer.scrollToIndex(rows.length, { align: "end" }));
+          requestAnimationFrame(() =>
+            virtualizer.scrollToIndex(rows.length, { align: "end" }),
+          );
         }}
       >
         + New row
@@ -161,13 +250,21 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
   );
 }
 
-function AddProperty({ onAdd }: { onAdd: (name: string, type: PropType) => void }) {
+function AddProperty({
+  onAdd,
+}: {
+  onAdd: (name: string, type: PropType) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<PropType>("text");
   if (!open)
     return (
-      <button className="side-action" onClick={() => setOpen(true)} data-testid="add-property">
+      <button
+        className="side-action"
+        onClick={() => setOpen(true)}
+        data-testid="add-property"
+      >
         + Property
       </button>
     );
@@ -182,16 +279,39 @@ function AddProperty({ onAdd }: { onAdd: (name: string, type: PropType) => void 
         setOpen(false);
       }}
     >
-      <input autoFocus placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} data-testid="property-name" />
-      <select value={type} onChange={(e) => setType(e.target.value as PropType)} data-testid="property-type">
+      <input
+        autoFocus
+        placeholder="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        data-testid="property-name"
+      />
+      <select
+        value={type}
+        onChange={(e) => setType(e.target.value as PropType)}
+        data-testid="property-type"
+      >
         {PROP_TYPES.map((t) => (
-          <option key={t} value={t}>
+          <option
+            key={t}
+            value={t}
+          >
             {t}
           </option>
         ))}
       </select>
-      <button type="submit" data-testid="property-submit">Add</button>
-      <button type="button" onClick={() => setOpen(false)}>Cancel</button>
+      <button
+        type="submit"
+        data-testid="property-submit"
+      >
+        Add
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+      >
+        Cancel
+      </button>
     </form>
   );
 }

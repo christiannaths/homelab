@@ -1,7 +1,13 @@
 import * as Y from "yjs";
 import { ensureDatabase } from "../model/database";
 import { freshKeys, keyBetween, keysAreUsable } from "../model/order";
-import { isInSubtree, type PageKind, type PageMeta, type Tree, type TreeNode } from "../model/tree";
+import {
+  isInSubtree,
+  type PageKind,
+  type PageMeta,
+  type Tree,
+  type TreeNode,
+} from "../model/tree";
 
 /** One doc per workspace holds the page tree; each page's content is its own doc. */
 export const WORKSPACE_DOC = "workspace:default";
@@ -29,7 +35,9 @@ export function readPages(doc: Y.Doc): PageMeta[] {
 }
 
 function childrenOf(tree: Tree, parentId: string | null): TreeNode[] {
-  return parentId === null ? tree.roots : (tree.byId.get(parentId)?.children ?? []);
+  return parentId === null
+    ? tree.roots
+    : (tree.byId.get(parentId)?.children ?? []);
 }
 
 /**
@@ -37,12 +45,22 @@ function childrenOf(tree: Tree, parentId: string | null): TreeNode[] {
  * If the siblings' keys are missing or tied (pages from before ordering existed,
  * or two clients that picked the same key), it renumbers them first.
  */
-function keyForPosition(doc: Y.Doc, tree: Tree, parentId: string | null, index: number, movingId?: string): string {
-  const siblings = childrenOf(tree, parentId).filter((n) => n.page.id !== movingId);
+function keyForPosition(
+  doc: Y.Doc,
+  tree: Tree,
+  parentId: string | null,
+  index: number,
+  movingId?: string,
+): string {
+  const siblings = childrenOf(tree, parentId).filter(
+    (n) => n.page.id !== movingId,
+  );
   let keys = siblings.map((n) => n.page.order);
   if (!keysAreUsable(keys)) {
     keys = freshKeys(siblings.length);
-    siblings.forEach((n, i) => pagesMap(doc).get(n.page.id)?.set("order", keys[i]));
+    siblings.forEach((n, i) =>
+      pagesMap(doc).get(n.page.id)?.set("order", keys[i]),
+    );
   }
   const i = Math.max(0, Math.min(index, keys.length));
   return keyBetween(keys[i - 1] ?? null, keys[i] ?? null);
@@ -51,7 +69,12 @@ function keyForPosition(doc: Y.Doc, tree: Tree, parentId: string | null, index: 
 export function createPage(
   doc: Y.Doc,
   tree: Tree,
-  opts: { parentId?: string | null; kind?: PageKind; title?: string; order?: string } = {},
+  opts: {
+    parentId?: string | null;
+    kind?: PageKind;
+    title?: string;
+    order?: string;
+  } = {},
 ): string {
   const id = crypto.randomUUID();
   const parentId = opts.parentId ?? null;
@@ -60,7 +83,11 @@ export function createPage(
     m.set("title", opts.title ?? "");
     m.set("kind", opts.kind ?? "page");
     m.set("parentId", parentId);
-    m.set("order", opts.order ?? keyForPosition(doc, tree, parentId, Number.MAX_SAFE_INTEGER));
+    m.set(
+      "order",
+      opts.order ??
+        keyForPosition(doc, tree, parentId, Number.MAX_SAFE_INTEGER),
+    );
     m.set("createdAt", Date.now());
     pagesMap(doc).set(id, m);
   });
@@ -72,10 +99,21 @@ export function createPage(
  * nothing) for an invalid move: into itself, into its own subtree, or into a database.
  * Concurrent moves on other devices can still create a cycle; `buildTree` repairs it.
  */
-export function movePage(doc: Y.Doc, tree: Tree, id: string, parentId: string | null, index: number): boolean {
+export function movePage(
+  doc: Y.Doc,
+  tree: Tree,
+  id: string,
+  parentId: string | null,
+  index: number,
+): boolean {
   if (parentId !== null) {
     const target = tree.byId.get(parentId);
-    if (!target || target.page.kind === "database" || isInSubtree(tree, parentId, id)) return false;
+    if (
+      !target ||
+      target.page.kind === "database" ||
+      isInSubtree(tree, parentId, id)
+    )
+      return false;
   }
   const m = pagesMap(doc).get(id);
   if (!m) return false;

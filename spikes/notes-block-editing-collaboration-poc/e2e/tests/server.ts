@@ -21,11 +21,19 @@ export class TestServer {
   }
 
   async start(): Promise<void> {
-    this.proc = spawn("node", ["--no-experimental-webstorage", "server/dist/index.js"], {
-      cwd: root,
-      env: { ...process.env, PORT: String(this.port), DATA_DIR: this.dataDir },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    this.proc = spawn(
+      "node",
+      ["--no-experimental-webstorage", "server/dist/index.js"],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          PORT: String(this.port),
+          DATA_DIR: this.dataDir,
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
     for (const stream of [this.proc.stdout!, this.proc.stderr!]) {
       stream.on("data", (chunk: Buffer) => {
         process.stdout.write(chunk);

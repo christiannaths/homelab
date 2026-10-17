@@ -6,9 +6,11 @@
 - Dependency of: none
 
 ## Context
+
 The server needs a real HTTP API: first-run setup, sign-in, invites, people and roles, sharing, teamspaces and attachments. Accounts ([ADR-NOTE-009](ADR-NOTE-009-identity.md)) are security-sensitive code: password hashing, sessions that last while a device is offline, revocation, rate limiting and admin-only account creation. The server must stay one Node process with one SQLite file and no external services ([ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
 
 ## Decision
+
 - **Hono serves all HTTP**, on `@hono/node-server` with its built-in WebSocket support (`ws`, `WebSocketServer` with `noServer: true`). That covers the API, the built PWA with a fallback to `index.html`, and the sync endpoint. `@hono/node-ws` is deprecated and is not used.
 - **Hocuspocus runs behind Hono** without a server of its own ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)):
   - Hono's `upgradeWebSocket` passes each socket to `hocuspocus.handleConnection()`, with the signed-in person as the connection's context.
@@ -28,11 +30,13 @@ The server needs a real HTTP API: first-run setup, sign-in, invites, people and 
 - **Rate limiting is always on,** with its counters in SQLite. The client's IP is read from the reverse proxy's forwarded header (`advanced.ipAddress.ipAddressHeaders`), set for the HTTPS setup in use ([ADR-NOTE-003](ADR-NOTE-003-app-delivery.md)).
 
 ## Alternatives considered
+
 - **A full-stack framework.** Every read is local and the server cannot query Yjs data, so it would add little ([`research/08-framework-options.md`](../research/08-framework-options.md)).
 - **Hocuspocus's `onRequest` hook with a hand-written static file server,** as the first spike did ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
 - **Hand-written accounts and sessions,** which means owning the security-sensitive code Better Auth already provides.
 
 ## Evidence
+
 - The server stack spike ([`research/09-server-stack-spike-findings.md`](../research/09-server-stack-spike-findings.md)), in `spikes/notes-server-stack-poc/`: 17 Vitest tests against real servers and Hocuspocus providers pass in three runs in a row. They cover:
   - setup, no public sign-up, and admin-only account creation
   - a 429 after repeated failed sign-ins
@@ -45,6 +49,7 @@ The server needs a real HTTP API: first-run setup, sign-in, invites, people and 
 - Better Auth's documentation: scrypt is the default hash, rate limiting is built in, and `node:sqlite` is supported as a database.
 
 ## Consequences
+
 - Better Auth's tables (`user`, `session`, `account`, `verification`, `rateLimit`) live beside `documents` in the one SQLite file. Backing up that file still backs up the instance ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)). Better Auth stores dates there as ISO strings.
 - Better Auth upgrades can change its schema. They are tested against an existing data directory before they are merged.
 - Without the forwarded IP header, every client shares one rate-limit bucket, so one person's failed sign-ins would lock everyone out for the window. The deploy setup must set it.

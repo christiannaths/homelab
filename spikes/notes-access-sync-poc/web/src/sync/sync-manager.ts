@@ -1,4 +1,7 @@
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import {
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+} from "@hocuspocus/provider";
 import { isRefusal } from "@homelab/notes-access-sync-poc-model";
 import { clearDocument, IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
@@ -75,7 +78,10 @@ export class SyncManager {
    * `personId` is the connection token (identity is faked) and also prefixes this device's
    * IndexedDB stores, so each person's local copy is kept apart.
    */
-  constructor(url: string, private personId: string) {
+  constructor(
+    url: string,
+    private personId: string,
+  ) {
     this.unsynced = new Set(readJson<string[]>(this.unsyncedKey) ?? []);
     this.socket = new HocuspocusProviderWebsocket({
       url,
@@ -83,11 +89,12 @@ export class SyncManager {
       maxAttempts: 0,
       maxDelay: 10_000,
       onStatus: ({ status }) => {
-        this.connection = status as ConnectionState;
+        this.connection = status;
         // Whatever was synced before is unconfirmed until each doc re-syncs after
         // reconnecting (the provider emits onSynced again). Without this, the badge
         // would say "Synced" right after reconnecting, before anything was exchanged.
-        if (status !== "connected") for (const e of this.entries.values()) e.synced = false;
+        if (status !== "connected")
+          for (const e of this.entries.values()) e.synced = false;
         this.notify();
       },
     });
@@ -109,8 +116,14 @@ export class SyncManager {
   private goOffline(): void {
     const ws = this.socket.webSocket;
     this.socket.disconnect();
-    if (ws && ws.readyState !== WebSocket.CLOSED && this.socket.webSocket === ws) {
-      ws.dispatchEvent(new CloseEvent("close", { code: 1000, reason: "offline" }));
+    if (
+      ws &&
+      ws.readyState !== WebSocket.CLOSED &&
+      this.socket.webSocket === ws
+    ) {
+      ws.dispatchEvent(
+        new CloseEvent("close", { code: 1000, reason: "offline" }),
+      );
     }
   }
 
@@ -136,40 +149,43 @@ export class SyncManager {
       // Since v2, providers on a shared socket must be attached explicitly.
       provider.attach();
     };
-    const createProvider = () => new HocuspocusProvider({
-      websocketProvider: this.socket,
-      name,
-      document: doc,
-      token: this.personId,
-      // Each provider gets its own address on the socket, so a document can be reopened right
-      // after its old provider is destroyed (a refused update #18, or access lost and regained
-      // #21); otherwise the server may still be closing the old one and ignore the new one's
-      // authentication.
-      sessionAwareness: true,
-      onSynced: () => {
-        entry.synced = true;
-        entry.syncedAt ??= performance.now() - this.startedAt;
-        this.notify();
-      },
-      onUnsyncedChanges: ({ number }) => {
-        entry.unsyncedChanges = number;
-        // Zero only once the server has applied everything this device sent.
-        if (number === 0) this.setUnsynced(name, false);
-        this.notify();
-      },
-      onClose: ({ event }) => {
-        // Losing access (#21): revoked while connected (or refused when (re)connecting, below).
-        if (event.reason === "access-revoked") void this.lose(entry);
-        // A refused update (#18): get back in step with the server.
-        else if (isRefusal(event.reason) && this.entries.get(name) === entry) void this.recover(entry);
-      },
-      onAuthenticationFailed: ({ reason }) => {
-        if (reason === "no-access") void this.lose(entry);
-      },
-    });
+    const createProvider = () =>
+      new HocuspocusProvider({
+        websocketProvider: this.socket,
+        name,
+        document: doc,
+        token: this.personId,
+        // Each provider gets its own address on the socket, so a document can be reopened right
+        // after its old provider is destroyed (a refused update #18, or access lost and regained
+        // #21); otherwise the server may still be closing the old one and ignore the new one's
+        // authentication.
+        sessionAwareness: true,
+        onSynced: () => {
+          entry.synced = true;
+          entry.syncedAt ??= performance.now() - this.startedAt;
+          this.notify();
+        },
+        onUnsyncedChanges: ({ number }) => {
+          entry.unsyncedChanges = number;
+          // Zero only once the server has applied everything this device sent.
+          if (number === 0) this.setUnsynced(name, false);
+          this.notify();
+        },
+        onClose: ({ event }) => {
+          // Losing access (#21): revoked while connected (or refused when (re)connecting, below).
+          if (event.reason === "access-revoked") void this.lose(entry);
+          // A refused update (#18): get back in step with the server.
+          else if (isRefusal(event.reason) && this.entries.get(name) === entry)
+            void this.recover(entry);
+        },
+        onAuthenticationFailed: ({ reason }) => {
+          if (reason === "no-access") void this.lose(entry);
+        },
+      });
     // Edits made on this device (not ones arriving from the server or loaded from IndexedDB).
     doc.on("update", (_update: Uint8Array, origin: unknown) => {
-      if (origin !== entry.provider && origin !== local) this.setUnsynced(name, true);
+      if (origin !== entry.provider && origin !== local)
+        this.setUnsynced(name, true);
     });
 
     const entry: DocEntry = {
@@ -180,11 +196,13 @@ export class SyncManager {
       unsyncedChanges: 0,
       generation: 0,
       // A local copy that can't be read (storage blocked) still syncs from the server.
-      whenLocal: local.whenSynced.catch(() => undefined).then(() => {
-        entry.localLoadedAt = performance.now() - this.startedAt;
-        connect();
-        this.notify();
-      }),
+      whenLocal: local.whenSynced
+        .catch(() => undefined)
+        .then(() => {
+          entry.localLoadedAt = performance.now() - this.startedAt;
+          connect();
+          this.notify();
+        }),
     };
     this.entries.set(name, entry);
     this.notify();
@@ -223,7 +241,9 @@ export class SyncManager {
   async storedNames(): Promise<string[]> {
     const prefix = this.storeName("");
     const dbs = (await indexedDB.databases?.()) ?? [];
-    return dbs.flatMap((db) => (db.name?.startsWith(prefix) ? [db.name.slice(prefix.length)] : []));
+    return dbs.flatMap((db) =>
+      db.name?.startsWith(prefix) ? [db.name.slice(prefix.length)] : [],
+    );
   }
 
   /** Calls `listener` for each document this device loses access to, once it is deleted. */
@@ -244,7 +264,9 @@ export class SyncManager {
     this.entries.delete(entry.name);
     this.notify();
     await entry.whenLocal; // the local copy may still be loading on a fresh start
-    const unsynced = this.unsynced.has(entry.name) ? Y.encodeStateAsUpdate(entry.doc) : null;
+    const unsynced = this.unsynced.has(entry.name)
+      ? Y.encodeStateAsUpdate(entry.doc)
+      : null;
     for (const l of this.lostListeners) l({ name: entry.name, unsynced });
     // Let the UI drop the page (and its editor) before the document goes.
     await new Promise((r) => setTimeout(r, 0));
@@ -272,9 +294,14 @@ export class SyncManager {
     // them rather than open (and so recreate in IndexedDB) a document being deleted. The caller
     // reloads the app afterwards.
     await Promise.all([...this.entries.values()].map((e) => this.discard(e)));
-    await Promise.all((await this.storedNames()).map((name) => clearDocument(this.storeName(name))));
+    await Promise.all(
+      (await this.storedNames()).map((name) =>
+        clearDocument(this.storeName(name)),
+      ),
+    );
     try {
-      for (const key of Object.keys(localStorage)) if (key.startsWith(this.storeName(""))) localStorage.removeItem(key);
+      for (const key of Object.keys(localStorage))
+        if (key.startsWith(this.storeName(""))) localStorage.removeItem(key);
     } catch {
       // Nothing kept there.
     }

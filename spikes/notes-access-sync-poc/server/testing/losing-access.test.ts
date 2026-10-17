@@ -1,6 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { teamspaceSection, type Person } from "@homelab/notes-access-sync-poc-model";
-import { connectAs, indexDocName, pageDocName, schemaDocName, TestServer, type TestClient } from "./index.ts";
+import {
+  teamspaceSection,
+  type Person,
+} from "@homelab/notes-access-sync-poc-model";
+import {
+  connectAs,
+  indexDocName,
+  pageDocName,
+  schemaDocName,
+  TestServer,
+  type TestClient,
+} from "./index.ts";
 
 // The sync boundary for losing and regaining access (#21): every way a person can lose a page
 // takes it off their connected devices (which delete their copy, as the web app does) and keeps
@@ -36,26 +46,41 @@ describe("losing and regaining access", () => {
     await maxDevice.share(trip, nia.id, "edit");
     await maxDevice.settled();
     const laptop = await connect(nia);
-    await expect.poll(() => laptop.syncAll()).toEqual([indexDocName(nia.id), pageDocName(packing), pageDocName(trip)].sort());
+    await expect
+      .poll(() => laptop.syncAll())
+      .toEqual(
+        [indexDocName(nia.id), pageDocName(packing), pageDocName(trip)].sort(),
+      );
 
     await maxDevice.share(trip, nia.id, null);
     await maxDevice.settled();
-    await expect.poll(() => laptop.lost()).toEqual([pageDocName(packing), pageDocName(trip)].sort());
+    await expect
+      .poll(() => laptop.lost())
+      .toEqual([pageDocName(packing), pageDocName(trip)].sort());
     expect(laptop.received()).toEqual([indexDocName(nia.id)]);
-    expect(laptop.receivedContent()).not.toMatch(/Trip|Packing list|Socks|Flights/);
+    expect(laptop.receivedContent()).not.toMatch(
+      /Trip|Packing list|Socks|Flights/,
+    );
     expect(laptop.level(trip)).toBeUndefined();
 
     // Regaining access: the page comes back at the next sync, with what was written meanwhile.
     await maxDevice.writeText(trip, "Hotel booked");
     await maxDevice.share(trip, nia.id, "view");
     await maxDevice.settled();
-    await expect.poll(() => laptop.syncAll()).toEqual([indexDocName(nia.id), pageDocName(packing), pageDocName(trip)].sort());
+    await expect
+      .poll(() => laptop.syncAll())
+      .toEqual(
+        [indexDocName(nia.id), pageDocName(packing), pageDocName(trip)].sort(),
+      );
     expect(laptop.pageText(trip)).toBe("Flights booked\nHotel booked");
     expect(laptop.level(packing)).toBe("view");
   });
 
   it("a level lowered to No access: a device that was offline deletes the page when it reconnects", async () => {
-    const plan = await maxDevice.createPage("Garden plan", "Tomatoes by the fence");
+    const plan = await maxDevice.createPage(
+      "Garden plan",
+      "Tomatoes by the fence",
+    );
     await maxDevice.share(plan, nia.id, "edit");
     await maxDevice.settled();
     const phone = await connect(nia);
@@ -86,7 +111,9 @@ describe("losing and regaining access", () => {
 
       await maxDevice.move(recipes, diary);
       await maxDevice.settled();
-      await expect.poll(() => device.tree().byId.get(recipes)?.parentHidden).toBe(true);
+      await expect
+        .poll(() => device.tree().byId.get(recipes)?.parentHidden)
+        .toBe(true);
       expect(device.sidebar().shared).toContain("Recipes");
       expect(device.lost()).toEqual([]);
       const fresh = await connect(nia);
@@ -111,47 +138,75 @@ describe("losing and regaining access", () => {
     });
 
     it("moved into a teamspace she isn't in: she loses what she only inherited, and its members get it", async () => {
-      const ops = await maxDevice.createTeamspace("Ops", "closed", { memberLevel: "edit" });
+      const ops = await maxDevice.createTeamspace("Ops", "closed", {
+        memberLevel: "edit",
+      });
       await maxDevice.addToTeamspace(ops, olive.id);
       const office = await maxDevice.createPage("Office", "Door code");
-      const supplies = await maxDevice.createPage("Supplies", "Paper, toner", office);
+      const supplies = await maxDevice.createPage(
+        "Supplies",
+        "Paper, toner",
+        office,
+      );
       const wifi = await maxDevice.createPage("Office wifi", "Ask Max", office);
       await maxDevice.share(office, nia.id, "edit");
       await maxDevice.share(wifi, nia.id, "view"); // an invite of its own
       await maxDevice.settled();
       const niasDevice = await connect(nia);
       const olivesDevice = await connect(olive);
-      await expect.poll(() => niasDevice.syncAll()).toEqual(expect.arrayContaining([pageDocName(supplies), pageDocName(wifi)]));
+      await expect
+        .poll(() => niasDevice.syncAll())
+        .toEqual(
+          expect.arrayContaining([pageDocName(supplies), pageDocName(wifi)]),
+        );
 
       await maxDevice.move(supplies, null, { section: teamspaceSection(ops) });
       await maxDevice.move(wifi, null, { section: teamspaceSection(ops) });
       await maxDevice.settled();
-      await expect.poll(() => niasDevice.lost()).toEqual([pageDocName(supplies)]);
+      await expect
+        .poll(() => niasDevice.lost())
+        .toEqual([pageDocName(supplies)]);
       // Her own invite still counts in the teamspace: the page stays, now top-level, shown under
       // the (closed, so visible to her by name) teamspace.
       expect(niasDevice.received()).toContain(pageDocName(wifi));
-      await expect.poll(() => niasDevice.teamspaceSidebar()).toEqual({ Ops: ["Office wifi"] });
+      await expect
+        .poll(() => niasDevice.teamspaceSidebar())
+        .toEqual({ Ops: ["Office wifi"] });
       expect(niasDevice.sidebar().shared).not.toContain("Supplies");
-      await expect.poll(() => olivesDevice.syncAll()).toEqual(expect.arrayContaining([pageDocName(supplies), pageDocName(wifi)]));
+      await expect
+        .poll(() => olivesDevice.syncAll())
+        .toEqual(
+          expect.arrayContaining([pageDocName(supplies), pageDocName(wifi)]),
+        );
       expect(olivesDevice.level(supplies)).toBe("edit");
     });
 
     it("moved to Private: everyone else loses it, including people with an invite on the page itself", async () => {
       const party = await maxDevice.createPage("Party", "Saturday");
-      const guests = await maxDevice.createPage("Guest list", "Ana, Ben", party);
+      const guests = await maxDevice.createPage(
+        "Guest list",
+        "Ana, Ben",
+        party,
+      );
       await maxDevice.share(party, nia.id, "edit");
       await maxDevice.share(guests, olive.id, "view");
       await maxDevice.settled();
       const niasDevice = await connect(nia);
       const olivesDevice = await connect(olive);
-      await expect.poll(() => niasDevice.syncAll()).toContain(pageDocName(guests));
-      await expect.poll(() => olivesDevice.syncAll()).toContain(pageDocName(guests));
+      await expect
+        .poll(() => niasDevice.syncAll())
+        .toContain(pageDocName(guests));
+      await expect
+        .poll(() => olivesDevice.syncAll())
+        .toContain(pageDocName(guests));
 
       await maxDevice.move(guests, null);
       await maxDevice.settled();
       expect(maxDevice.access(guests)).toBeUndefined();
       await expect.poll(() => niasDevice.lost()).toContain(pageDocName(guests));
-      await expect.poll(() => olivesDevice.lost()).toContain(pageDocName(guests));
+      await expect
+        .poll(() => olivesDevice.lost())
+        .toContain(pageDocName(guests));
       expect(niasDevice.received()).toContain(pageDocName(party));
       expect(maxDevice.sidebar().private).toContain("Guest list");
     });
@@ -160,25 +215,50 @@ describe("losing and regaining access", () => {
   it("a database lost: its rows and its properties leave the device; a single row lost takes the properties with it", async () => {
     const pia = await server.addPerson("Pia", "member", olive);
     const db = await maxDevice.createDatabase("Chores", { Points: "number" });
-    const dishes = await maxDevice.addRow(db.id, "Dishes", { [db.properties.Points]: 3 });
-    const bins = await maxDevice.addRow(db.id, "Bins", { [db.properties.Points]: 1 });
+    const dishes = await maxDevice.addRow(db.id, "Dishes", {
+      [db.properties.Points]: 3,
+    });
+    const bins = await maxDevice.addRow(db.id, "Bins", {
+      [db.properties.Points]: 1,
+    });
     await maxDevice.share(db.id, nia.id, "edit-content");
     await maxDevice.share(bins, pia.id, "view");
     await maxDevice.settled();
     const niasDevice = await connect(nia);
     const piasDevice = await connect(pia);
-    await expect.poll(() => niasDevice.syncAll()).toEqual(expect.arrayContaining([schemaDocName(db.id), pageDocName(dishes)]));
-    await expect.poll(() => piasDevice.syncAll()).toEqual(expect.arrayContaining([pageDocName(bins), schemaDocName(db.id)]));
-    expect(piasDevice.received().filter((n) => n.startsWith("page:"))).toEqual([pageDocName(bins)]);
+    await expect
+      .poll(() => niasDevice.syncAll())
+      .toEqual(
+        expect.arrayContaining([schemaDocName(db.id), pageDocName(dishes)]),
+      );
+    await expect
+      .poll(() => piasDevice.syncAll())
+      .toEqual(
+        expect.arrayContaining([pageDocName(bins), schemaDocName(db.id)]),
+      );
+    expect(piasDevice.received().filter((n) => n.startsWith("page:"))).toEqual([
+      pageDocName(bins),
+    ]);
 
     await maxDevice.share(db.id, nia.id, null);
     await maxDevice.share(bins, pia.id, null);
     await maxDevice.settled();
-    await expect.poll(() => niasDevice.lost()).toEqual(
-      expect.arrayContaining([pageDocName(db.id), pageDocName(dishes), pageDocName(bins), schemaDocName(db.id)]),
-    );
-    await expect.poll(() => piasDevice.lost()).toEqual([pageDocName(bins), schemaDocName(db.id)].sort());
-    expect(piasDevice.received().filter((n) => !n.startsWith("teamspace:"))).toEqual([indexDocName(pia.id)]);
+    await expect
+      .poll(() => niasDevice.lost())
+      .toEqual(
+        expect.arrayContaining([
+          pageDocName(db.id),
+          pageDocName(dishes),
+          pageDocName(bins),
+          schemaDocName(db.id),
+        ]),
+      );
+    await expect
+      .poll(() => piasDevice.lost())
+      .toEqual([pageDocName(bins), schemaDocName(db.id)].sort());
+    expect(
+      piasDevice.received().filter((n) => !n.startsWith("teamspace:")),
+    ).toEqual([indexDocName(pia.id)]);
     expect(niasDevice.receivedContent()).not.toMatch(/Chores|Dishes|Points/);
   });
 
@@ -195,7 +275,9 @@ describe("losing and regaining access", () => {
     await expect.poll(() => device.level(notes)).toBe("edit");
     await device.writeText(notes, "Nia: action items");
     await device.settled();
-    await expect.poll(() => maxDevice.pageText(notes)).toBe("Agenda\nNia: action items");
+    await expect
+      .poll(() => maxDevice.pageText(notes))
+      .toBe("Agenda\nNia: action items");
 
     // Lowered to Can view: her next edit on the same connection is not.
     await maxDevice.share(notes, nia.id, "view");
@@ -215,20 +297,33 @@ describe("losing and regaining access", () => {
     await maxDevice.settled();
     const gusDevice = await connect(gus);
     const own = await gusDevice.createPage("Gus's notes", "Mine");
-    await expect.poll(() => gusDevice.syncAll()).toEqual(expect.arrayContaining([pageDocName(shared), pageDocName(own)]));
+    await expect
+      .poll(() => gusDevice.syncAll())
+      .toEqual(expect.arrayContaining([pageDocName(shared), pageDocName(own)]));
 
     await expect(server.removePerson(gus, max)).rejects.toThrow(/403/);
     await server.removePerson(gus, olive);
     expect((await server.people()).map((p) => p.name)).not.toContain("Gus");
 
-    await expect.poll(() => gusDevice.lost()).toEqual(
-      expect.arrayContaining([indexDocName(gus.id), pageDocName(shared), pageDocName(own)]),
-    );
+    await expect
+      .poll(() => gusDevice.lost())
+      .toEqual(
+        expect.arrayContaining([
+          indexDocName(gus.id),
+          pageDocName(shared),
+          pageDocName(own),
+        ]),
+      );
     expect(gusDevice.received()).toEqual([]);
     const fresh = await connect(gus);
     expect(await fresh.syncAll()).toEqual([]);
     expect(fresh.denied()).toEqual([indexDocName(gus.id)]);
-    expect(await fresh.open(pageDocName(shared))).toEqual({ status: "denied", reason: "no-access" });
-    expect((await server.connections()).filter((c) => c.personId === gus.id)).toEqual([]);
+    expect(await fresh.open(pageDocName(shared))).toEqual({
+      status: "denied",
+      reason: "no-access",
+    });
+    expect(
+      (await server.connections()).filter((c) => c.personId === gus.id),
+    ).toEqual([]);
   });
 });

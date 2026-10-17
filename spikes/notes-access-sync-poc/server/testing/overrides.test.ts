@@ -1,9 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Person } from "@homelab/notes-access-sync-poc-model";
-import { connectAs, indexDocName, pageDocName, TestServer, type TestClient } from "./index.ts";
+import {
+  connectAs,
+  indexDocName,
+  pageDocName,
+  TestServer,
+  type TestClient,
+} from "./index.ts";
 
 /** Polls until `ready` is true (expect.poll only works inside tests, not in beforeAll). */
-async function until(ready: () => Promise<boolean>, timeoutMs = 10_000): Promise<void> {
+async function until(
+  ready: () => Promise<boolean>,
+  timeoutMs = 10_000,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!(await ready())) {
     if (Date.now() > deadline) throw new Error("timed out");
@@ -59,22 +68,37 @@ describe("overriding inherited access", () => {
       await maxDevice.settled();
 
       const phone = await connect(nia);
-      await expect.poll(() => phone.syncAll()).toEqual([indexDocName(nia.id), pageDocName(trip)].sort());
+      await expect
+        .poll(() => phone.syncAll())
+        .toEqual([indexDocName(nia.id), pageDocName(trip)].sort());
       const everything = phone.receivedContent();
-      for (const trace of ["Packing list", "Hiking shoes", "Socks", "Boots"]) expect(everything).not.toContain(trace);
-      expect(await phone.open(pageDocName(packing))).toEqual({ status: "denied", reason: "no-access" });
-      expect(await phone.open(pageDocName(shoes))).toEqual({ status: "denied", reason: "no-access" });
+      for (const trace of ["Packing list", "Hiking shoes", "Socks", "Boots"])
+        expect(everything).not.toContain(trace);
+      expect(await phone.open(pageDocName(packing))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
+      expect(await phone.open(pageDocName(shoes))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
       expect(phone.level(trip)).toBe("edit");
 
       // The connected laptop is cut off from both documents, so later edits don't reach it.
-      await expect.poll(() => niasLaptop.closedReason(pageDocName(packing))).toBe("access-revoked");
-      await expect.poll(() => niasLaptop.closedReason(pageDocName(shoes))).toBe("access-revoked");
+      await expect
+        .poll(() => niasLaptop.closedReason(pageDocName(packing)))
+        .toBe("access-revoked");
+      await expect
+        .poll(() => niasLaptop.closedReason(pageDocName(shoes)))
+        .toBe("access-revoked");
       expect(niasLaptop.closedReason(pageDocName(trip))).toBeUndefined();
       await maxDevice.rename(shoes, "Trail runners");
       await maxDevice.settled();
       await maxDevice.writeText(trip, "Hotel booked");
       await maxDevice.settled();
-      await expect.poll(() => niasLaptop.pageText(trip)).toBe("Flights booked\nHotel booked");
+      await expect
+        .poll(() => niasLaptop.pageText(trip))
+        .toBe("Flights booked\nHotel booked");
       expect(niasLaptop.receivedContent()).not.toContain("Trail runners");
     });
 
@@ -82,9 +106,16 @@ describe("overriding inherited access", () => {
       await maxDevice.share(trip, olive.id, "view");
       await maxDevice.settled();
       const device = await connect(olive);
-      await expect.poll(() => device.syncAll()).toEqual(
-        [indexDocName(olive.id), pageDocName(trip), pageDocName(packing), pageDocName(shoes)].sort(),
-      );
+      await expect
+        .poll(() => device.syncAll())
+        .toEqual(
+          [
+            indexDocName(olive.id),
+            pageDocName(trip),
+            pageDocName(packing),
+            pageDocName(shoes),
+          ].sort(),
+        );
     });
 
     it("sends it to her again on Restore inherited access, on a new device and on the connected one", async () => {
@@ -92,15 +123,26 @@ describe("overriding inherited access", () => {
       await maxDevice.settled();
 
       const tablet = await connect(nia);
-      await expect.poll(() => tablet.syncAll()).toEqual(
-        [indexDocName(nia.id), pageDocName(trip), pageDocName(packing), pageDocName(shoes)].sort(),
-      );
-      expect(tablet.pageTitles()).toEqual(["Trip", "Packing list", "Trail runners"]);
+      await expect
+        .poll(() => tablet.syncAll())
+        .toEqual(
+          [
+            indexDocName(nia.id),
+            pageDocName(trip),
+            pageDocName(packing),
+            pageDocName(shoes),
+          ].sort(),
+        );
+      expect(tablet.pageTitles()).toEqual([
+        "Trip",
+        "Packing list",
+        "Trail runners",
+      ]);
       expect(tablet.level(shoes)).toBe("edit");
 
-      await expect.poll(async () => (await niasLaptop.syncAll(), niasLaptop.pageTitles())).toEqual([
-        "Trip", "Packing list", "Trail runners",
-      ]);
+      await expect
+        .poll(async () => (await niasLaptop.syncAll(), niasLaptop.pageTitles()))
+        .toEqual(["Trip", "Packing list", "Trail runners"]);
       expect(niasLaptop.pageText(shoes)).toBe("Boots");
     });
   });
@@ -124,15 +166,34 @@ describe("overriding inherited access", () => {
     it("arrives at the top of the Shared section with its subpages, and no document or title of the hidden parents", async () => {
       const device = await connect(nia);
       await expect.poll(() => device.syncAll()).toContain(pageDocName(seeds));
-      expect(device.received().filter((n) => [garden, beds].some((id) => n.includes(id)))).toEqual([]);
+      expect(
+        device
+          .received()
+          .filter((n) => [garden, beds].some((id) => n.includes(id))),
+      ).toEqual([]);
       expect(device.sidebar().shared).toContain("Tomatoes");
-      expect(device.tree().byId.get(tomatoes)).toMatchObject({ parentId: null, parentHidden: true, depth: 0 });
-      expect(device.tree().byId.get(seeds)).toMatchObject({ parentId: tomatoes, depth: 1 });
+      expect(device.tree().byId.get(tomatoes)).toMatchObject({
+        parentId: null,
+        parentHidden: true,
+        depth: 0,
+      });
+      expect(device.tree().byId.get(seeds)).toMatchObject({
+        parentId: tomatoes,
+        depth: 1,
+      });
       const everything = device.receivedContent();
-      for (const trace of ["Secret garden", "Raised beds", "Behind the shed", "Cedar"]) {
+      for (const trace of [
+        "Secret garden",
+        "Raised beds",
+        "Behind the shed",
+        "Cedar",
+      ]) {
         expect(everything).not.toContain(trace);
       }
-      expect(await device.open(pageDocName(beds))).toEqual({ status: "denied", reason: "no-access" });
+      expect(await device.open(pageDocName(beds))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
     });
 
     it("stays when the parent it was shared through is unshared, and the parent leaves", async () => {
@@ -146,13 +207,17 @@ describe("overriding inherited access", () => {
       await maxDevice.share(garden, nia.id, null);
       await maxDevice.settled();
       const fresh = await connect(nia);
-      await expect.poll(() => fresh.syncAll()).not.toContain(pageDocName(garden));
+      await expect
+        .poll(() => fresh.syncAll())
+        .not.toContain(pageDocName(garden));
       expect(fresh.received()).toEqual(
         expect.arrayContaining([pageDocName(tomatoes), pageDocName(seeds)]),
       );
       expect(fresh.receivedContent()).not.toContain("Secret garden");
       expect(fresh.tree().byId.get(tomatoes)?.parentHidden).toBe(true);
-      await expect.poll(() => device.closedReason(pageDocName(garden))).toBe("access-revoked");
+      await expect
+        .poll(() => device.closedReason(pageDocName(garden)))
+        .toBe("access-revoked");
     });
   });
 });

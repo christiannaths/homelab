@@ -2,7 +2,10 @@ import { mkdtempSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import {
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+} from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { startServer } from "../src/app.ts";
@@ -10,7 +13,9 @@ import { startServer } from "../src/app.ts";
 export const SECRET = "test-secret-test-secret-test-secret";
 export const PASSWORD = "correct horse battery staple";
 
-export type TestServer = Awaited<ReturnType<typeof startServer>> & { url: string };
+export type TestServer = Awaited<ReturnType<typeof startServer>> & {
+  url: string;
+};
 
 async function freePort(): Promise<number> {
   const probe = createServer();
@@ -25,7 +30,9 @@ export function tempDataDir(): string {
 }
 
 /** Starts a server on a free port; pass the same dataDir to simulate a restart. */
-export async function start(dataDir = tempDataDir()): Promise<TestServer & { dataDir: string }> {
+export async function start(
+  dataDir = tempDataDir(),
+): Promise<TestServer & { dataDir: string }> {
   const port = await freePort();
   const url = `http://localhost:${port}`;
   const server = await startServer({
@@ -38,12 +45,17 @@ export async function start(dataDir = tempDataDir()): Promise<TestServer & { dat
   return { ...server, url, dataDir };
 }
 
-export async function post(server: TestServer, route: string, body: unknown, cookie?: string) {
+export async function post(
+  server: TestServer,
+  route: string,
+  body: unknown,
+  cookie?: string,
+) {
   return fetch(server.url + route, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      origin: server.url,
+      "origin": server.url,
       ...(cookie ? { cookie } : {}),
     },
     body: JSON.stringify(body),
@@ -51,28 +63,49 @@ export async function post(server: TestServer, route: string, body: unknown, coo
 }
 
 /** Signs in and returns the session cookie, as a browser would store it. */
-export async function signIn(server: TestServer, username: string, password = PASSWORD) {
-  const res = await post(server, "/api/auth/sign-in/username", { username, password });
-  if (!res.ok) throw new Error(`sign-in failed: ${res.status} ${await res.text()}`);
+export async function signIn(
+  server: TestServer,
+  username: string,
+  password = PASSWORD,
+) {
+  const res = await post(server, "/api/auth/sign-in/username", {
+    username,
+    password,
+  });
+  if (!res.ok)
+    throw new Error(`sign-in failed: ${res.status} ${await res.text()}`);
   const setCookie = res.headers.get("set-cookie")!;
   return { cookie: setCookie.split(";")[0], setCookie, body: await res.json() };
 }
 
 export async function setUpAdmin(server: TestServer, username = "admin") {
-  const res = await post(server, "/api/setup", { username, password: PASSWORD });
+  const res = await post(server, "/api/setup", {
+    username,
+    password: PASSWORD,
+  });
   if (!res.ok) throw new Error(`setup failed: ${res.status}`);
   return signIn(server, username);
 }
 
 /** Creates a member account as the signed-in admin, through Better Auth's admin plugin. */
-export async function createMember(server: TestServer, adminCookie: string, username: string) {
+export async function createMember(
+  server: TestServer,
+  adminCookie: string,
+  username: string,
+) {
   const res = await post(
     server,
     "/api/auth/admin/create-user",
-    { email: `${username}@users.invalid`, password: PASSWORD, name: username, data: { username } },
+    {
+      email: `${username}@users.invalid`,
+      password: PASSWORD,
+      name: username,
+      data: { username },
+    },
     adminCookie,
   );
-  if (!res.ok) throw new Error(`create-user failed: ${res.status} ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`create-user failed: ${res.status} ${await res.text()}`);
   return signIn(server, username);
 }
 
@@ -87,7 +120,12 @@ function cookieWebSocket(cookie: string) {
 
 export interface Device {
   socket: HocuspocusProviderWebsocket;
-  open(name: string): { doc: Y.Doc; provider: HocuspocusProvider; synced: Promise<void>; denied: Promise<string> };
+  open(name: string): {
+    doc: Y.Doc;
+    provider: HocuspocusProvider;
+    synced: Promise<void>;
+    denied: Promise<string>;
+  };
   closed: Promise<number>;
   destroy(): void;
 }
@@ -132,7 +170,10 @@ export function device(server: TestServer, cookie: string): Device {
   };
 }
 
-export async function waitFor(check: () => boolean, timeoutMs = 5000): Promise<void> {
+export async function waitFor(
+  check: () => boolean,
+  timeoutMs = 5000,
+): Promise<void> {
   const started = Date.now();
   while (!check()) {
     if (Date.now() - started > timeoutMs) throw new Error("timed out");
@@ -141,7 +182,10 @@ export async function waitFor(check: () => boolean, timeoutMs = 5000): Promise<v
 }
 
 /** Opens a raw WebSocket to /sync and reports how the upgrade went. */
-export function tryUpgrade(server: TestServer, cookie?: string): Promise<"open" | number> {
+export function tryUpgrade(
+  server: TestServer,
+  cookie?: string,
+): Promise<"open" | number> {
   return new Promise((resolve) => {
     const ws = new WebSocket(server.url.replace("http", "ws") + "/sync", {
       headers: cookie ? { cookie } : {},

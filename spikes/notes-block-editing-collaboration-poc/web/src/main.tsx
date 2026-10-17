@@ -4,7 +4,7 @@ import { registerSW } from "virtual:pwa-register";
 import { App } from "./App";
 import { loadIdentity, loadToken } from "./identity";
 import { SyncContext } from "./sync/context";
-import { SyncManager } from "./sync/SyncManager";
+import { SyncManager } from "./sync/sync-manager";
 import "./styles.css";
 
 registerSW({ immediate: true });

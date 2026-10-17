@@ -8,7 +8,7 @@ A teamspace is a named section of the sidebar for a group of people, such as "Ho
 ## Kinds
 
 | Kind | Who can see it exists | Who can join |
-|---|---|---|
+| --- | --- | --- |
 | **Open** | Every member | Any member, without asking |
 | **Closed** | Every member | Only people added by someone allowed to invite (see settings) |
 | **Private** | Only its members, and workspace owners (by name only) | Only people added by someone allowed to invite |
@@ -22,7 +22,7 @@ Guests never belong to teamspaces. They only get individual pages.
 ## Roles inside a teamspace
 
 | Role | Can |
-|---|---|
+| --- | --- |
 | **Teamspace owner** | Everything a member can, plus: change the teamspace's settings, name, icon and kind; add and remove members; make members owners. Every teamspace has at least one owner. Archiving is for workspace owners (see below). |
 | **Teamspace member** | Open the teamspace's pages at the access level its settings give members; create pages if that level allows it; leave the teamspace. |
 
@@ -31,12 +31,13 @@ Guests never belong to teamspaces. They only get individual pages.
 - **Default access for each group:**
 
   | Group | Default | Options |
-  |---|---|---|
+  | --- | --- | --- |
   | Teamspace owners | Full access | Fixed |
   | Teamspace members | Can edit | Full access, Can edit, Can comment, Can view |
   | Everyone else in the workspace (open teamspaces only) | Can view | Can view, Can comment, Can edit |
 
   These are the starting access levels for every top-level page in the teamspace. Subpages inherit them, and any page can override them (see [Page sharing](page-sharing.md)).
+
 - **Who can invite members:** any member, or owners only (closed and private teamspaces).
 - **Who can change the teamspace's sidebar** (add, move and reorder top-level pages): any member, or owners only.
 
