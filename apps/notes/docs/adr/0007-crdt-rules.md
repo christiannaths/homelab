@@ -2,8 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 2](0002-yjs-stores-shared-data.md)
-- Dependency of: [ADR 9](0009-pure-model-and-tests.md), [ADR 17](0017-per-page-documents-and-per-person-index.md)
+- Depends on: [ADR 2](0002-yjs-shared-data.md)
+- Dependency of: [ADR 9](0009-model-and-tests.md), [ADR 17](0017-per-page-documents.md)
 
 ## Context
 The spikes found two ways in which a design that looks right becomes wrong once several devices edit offline. Concurrent page moves can form a cycle in the page tree. A device that has not synced yet can create a shared structure that then competes with the real one: `Y.Map` keys are last-writer-wins, so a fresh map can overwrite a renamed one.
@@ -23,5 +23,5 @@ The spikes found two ways in which a design that looks right becomes wrong once 
 - The schema-initialization hazard was found in design review during PR #2 and fixed under rule 2.
 
 ## Consequences
-- A new feature is done only once it has a short "how does this merge?" note and a convergence test ([ADR 9](0009-pure-model-and-tests.md)).
+- A new feature is done only once it has a short "how does this merge?" note and a convergence test ([ADR 9](0009-model-and-tests.md)).
 - A derived view can differ from the stored data (for example, a page whose `parentId` points into a cycle). Code reads the derived view (`buildTree`), not raw fields.

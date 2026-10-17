@@ -2,14 +2,14 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 5](0005-typescript-node-26-npm.md)
-- Dependency of: [ADR 16](0016-spikes-stay-out-of-repo-wide-runs.md)
+- Depends on: [ADR 5](0005-typescript-and-node.md)
+- Dependency of: [ADR 16](0016-spike-isolation.md)
 
 ## Context
 The repo is growing from one app into a home for several homelab apps. What the apps share is their approach and their deployment, not their features: each app is built, tested and shipped on its own, and an app must never break because another one changed. A tool is needed that runs tasks across the apps in the right order, rebuilds only what a change touches, and keeps the apps from depending on each other. Turborepo was considered and rejected on the maintainer's experience that it added little.
 
 ## Decision
-- **Nx** runs tasks across the repo, on top of npm workspaces ([ADR 5](0005-typescript-node-26-npm.md)).
+- **Nx** runs tasks across the repo, on top of npm workspaces ([ADR 5](0005-typescript-and-node.md)).
 - **Layout:**
   - `apps/<app>/` holds one app, split into npm workspace packages such as `web`, `server` and `e2e`. Each package is one Nx project, named `<app>-<package>` (for example `notes-web`).
   - `packages/` holds code shared by more than one app. Code moves there only when a second app needs it.

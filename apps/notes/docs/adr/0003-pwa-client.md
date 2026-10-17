@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 1](0001-works-offline-on-what-its-person-can-open.md)
-- Dependency of: [ADR 20](0020-hono-http-and-better-auth-accounts.md)
+- Depends on: [ADR 1](0001-offline-support.md)
+- Dependency of: [ADR 18](0018-hono-and-better-auth.md)
 
 ## Context
-The target platforms are macOS and iOS, with a desktop-like experience on the Mac. Separate native apps would multiply the work, and the app must start without a network ([ADR 1](0001-works-offline-on-what-its-person-can-open.md)).
+The target platforms are macOS and iOS, with a desktop-like experience on the Mac. Separate native apps would multiply the work, and the app must start without a network ([ADR 1](0001-offline-support.md)).
 
 ## Decision
 - **One web app, installed as a Progressive Web App:**
