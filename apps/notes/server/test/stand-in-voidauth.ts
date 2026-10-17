@@ -1,0 +1,133 @@
+// A stand-in for VoidAuth's OIDC side, so the server's tests run fast with nothing installed.
+// The end-to-end suite in apps/notes/e2e covers the real VoidAuth.
+import { createHash, randomBytes } from "node:crypto";
+import { createServer, type IncomingMessage, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
+
+export interface Account {
+  sub: string;
+  name?: string;
+  groups?: string[];
+}
+
+interface Grant {
+  account: Account;
+  clientId: string;
+  redirectUri: string;
+  nonce: string;
+  challenge: string;
+}
+
+export const CLIENT_ID = "notes";
+export const CLIENT_SECRET = "stand-in-secret";
+
+export class StandInVoidAuth {
+  /** Who the next sign-in is for, as if they had typed their password on VoidAuth's page. */
+  account: Account | undefined;
+  /** Replaces the ID token's claims, to test what Notes refuses. */
+  tamper: ((claims: Record<string, unknown>) => Record<string, unknown>) | undefined;
+
+  readonly #grants = new Map<string, Grant>();
+  readonly #accessTokens = new Map<string, Account>();
+  #server: Server | undefined;
+  #keys: { privateKey: CryptoKey; jwk: JWK } | undefined;
+  issuer = "";
+
+  async start(): Promise<this> {
+    const { privateKey, publicKey } = await generateKeyPair("RS256");
+    this.#keys = { privateKey, jwk: { ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" } };
+    this.#server = createServer((req, res) => {
+      this.#handle(req)
+        .then(({ status, body, headers }) => {
+          res.writeHead(status, { "content-type": "application/json", ...headers }).end(JSON.stringify(body));
+        })
+        .catch((error: unknown) => res.writeHead(500).end(String(error)));
+    });
+    await new Promise<void>((resolve) => this.#server!.listen(0, "127.0.0.1", resolve));
+    this.issuer = `http://127.0.0.1:${(this.#server.address() as AddressInfo).port}/oidc`;
+    return this;
+  }
+
+  async stop(): Promise<void> {
+    this.#server?.closeAllConnections();
+    await new Promise<void>((resolve) => this.#server?.close(() => resolve()));
+  }
+
+  async #handle(req: IncomingMessage): Promise<{ status: number; body: unknown; headers?: Record<string, string> }> {
+    const url = new URL(req.url ?? "/", this.issuer);
+    const route = url.pathname.replace(/^\/oidc/, "");
+
+    if (route === "/.well-known/openid-configuration") {
+      return {
+        status: 200,
+        body: {
+          issuer: this.issuer,
+          authorization_endpoint: `${this.issuer}/auth`,
+          token_endpoint: `${this.issuer}/token`,
+          userinfo_endpoint: `${this.issuer}/me`,
+          jwks_uri: `${this.issuer}/jwks`,
+        },
+      };
+    }
+    if (route === "/jwks") return { status: 200, body: { keys: [this.#keys!.jwk] } };
+
+    if (route === "/auth") {
+      const q = url.searchParams;
+      const redirect = new URL(q.get("redirect_uri") ?? "");
+      if (!this.account) {
+        redirect.searchParams.set("error", "access_denied");
+      } else {
+        const code = randomBytes(16).toString("base64url");
+        this.#grants.set(code, {
+          account: this.account,
+          clientId: q.get("client_id") ?? "",
+          redirectUri: redirect.href,
+          nonce: q.get("nonce") ?? "",
+          challenge: q.get("code_challenge") ?? "",
+        });
+        redirect.searchParams.set("code", code);
+      }
+      redirect.searchParams.set("state", q.get("state") ?? "");
+      return { status: 302, body: null, headers: { location: redirect.href } };
+    }
+
+    if (route === "/token" && req.method === "POST") {
+      let text = "";
+      for await (const chunk of req) text += String(chunk);
+      const form = new URLSearchParams(text);
+      const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+      if (req.headers.authorization !== `Basic ${basic}`) return { status: 401, body: { error: "invalid_client" } };
+      const grant = this.#grants.get(form.get("code") ?? "");
+      this.#grants.delete(form.get("code") ?? "");
+      const verifier = form.get("code_verifier") ?? "";
+      if (
+        !grant ||
+        grant.redirectUri !== form.get("redirect_uri") ||
+        createHash("sha256").update(verifier).digest("base64url") !== grant.challenge
+      ) {
+        return { status: 400, body: { error: "invalid_grant" } };
+      }
+      let claims: Record<string, unknown> = { sub: grant.account.sub, nonce: grant.nonce };
+      if (this.tamper) claims = this.tamper(claims);
+      const idToken = await new SignJWT(claims)
+        .setProtectedHeader({ alg: "RS256", kid: "k1" })
+        .setIssuer(this.issuer)
+        .setAudience(grant.clientId)
+        .setIssuedAt()
+        .setExpirationTime("10m")
+        .sign(this.#keys!.privateKey);
+      const accessToken = randomBytes(16).toString("base64url");
+      this.#accessTokens.set(accessToken, grant.account);
+      return { status: 200, body: { id_token: idToken, access_token: accessToken, token_type: "Bearer" } };
+    }
+
+    if (route === "/me") {
+      const account = this.#accessTokens.get((req.headers.authorization ?? "").replace(/^Bearer /, ""));
+      if (!account) return { status: 401, body: { error: "invalid_token" } };
+      return { status: 200, body: { sub: account.sub, name: account.name ?? null, groups: account.groups ?? [] } };
+    }
+
+    return { status: 404, body: { error: "not_found" } };
+  }
+}

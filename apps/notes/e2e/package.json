@@ -1,0 +1,26 @@
+{
+  "name": "@homelab/notes-e2e",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "notes-e2e",
+    "tags": [
+      "scope:notes",
+      "platform:node"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "NODE_OPTIONS=--no-experimental-webstorage vitest run"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "^4.7.1",
+    "@homelab/notes-server": "*",
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "ws": "^8.22.0",
+    "yjs": "^13.6.33"
+  }
+}
