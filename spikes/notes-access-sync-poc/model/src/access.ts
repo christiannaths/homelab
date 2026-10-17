@@ -194,6 +194,9 @@ export function refuseUpdate(
 /** Can edit content and above may add a row to a database (#20). */
 export const canEditContent = (level: AccessLevel): boolean => atLeast(level, "edit-content");
 
+/** View and Comment open a document read-only: the server applies none of the person's updates. */
+export const readOnlyAt = (level: AccessLevel): boolean => level === "view" || level === "comment";
+
 /** A person's sidebar sections, each a list of top-level tree nodes in order. Teamspaces come later. */
 export interface SidebarSections {
   /**

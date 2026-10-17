@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, removePerson, reviewUpdate,
-  writeIndex, type AccessLevel, type Person, type Refusal, type Role,
+  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, readOnlyAt, removePerson,
+  reviewUpdate, writeIndex, type Person, type Refusal, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import {
   readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
@@ -158,9 +158,6 @@ function refreshIndexes(): Promise<void> {
   }).catch((error) => console.error("refreshing page indexes failed:", error));
   return indexWrites;
 }
-
-/** View and Comment open a document read-only: the server applies none of the person's updates. */
-const readOnlyAt = (level: AccessLevel) => level === "view" || level === "comment";
 
 /**
  * Adds a new workspace member (not a guest) to every default teamspace, whatever its kind, as an

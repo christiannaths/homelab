@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { pageLevels, refuseUpdate, type Workspace } from "./access.ts";
+import { pageLevels, readOnlyAt, refuseUpdate, type AccessLevel, type Workspace } from "./access.ts";
 import type { Person } from "./people.ts";
 import { touchedRoots } from "./updates.ts";
 import {
@@ -208,5 +208,10 @@ describe("which updates a connection may apply", () => {
     expect(refuseUpdate("view", new Set(["content"]))).toBe("read-only");
     expect(refuseUpdate("comment", new Set(["content"]))).toBe("read-only");
     expect(refuseUpdate("view", new Set())).toBeNull();
+  });
+
+  it("opens Can view and Can comment read-only, and every other level a person can open read-write", () => {
+    expect(["full", "edit", "edit-content", "comment", "view"].filter((l) => readOnlyAt(l as AccessLevel)))
+      .toEqual(["comment", "view"]);
   });
 });
