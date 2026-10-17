@@ -128,7 +128,7 @@ export function checkAdrs(files: Files): string[] {
     return [{ file, id, text, dependsOn: list("Depends on"), dependencyOf: list("Dependency of") }];
   });
   const byId = new Map(adrs.map((adr) => [adr.id, adr]));
-    const folders = readRegistry(files);
+  const folders = readRegistry(files);
   for (const adr of adrs) problems.push(...checkLayout(adr.file, adr.id, adr.text, folders), ...checkReferences(adr, byId));
 
   problems.push(...checkNumbering(adrs), ...checkIndexes(files, adrs));
