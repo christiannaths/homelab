@@ -1,7 +1,7 @@
 # Specs: Access and sharing
 
 - Status: Draft
-- Decisions: [ADR 13](../../adr/0013-notion-style-access.md) (the access model), [ADR 14](../../adr/0014-notion-page-access-levels.md) (page access levels). Both are Proposed.
+- Decisions: [ADR 13](../../adr/0013-notion-style-access.md) (the access model) and [ADR 14](../../adr/0014-notion-page-access-levels.md) (page access levels), both Accepted after the access spike ([findings](../../research/07-access-spike-findings.md)). How data reaches devices: [ADR 17](../../adr/0017-per-page-documents-and-per-person-index.md) and [ADR 18](../../adr/0018-works-offline-on-what-its-person-can-open.md).
 
 LocalNotion copies **Notion's** sharing and permissions model, so it behaves the way Notion users already expect. These specs describe that model, adapted to a self-hosted instance for a few trusted people.
 
@@ -24,14 +24,16 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 - **No plans or limits.** Notion features tied to paid plans (private teamspaces, more guests) are always available. Enterprise-only roles are left out: membership admins, organisation owners, restricted members, temporary members.
 - **Groups** (named sets of people, like "Family") are left out of this version.
 - **Public publishing** ("Share to web" in Notion) is decided separately, and is not covered here.
-- **Offline first** ([ADR 1](../../adr/0001-works-offline.md)). Notion is online-first, so in LocalNotion:
+- **Offline first** ([ADR 18](../../adr/0018-works-offline-on-what-its-person-can-open.md)). Notion is online-first, so in LocalNotion:
   - every page a person can open is on their devices and works offline, guests included (Notion does not let guests keep pages offline);
   - gaining access, losing access and role changes take effect at the device's **next sync**, not instantly. UI copy says "next time their device syncs";
-  - when access is lost, the app removes those pages from the device at the next sync. Unsynced edits to them cannot be saved; the app says so and offers to keep them as a new private page.
+  - when access is lost, the app removes those pages from the device at the next sync. Unsynced edits to them cannot be saved; the app says so and offers to keep the page, as the device had it, as a new private page.
 
 ## Verification
 
-Notion's help centre could not be fetched while these specs were written. They are based on search summaries of Notion's help pages ("Sharing & permissions", "Intro to teamspaces", "Who's who in a workspace") and on general knowledge of Notion. Items marked **(verify)** should be checked against Notion before building.
+Notion's help centre could not be fetched while these specs were written. They are based on search summaries of Notion's help pages ("Sharing & permissions", "Intro to teamspaces", "Who's who in a workspace") and on general knowledge of Notion. The items first marked **(verify)** were checked in [`research/06-notion-access-verification.md`](../../research/06-notion-access-verification.md), and the differences it found are applied here.
+
+Where Notion's help pages say nothing, the specs say **(LocalNotion choice)**. Most of these are the access spike's choices ([findings](../../research/07-access-spike-findings.md), "Choices Notion doesn't document"), and are listed under "Not decided yet" in the [ADR index](../../adr/README.md) for a product decision.
 
 ## Applies to every spec
 
