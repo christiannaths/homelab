@@ -60,25 +60,35 @@ export function parseSection(section: string): SectionRef | null {
 export const metaMap = (doc: Y.Doc) => doc.getMap<unknown>("meta");
 
 /**
- * A page document's own access (see `PageAccess`): one key per entry, `person:<id>` → level and
- * `workspace` → level, so concurrent changes to different entries merge (ADR 7 rule 4) and two
+ * A page document's own access (see `PageAccess`): one key per entry, `person:<id>` → level,
+ * `workspace` → level and `teamspace` → level, so concurrent changes to different entries merge (ADR 7 rule 4) and two
  * changes to the same entry end with the same winner everywhere. Only Full access may write it.
  */
 export const accessMap = (doc: Y.Doc) => doc.getMap<unknown>("access");
 
 const PERSON_KEY = "person:";
 const WORKSPACE_KEY = "workspace";
+const TEAMSPACE_KEY = "teamspace";
+
+/** Sets one entry of the page's own access; `null` deletes it, so the page inherits that entry. */
+function setAccessEntry(doc: Y.Doc, key: string, level: AccessLevel | null): void {
+  if (level === null) accessMap(doc).delete(key);
+  else accessMap(doc).set(key, level);
+}
 
 /** Invites `personId` at `level`, or overrides what they inherit. `null` is Restore inherited access. */
 export function setPersonAccess(doc: Y.Doc, personId: string, level: AccessLevel | null): void {
-  if (level === null) accessMap(doc).delete(PERSON_KEY + personId);
-  else accessMap(doc).set(PERSON_KEY + personId, level);
+  setAccessEntry(doc, PERSON_KEY + personId, level);
 }
 
 /** Sets general access for everyone in the workspace ("none" = Only people invited). `null` inherits it. */
 export function setWorkspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
-  if (level === null) accessMap(doc).delete(WORKSPACE_KEY);
-  else accessMap(doc).set(WORKSPACE_KEY, level);
+  setAccessEntry(doc, WORKSPACE_KEY, level);
+}
+
+/** In a teamspace, sets the level its members get on this page and below (#17). `null` restores the teamspace's default. */
+export function setTeamspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
+  setAccessEntry(doc, TEAMSPACE_KEY, level);
 }
 
 /** The access set on the page itself, or undefined if it sets none. Unknown keys and values are ignored. */
@@ -97,14 +107,6 @@ export function readAccess(doc: Y.Doc): PageAccess | undefined {
   if (workspace !== undefined) access.workspace = workspace;
   if (teamspace !== undefined) access.teamspace = teamspace;
   return Object.keys(access).length ? access : undefined;
-}
-
-const TEAMSPACE_KEY = "teamspace";
-
-/** In a teamspace, sets the level its members get on this page and below (#17). `null` restores the teamspace's default. */
-export function setTeamspaceAccess(doc: Y.Doc, level: AccessLevel | null): void {
-  if (level === null) accessMap(doc).delete(TEAMSPACE_KEY);
-  else accessMap(doc).set(TEAMSPACE_KEY, level);
 }
 
 /** A page index document: page id → this person's level on it. */
