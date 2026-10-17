@@ -39,9 +39,9 @@ export function useTree(pages: LocalPages): Tree {
 
 /**
  * This person's level on a page, from their page index (the server works it out from the whole
- * tree, which this device may only partly hold). See `LocalPages.levelOf` for pages missing from it.
+ * tree, which this device may only partly hold). See `LocalPages.indexedLevel` for pages missing from it.
  */
 export function useLevel(pages: LocalPages, pageId: string): AccessLevel {
   useSyncExternalStore(pages.subscribe, pages.getLevels);
-  return pages.levelOf(pageId);
+  return pages.indexedLevel(pageId);
 }

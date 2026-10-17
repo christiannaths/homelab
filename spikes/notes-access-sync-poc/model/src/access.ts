@@ -15,18 +15,17 @@ export type { AccessLevel, PageAccess } from "./levels.ts";
  * How a level is worked out (`resolveAccess`, then `levelOf`):
  * 1. Walk the *derived* tree (ADR 7) top-down, so a cycle or a missing parent never leaves a page
  *    without an answer. A top-level page starts from its section's defaults (a Private section
- *    has none: only its member, below); a subpage starts from its parent's resolved access.
+ *    has none: only its member, below; a teamspace has its members' level and, if open, a
+ *    non-member level); a subpage starts from its parent's resolved access.
  * 2. The page's own `PageAccess` (`PageMeta.access`) replaces inherited entries key by key: an
- *    invite or override per person, and general access for the workspace.
- * 3. A person's level is the most permissive of their sources: their per-person entry, general
- *    access (never for guests), and owning the page's Private section (always Full, and not
- *    restrictable).
- * New sources (teamspace membership and defaults, #17) are new fields in `PageAccess` and
- * `ResolvedAccess`, a section default in step 1 and a line in `levelOf`; new kinds of override
- * (#16) change step 2 only.
+ *    invite or override per person, general access for the workspace, and the teamspace
+ *    members' level.
+ * 3. A person's level is the most permissive of their sources: their per-person entry, the
+ *    teamspace members' level (for members), general access (never for guests), and owning the
+ *    page's Private section or its teamspace (always Full, and not restrictable).
  */
 
-/** Everything the rules read. Grows as the spike adds teamspaces. */
+/** Everything the rules read. */
 export interface Workspace {
   people: readonly Person[];
   /** Every page's metadata, including the access set on it, as the server holds it. */
@@ -55,14 +54,24 @@ const resolvedCache = new WeakMap<Workspace, Map<string, ResolvedAccess>>();
 const byIdCache = new WeakMap<Workspace, Map<string, PageMeta>>();
 
 /**
- * A page of the workspace by id, or undefined. Cached per `Workspace` object like `resolveAccess`:
- * the server asks for every document a device opens and every update it sends, and a scan of
- * every page each time cost about 0.25 s per full resync of 2,000 documents (#22).
+ * Every page of the workspace by id. Cached per `Workspace` object like `resolveAccess`: the
+ * server asks for every document a device opens and every update it sends, and a scan of every
+ * page each time cost about 0.25 s per full resync of 2,000 documents (#22).
  */
-export function pageById(workspace: Workspace, id: string): PageMeta | undefined {
+function pagesById(workspace: Workspace): ReadonlyMap<string, PageMeta> {
   let byId = byIdCache.get(workspace);
   if (!byId) byIdCache.set(workspace, (byId = new Map(workspace.pages.map((p) => [p.id, p]))));
-  return byId.get(id);
+  return byId;
+}
+
+/** A page of the workspace by id, or undefined. */
+export function pageById(workspace: Workspace, id: string): PageMeta | undefined {
+  return pagesById(workspace).get(id);
+}
+
+/** A person in the workspace by id, or undefined. */
+export function personById(workspace: Workspace, id: string): Person | undefined {
+  return workspace.people.find((p) => p.id === id);
 }
 
 /**
@@ -72,7 +81,7 @@ export function pageById(workspace: Workspace, id: string): PageMeta | undefined
 export function resolveAccess(workspace: Workspace): Map<string, ResolvedAccess> {
   const cached = resolvedCache.get(workspace);
   if (cached) return cached;
-  const pages = new Map(workspace.pages.map((p) => [p.id, p]));
+  const pages = pagesById(workspace);
   const parent = resolveParents(pages);
   const teamspaces = new Map((workspace.teamspaces ?? []).map((t) => [t.id, t]));
   const resolved = new Map<string, ResolvedAccess>();
@@ -147,7 +156,7 @@ export function levelOf(person: Person, access: ResolvedAccess): AccessLevel {
 /** The level `personId` has on each page they can open. Pages missing from the map are "none". */
 export function pageLevels(workspace: Workspace, personId: string): Map<string, AccessLevel> {
   const levels = new Map<string, AccessLevel>();
-  const person = workspace.people.find((p) => p.id === personId);
+  const person = personById(workspace, personId);
   if (!person) return levels;
   for (const [id, access] of resolveAccess(workspace)) {
     const level = levelOf(person, access);
@@ -197,7 +206,7 @@ export const canEditContent = (level: AccessLevel): boolean => atLeast(level, "e
 /** View and Comment open a document read-only: the server applies none of the person's updates. */
 export const readOnlyAt = (level: AccessLevel): boolean => level === "view" || level === "comment";
 
-/** A person's sidebar sections, each a list of top-level tree nodes in order. Teamspaces come later. */
+/** A person's sidebar sections, each a list of top-level tree nodes in order. */
 export interface SidebarSections {
   /**
    * Shown above Private: pages shared with this person (from someone else's section, or below a
@@ -266,7 +275,7 @@ export function teamspaceAccess(workspace: Workspace, person: Person, teamspaceI
 /** The teamspaces whose documents `personId` may open, with their level: what their page index lists. */
 export function visibleTeamspaces(workspace: Workspace, personId: string): Map<string, AccessLevel> {
   const out = new Map<string, AccessLevel>();
-  const person = workspace.people.find((p) => p.id === personId);
+  const person = personById(workspace, personId);
   if (!person) return out;
   for (const ts of workspace.teamspaces ?? []) {
     const level = teamspaceAccess(workspace, person, ts.id);
@@ -289,7 +298,7 @@ export function schemaAccess(
   levels?: ReadonlyMap<string, AccessLevel>,
 ): AccessLevel {
   const database = pageById(workspace, databaseId);
-  if (!database) return person.role === "guest" ? "edit" : "full";
+  if (!database) return newDocumentLevel(person);
   if (database.kind !== "database") return "none";
   const mine = levels ?? pageLevels(workspace, person.id);
   const level = mine.get(databaseId);
@@ -308,7 +317,7 @@ export function documentAccess(
   documentName: string,
   levels?: ReadonlyMap<string, AccessLevel>,
 ): AccessLevel {
-  const person = workspace.people.find((p) => p.id === personId);
+  const person = personById(workspace, personId);
   const doc = parseDocName(documentName);
   if (!person || !doc) return "none";
   if (doc.kind === "index") return doc.personId === personId ? "view" : "none";
@@ -317,10 +326,16 @@ export function documentAccess(
   if (pageById(workspace, doc.id)) {
     return (levels ?? pageLevels(workspace, personId)).get(doc.id) ?? "none";
   }
-  // A page the server has never seen is one this device is creating, and its first update is
-  // checked against where it puts the page (`reviewUpdate`, `placementLevel`). Members and owners
-  // open it at Full. Guests open it at Can edit: with no Private section and no teamspaces, the
-  // only place they can edit is inside a page shared with them, so that is the only place their
-  // first update can put it (#19).
+  return newDocumentLevel(person);
+}
+
+/**
+ * The level `person` opens a page or database the server has never seen at: one this device is
+ * creating, whose first update is checked against where it puts the page (`reviewUpdate`,
+ * `placementLevel`). Members and owners open it at Full. Guests open it at Can edit: with no
+ * Private section and no teamspaces, the only place they can edit is inside a page shared with
+ * them, so that is the only place their first update can put it (#19).
+ */
+function newDocumentLevel(person: Person): AccessLevel {
   return person.role === "guest" ? "edit" : "full";
 }

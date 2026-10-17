@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import {
-  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, readOnlyAt, removePerson,
-  reviewUpdate, writeIndex, type Person, type Refusal, type Role,
+  addPerson, canEditContent, documentAccess, indexDocName, isRefusal, parseDocName, personById, readOnlyAt,
+  removePerson, reviewUpdate, writeIndex, type Person, type Refusal, type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import {
   readTeamspace, refuseTeamspaceChange, setTeamspaceMember, teamspaceAfterUpdate, teamspaceDocName, writeTeamspaceIndex,
@@ -60,7 +60,7 @@ const server = new Server<ConnectionContext>({
   // with the access rules, against the catalog's current page tree.
   async onAuthenticate({ token, documentName, connectionConfig }): Promise<ConnectionContext> {
     const workspace = catalog.workspace();
-    const person = workspace.people.find((p) => p.id === token);
+    const person = personById(workspace, token);
     const level = person ? documentAccess(workspace, person.id, documentName, catalog.levels(person.id)) : "none";
     if (!person || level === "none") {
       // A plain object (no .message) keeps Hocuspocus from logging every refusal.

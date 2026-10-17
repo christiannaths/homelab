@@ -140,7 +140,7 @@ export class LocalPages implements PageDocs {
    * the server hasn't indexed yet: Full access. One the index listed and no longer does was lost,
    * and is about to be deleted: read-only until then.
    */
-  levelOf(pageId: string): AccessLevel {
+  indexedLevel(pageId: string): AccessLevel {
     return this.levels.get(pageId) ?? (this.indexed.has(pageId) ? "view" : "full");
   }
 
