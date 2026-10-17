@@ -18,7 +18,7 @@ An ADR records a **durable, foundational decision**: one that other decisions bu
    - **Deleted ADR:** the ADRs after it move down one in the same way.
    - **Wording, links or dependency lists only:** edit freely; the Changelog records decisions only.
 3. **Update the index.** The folder README's table has one row per ADR: its ID, its title (**Problem**), a one-line summary of the current outcome (**Decision**) and its Status. Move a settled topic out of **Not decided yet**.
-4. **Reconcile references.** Done when every ID and link across the repo (ADRs, READMEs, specs, research, spikes and code comments) names the ADR's current ID and file, every relative ADR link resolves, and every pair of dependency lists mirrors across all folders.
+4. **Reconcile references.** Update every ID and link across the repo (ADRs, READMEs, specs, research, spikes and code comments) to the ADR's current ID and file. Done when `npm run adrs` passes: it checks every rule in this skill that a script can, from file names to mirrored dependency lists.
 
 ## Template
 

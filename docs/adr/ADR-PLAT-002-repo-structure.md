@@ -24,16 +24,16 @@ The repo is growing from one app into a home for several homelab apps. What the 
 - **Scripts are TypeScript too.** Node 26 runs `.ts` files directly by stripping their types, so a script needs no build step. Each script is typechecked by its project, with `erasableSyntaxOnly` so that it uses only syntax Node can strip.
 - **No Nx Cloud.** `nx.json` sets `neverConnectToCloud` and turns analytics off, and the cache is local only. The `nx` package's install script is not approved in `allowScripts`, because it only updates the Nx Cloud client.
 
+## Alternatives considered
+- **Turborepo**, on the maintainer's experience that it adds little.
+- **`@nx/enforce-module-boundaries`** for the boundary check. It needs typescript-eslint, which supports TypeScript up to 6.0, and the repo uses TypeScript 7.
+
 ## Evidence
 - This repo on Nx 23.3.0 and Node 26.12.0: through `nx run-many`, typecheck, the unit tests and the build pass, and a repeat run is served entirely from the cache. The e2e tests pass as `nx run notes-e2e:e2e`.
 - The Notes image builds from `apps/notes/Dockerfile`, starts, and answers `/api/health`.
 - The boundary script was tested against a planted shared package that imported from an app and was imported by the server across platforms, and it reported both violations.
 - Nx analyses imports in source files only when `pluginsConfig["@nx/js"]` is set, because `@nx/js` is not installed. Without that setting, the graph holds only `package.json` and implicit dependencies, and the boundary check passes everything.
 - With a root `tsconfig.base.json` and an import Nx cannot resolve, Nx 23.3.0 calls `readConfigFile` from the TypeScript API, which TypeScript 7 lacks. It then writes a partial graph and still exits 0, so the script treats that output as a failure.
-
-## Alternatives considered
-- **Turborepo**, on the maintainer's experience that it adds little.
-- **`@nx/enforce-module-boundaries`** for the boundary check. It needs typescript-eslint, which supports TypeScript up to 6.0, and the repo uses TypeScript 7.
 
 ## Consequences
 - Repo-wide commands are `nx run-many -t <target>` (wrapped as `npm run build`, `typecheck`, `test` and `test:e2e`), and one project's are `nx <target> <project>`. CI can use `nx affected` to build and test only what a change touched.

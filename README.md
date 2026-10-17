@@ -19,7 +19,7 @@ Requires **Node.js 26+**. With [mise](https://mise.jdx.dev), run `mise install` 
 
 ```sh
 npm install
-npm run check             # module boundaries, typecheck and unit tests for every project except spikes
+npm run check             # module boundaries, ADR rules, typecheck and unit tests for every project except spikes
 npm run build
 npm run test:e2e          # every app's end-to-end tests
 ```
