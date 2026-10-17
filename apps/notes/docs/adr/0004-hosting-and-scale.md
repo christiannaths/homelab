@@ -1,9 +1,9 @@
-# 4. Each instance is a self-hosted homelab server for a few trusted users
+# 4. Who runs an instance, and for how many people?
 
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 1](0001-offline-support.md), [ADR 6](0006-sqlite-storage.md), [ADR 11](0011-local-accounts.md), [ADR 18](0018-hono-and-better-auth.md)
+- Dependency of: [ADR 1](0001-offline-use.md), [ADR 6](0006-server-storage.md), [ADR 11](0011-sign-in.md), [ADR 18](0018-http-and-accounts.md)
 
 ## Context
 LocalNotion is meant for private, self-hosted instances. Each instance serves a handful of people who trust each other and the server.
@@ -19,5 +19,5 @@ LocalNotion is meant for private, self-hosted instances. Each instance serves a 
 - PR #1: the Docker image builds and runs on `node:26-slim`, serving the app and sync from one process.
 
 ## Consequences
-- The scale target is hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Other decisions rely on that, for example syncing everything a person can open, up to the whole workspace, to each of their devices ([ADR 1](0001-offline-support.md)).
-- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 11](0011-local-accounts.md)), not on encryption at rest.
+- The scale target is hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Other decisions rely on that, for example syncing everything a person can open, up to the whole workspace, to each of their devices ([ADR 1](0001-offline-use.md)).
+- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 11](0011-sign-in.md)), not on encryption at rest.

@@ -1,15 +1,15 @@
-# 6. The server stores document state in SQLite
+# 6. Where does the server store document state?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 4](0004-homelab-instance.md), [ADR 5](../../../../docs/adr/0005-typescript-and-node.md)
-- Dependency of: [ADR 11](0011-local-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md), [ADR 18](0018-hono-and-better-auth.md)
+- Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-language-and-runtime.md)
+- Dependency of: [ADR 11](0011-sign-in.md), [ADR 12](0012-sync-server.md), [ADR 18](0018-http-and-accounts.md)
 
 ## Context
-The server only needs to keep each document's latest Yjs state and return it. At homelab scale ([ADR 4](0004-homelab-instance.md)), easy backup and zero operations matter more than horizontal scaling.
+The server only needs to keep each document's latest Yjs state and return it. At homelab scale ([ADR 4](0004-hosting-and-scale.md)), easy backup and zero operations matter more than horizontal scaling.
 
 ## Decision
-- Server data lives in **one SQLite database file** in `DATA_DIR`, accessed through Node's built-in `node:sqlite` ([ADR 5](../../../../docs/adr/0005-typescript-and-node.md)) in WAL mode.
+- Server data lives in **one SQLite database file** in `DATA_DIR`, accessed through Node's built-in `node:sqlite` ([ADR 5](../../../../docs/adr/0005-language-and-runtime.md)) in WAL mode.
 - Each document is stored as its merged Yjs state (`documents(name, state BLOB, updated_at)`).
 - The server treats document contents as opaque. Server-side features that need the contents (such as search or history) are built alongside, without changing this storage format.
 - Postgres is not supported. Adding it would need a new ADR.

@@ -1,9 +1,9 @@
-# 5. The code is TypeScript on Node.js 26, in npm workspaces
+# 5. Which language, runtime and package manager does the code use?
 
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 6](../../apps/notes/docs/adr/0006-sqlite-storage.md), [ADR 9](../../apps/notes/docs/adr/0009-model-and-tests.md), [ADR 11](../../apps/notes/docs/adr/0011-local-accounts.md), [ADR 15](0015-nx-monorepo.md), [ADR 18](../../apps/notes/docs/adr/0018-hono-and-better-auth.md)
+- Dependency of: [ADR 6](../../apps/notes/docs/adr/0006-server-storage.md), [ADR 9](../../apps/notes/docs/adr/0009-model-and-testing.md), [ADR 11](../../apps/notes/docs/adr/0011-sign-in.md), [ADR 15](0015-repo-structure.md), [ADR 18](../../apps/notes/docs/adr/0018-http-and-accounts.md)
 
 ## Context
 The client and the server share data-model code and Yjs, and a very small team maintains the project.
@@ -12,8 +12,8 @@ The client and the server share data-model code and Yjs, and a very small team m
 - **TypeScript** is used for the client, the server and the tests.
 - **Node.js 26** (LTS from 2026-10-28) is the minimum version. It is enforced by `engines` and `devEngines` (so `npm install` fails on older Node), `mise.toml` and `.nvmrc`, a version check at server startup, and the Docker base image.
 - **npm**, the package manager bundled with Node, is used in its default `node_modules` layout. Dependencies' install scripts run only when approved in `allowScripts` (`npm approve-scripts`).
-- **One repo uses npm workspaces**, laid out as described in [ADR 15](0015-nx-monorepo.md).
-- Dependencies that compile native code are avoided in favour of what Node provides, for example `node:sqlite` ([ADR 6](../../apps/notes/docs/adr/0006-sqlite-storage.md)).
+- **One repo uses npm workspaces**, laid out as described in [ADR 15](0015-repo-structure.md).
+- Dependencies that compile native code are avoided in favour of what Node provides, for example `node:sqlite` ([ADR 6](../../apps/notes/docs/adr/0006-server-storage.md)).
 
 ## Evidence
 - Node 25 reached end of life on 2026-06-01, and Node 22.12 lacks `node:sqlite`. Requiring Node 26 fixed the startup crash reported against PR #1.

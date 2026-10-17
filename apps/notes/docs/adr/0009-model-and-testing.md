@@ -1,12 +1,12 @@
-# 9. The data model is pure TypeScript, tested by unit and end-to-end tests
+# 9. How is the data model built and tested?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 5](../../../../docs/adr/0005-typescript-and-node.md), [ADR 7](0007-crdt-rules.md)
+- Depends on: [ADR 5](../../../../docs/adr/0005-language-and-runtime.md), [ADR 7](0007-merge-rules.md)
 - Dependency of: [ADR 10](0010-yjs-version.md)
 
 ## Context
-The riskiest logic (merging, ordering, cycle repair, view computation) is easy to get subtly wrong and hard to check by clicking around. [ADR 7](0007-crdt-rules.md) requires a convergence test for every CRDT rule.
+The riskiest logic (merging, ordering, cycle repair, view computation) is easy to get subtly wrong and hard to check by clicking around. [ADR 7](0007-merge-rules.md) requires a convergence test for every CRDT rule.
 
 ## Decision
 - The data model is **plain TypeScript with no React or DOM** (`apps/notes/web/src/model/`, plus the doc helpers in `apps/notes/web/src/sync/`). UI components call it and do not re-implement it.

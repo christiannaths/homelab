@@ -1,7 +1,7 @@
 # Specs: Access and sharing
 
 - Status: Draft
-- Decisions: [ADR 13](../../adr/0013-access-model.md) (the access model) and [ADR 14](../../adr/0014-page-access-levels.md) (page access levels), both Accepted after the access spike ([findings](../../research/07-access-spike-findings.md)). How data reaches devices: [ADR 17](../../adr/0017-per-page-documents.md) and [ADR 1](../../adr/0001-offline-support.md).
+- Decisions: [ADR 13](../../adr/0013-access-model.md) (the access model) and [ADR 14](../../adr/0014-page-access-levels.md) (page access levels), both Accepted after the access spike ([findings](../../research/07-access-spike-findings.md)). How data reaches devices: [ADR 17](../../adr/0017-document-layout.md) and [ADR 1](../../adr/0001-offline-use.md).
 
 LocalNotion copies **Notion's** sharing and permissions model, so it behaves the way Notion users already expect. These specs describe that model, adapted to a self-hosted instance for a few trusted people.
 
@@ -16,7 +16,7 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 | LocalNotion | Notion | Note |
 |---|---|---|
 | Instance | Workspace | One instance is one workspace. The specs say "workspace" to match Notion. |
-| Admin ([ADR 11](../../adr/0011-local-accounts.md)) | Workspace owner | |
+| Admin ([ADR 11](../../adr/0011-sign-in.md)) | Workspace owner | |
 | Account | Member or guest | Every person has a local password account. |
 
 ## Adapted from Notion, not copied
@@ -24,7 +24,7 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 - **No plans or limits.** Notion features tied to paid plans (private teamspaces, more guests) are always available. Enterprise-only roles are left out: membership admins, organisation owners, restricted members, temporary members.
 - **Groups** (named sets of people, like "Family") are left out of this version.
 - **Public publishing** ("Share to web" in Notion) is decided separately, and is not covered here.
-- **Offline first** ([ADR 1](../../adr/0001-offline-support.md)). Notion is online-first, so in LocalNotion:
+- **Offline first** ([ADR 1](../../adr/0001-offline-use.md)). Notion is online-first, so in LocalNotion:
   - every page a person can open is on their devices and works offline, guests included (Notion does not let guests keep pages offline);
   - gaining access, losing access and role changes take effect at the device's **next sync**, not instantly. UI copy says "next time their device syncs";
   - when access is lost, the app removes those pages from the device at the next sync. Unsynced edits to them cannot be saved; the app says so and offers to keep the page, as the device had it, as a new private page.

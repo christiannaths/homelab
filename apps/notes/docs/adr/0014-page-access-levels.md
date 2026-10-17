@@ -1,9 +1,9 @@
-# 14. Page access levels mirror Notion's
+# 14. What access levels can a page grant?
 
 - Status: Accepted
 - Date: 2026-10-17
 - Depends on: [ADR 13](0013-access-model.md)
-- Dependency of: [ADR 12](0012-hocuspocus-sync-server.md), [ADR 17](0017-per-page-documents.md)
+- Dependency of: [ADR 12](0012-sync-server.md), [ADR 17](0017-document-layout.md)
 
 ## Context
 The access model ([ADR 13](0013-access-model.md)) decides who can open a page. Some people should only read or comment on what they can open: a babysitter's house manual, an accountant's yearly summary. Notion's access levels are familiar to the intended users, so copying them avoids teaching a new permission model.
@@ -30,7 +30,7 @@ The access model ([ADR 13](0013-access-model.md)) decides who can open a page. S
 - The levels follow Notion's help centre ("Sharing & permissions"). Notion does not document who may move a shared page, so the move rule is the spike's choice.
 
 ## Consequences
-- The sync server checks, for each document and each update, whether the person may make that change, and rejects it otherwise ([ADR 12](0012-hocuspocus-sync-server.md)).
-- Can edit content means checking which parts of a database an update changes. The split puts structure and rows in different documents to make that check simple ([ADR 17](0017-per-page-documents.md)).
+- The sync server checks, for each document and each update, whether the person may make that change, and rejects it otherwise ([ADR 12](0012-sync-server.md)).
+- Can edit content means checking which parts of a database an update changes. The split puts structure and rows in different documents to make that check simple ([ADR 17](0017-document-layout.md)).
 - Read-only copies still work offline. Only editing is unavailable.
 - Comments are a prerequisite for Can comment to mean anything (see "Not decided yet" in the [index](README.md)).

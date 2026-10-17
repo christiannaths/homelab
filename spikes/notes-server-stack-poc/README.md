@@ -2,7 +2,7 @@
 
 A server-only spike for the [Notes app](../../apps/notes/README.md). It checks whether **Hono**, **Hocuspocus** and **Better Auth** work together as the Notes server, as proposed in [`research/08-framework-options.md`](../../apps/notes/docs/research/08-framework-options.md). The findings are in [`research/09-server-stack-spike-findings.md`](../../apps/notes/docs/research/09-server-stack-spike-findings.md).
 
-> Status: **frozen** once its findings are recorded ([ADR 16](../../docs/adr/0016-spike-isolation.md)). It is left out of the repo-wide scripts; run it by name, as below.
+> Status: **frozen** once its findings are recorded ([ADR 16](../../docs/adr/0016-spike-placement.md)). It is left out of the repo-wide scripts; run it by name, as below.
 
 ## What it shows
 1. **Hono serves the PWA and the API**: health, first-run setup, Better Auth's routes, static files with a fallback for client-side routes.

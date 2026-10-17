@@ -43,12 +43,12 @@ Two mutations confirmed that the tests catch failures. Removing the read-only fl
   2. `upgradeWebSocket` then hands the socket to `hocuspocus.handleConnection()`, passing the user and session as the connection's context, and forwards messages and closes.
 - **Hocuspocus's `onAuthenticate` still runs for every document**, and that is where access is decided ([ADR 13](../adr/0013-access-model.md)). It reads the context and needs no database round trip for the session. Setting `connectionConfig.readOnly` gives Can view and Can comment ([ADR 14](../adr/0014-page-access-levels.md)) with no extra code.
 - **Revocation:** the server keeps a map from session to open sockets. Better Auth's `databaseHooks.session.delete.after` fires on sign-out and on the admin's bulk `revoke-user-sessions`, and closes the matching sockets with code 4401.
-- **Storage:** accounts, sessions, rate-limit counters and Yjs documents share one SQLite file in `DATA_DIR`, so [ADR 6](../adr/0006-sqlite-storage.md)'s "back up one file" still holds. Better Auth creates its tables at startup through `getMigrations`.
-- **Dependencies:** 25 new runtime packages, none with native code or install scripts. Better Auth brings Kysely, Zod, jose and `@noble/*`. Its telemetry is off by default and is also turned off explicitly ([ADR 4](../adr/0004-homelab-instance.md)).
+- **Storage:** accounts, sessions, rate-limit counters and Yjs documents share one SQLite file in `DATA_DIR`, so [ADR 6](../adr/0006-server-storage.md)'s "back up one file" still holds. Better Auth creates its tables at startup through `getMigrations`.
+- **Dependencies:** 25 new runtime packages, none with native code or install scripts. Better Auth brings Kysely, Zod, jose and `@noble/*`. Its telemetry is off by default and is also turned off explicitly ([ADR 4](../adr/0004-hosting-and-scale.md)).
 
 ## Gotchas found
 
-1. **Better Auth requires an email on every user,** but [ADR 11](../adr/0011-local-accounts.md) accounts have only a username. The spike stores a placeholder address on the reserved `.invalid` domain (`sam@users.invalid`).
+1. **Better Auth requires an email on every user,** but [ADR 11](../adr/0011-sign-in.md) accounts have only a username. The spike stores a placeholder address on the reserved `.invalid` domain (`sam@users.invalid`).
 2. **Rate limiting needs the client's IP.** Without it, Better Auth puts every client into one shared bucket per route, and warns about it. One person's failed sign-ins would then lock everyone out for the window. Behind `tailscale serve` or Caddy, the real app must set `advanced.ipAddress.ipAddressHeaders` to the proxy's forwarded header. Rate limiting is also on by default only in production, so the spike turns it on explicitly.
 3. **The socket extends the session but not the cookie.** The session check on upgrade extends the session in the database, but a WebSocket upgrade does not set a new cookie, so the browser's cookie would still expire a year after sign-in. The PWA should call `GET /api/auth/get-session` over HTTP whenever it is online, which renews the cookie (tested).
 4. **Read-only edits are dropped silently.** The server never applies a viewer's update, but the edit stays in the viewer's local copy, and would also stay in IndexedDB. The client must turn editing off when `provider.authorizedScope` is `readonly`, as [ADR 14](../adr/0014-page-access-levels.md) already says. Edits made before the device learns it lost write access need the "keep a private copy" flow from [ADR 13](../adr/0013-access-model.md).
@@ -60,9 +60,9 @@ Two mutations confirmed that the tests catch failures. Removing the read-only fl
 
 ## What this means for the ADRs
 
-- **[ADR 11](../adr/0011-local-accounts.md)** can be implemented with Better Auth without changing the decision. Its defaults match it: scrypt hashing, rate limiting, revocable sessions, and admin-created accounts.
-- **[ADR 12](../adr/0012-hocuspocus-sync-server.md) already splits the check in two, as this spike does:** the session is checked once, when the socket opens, and access is checked for each document in `onAuthenticate`. Like ADR 12, the real app should not rely on Hocuspocus's silent read-only handling (gotcha 4).
-- **[ADR 18](../adr/0018-hono-and-better-auth.md) records the result:** Hono serves HTTP, and Better Auth manages accounts and sessions.
+- **[ADR 11](../adr/0011-sign-in.md)** can be implemented with Better Auth without changing the decision. Its defaults match it: scrypt hashing, rate limiting, revocable sessions, and admin-created accounts.
+- **[ADR 12](../adr/0012-sync-server.md) already splits the check in two, as this spike does:** the session is checked once, when the socket opens, and access is checked for each document in `onAuthenticate`. Like ADR 12, the real app should not rely on Hocuspocus's silent read-only handling (gotcha 4).
+- **[ADR 18](../adr/0018-http-and-accounts.md) records the result:** Hono serves HTTP, and Better Auth manages accounts and sessions.
 
 ## Not verified
 
