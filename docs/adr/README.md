@@ -28,13 +28,13 @@ Every ADR uses the same layout:
 ## Decision
 ## Evidence
 ## Consequences
-## Changelog
+## Changelog          (once the decision has changed)
 ```
 
 - **Status:** `Proposed` while the decision is open for review, `Accepted` once it holds, and `Deprecated` when it is dropped with nothing replacing it. A decision that changes stays `Accepted` and is edited in place.
 - **Editing a decision:** when a decision changes, its Title, Context, Decision, Evidence and Consequences, its dependency lists and its Date are rewritten to state the new decision as if it had always been the decision. Git keeps the old wording. A new ADR is written only for a new topic, never to replace an existing one, and two ADRs found to cover one topic are merged into the older number.
 - **Date:** the day the current decision was accepted.
-- **Changelog:** the last section, a list of dated entries, newest first (`- YYYY-MM-DD: …`). An ADR whose decision has never changed may leave it out. The first time a decision changes, the section is added with an entry for the original decision, saying what it was. Each change to the decision adds an entry saying what changed and **why**, linking the PR or research document that prompted it. It records the reason, not a copy of the old text. Fixing wording, links or dependency lists without changing the decision needs no entry.
+- **Changelog:** the last section, a list of dated entries, newest first (`- YYYY-MM-DD: …`). An ADR whose decision has never changed leaves it out. The first time a decision changes, the section is added with an entry for the original decision, saying what it was. Each change to the decision adds an entry saying what changed and **why**, linking the PR or research document that prompted it. It records the reason, not a copy of the old text. Fixing wording, links or dependency lists without changing the decision needs no entry.
 - **Title:** the decision itself, as one declarative sentence in the present tense and sentence case, with no colon and no trailing period. For example, "Yjs stores all shared data", not "Using Yjs" or "CRDT choice".
 - **Location:** an ADR that holds for every app goes in `docs/adr/`. One that holds for a single app goes in `apps/<app>/docs/adr/`. When an app's decision turns out to hold for every app, a new platform ADR states it, and the app's ADR then depends on it.
 - **Number:** numbers are unique IDs across the whole repo and are never reused or changed, so "ADR 12" always means one topic. A number retired by a merge is never given to another ADR. A new ADR takes the next free number across every ADR folder (`ls docs/adr apps/*/docs/adr`), so each folder's numbers have gaps.
