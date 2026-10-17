@@ -1,8 +1,8 @@
 # Architecture Decision Records: Notes
 
-Decisions that are **locked in** for the Notes app (LocalNotion), based on the requirements and the evidence from three spikes (PR #1: offline sync; PR #2: page tree and databases; the access spike, [`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md): Notion's access model on per-person sync). Decisions that hold for every app, such as the toolchain, are in the [platform ADRs](../../../../docs/adr/README.md), which also set the format and style every ADR follows.
+Decisions that are **locked in** for the Notes app (LocalNotion), based on the requirements and the evidence from three spikes (PR #1: offline sync; PR #2: page tree and databases; the access spike, [`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md): Notion's access model on per-person sync). Decisions that hold for every app, such as the toolchain, are in the [platform ADRs](../../../../docs/adr/README.md), and the [`adr` skill](../../../../.agents/skills/adr/SKILL.md) sets how every ADR is written and edited.
 
-An ADR is written only once a decision is settled. Open questions go in **Not decided yet** below. Each topic has one ADR, edited in place when its decision changes, with the reason in its Changelog, as the [platform format](../../../../docs/adr/README.md#format-and-style) describes. Numbers are unique across the repo and never reused, so the gaps belong to platform ADRs and to numbers retired when two ADRs on one topic were merged (18 into 1, 19 into 12).
+An ADR is written only once a decision is settled. Open questions go in **Not decided yet** below. Numbers are unique across the repo and never reused, so the gaps belong to platform ADRs and to numbers retired when two ADRs on one topic were merged (18 into 1, 19 into 12).
 
 | # | Decision | Depends on | Status |
 |---|---|---|---|
