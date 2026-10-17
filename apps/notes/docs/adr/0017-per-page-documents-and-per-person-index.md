@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 7](0007-crdt-rules.md), [ADR 11](0011-local-password-accounts.md), [ADR 13](0013-notion-style-access.md), [ADR 14](0014-notion-page-access-levels.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md)
-- Dependency of: [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
+- Depends on: [ADR 1](0001-works-offline-on-what-its-person-can-open.md), [ADR 2](0002-yjs-stores-shared-data.md), [ADR 7](0007-crdt-rules.md), [ADR 11](0011-local-password-accounts.md), [ADR 13](0013-notion-style-access.md), [ADR 14](0014-notion-page-access-levels.md)
+- Dependency of: [ADR 12](0012-hocuspocus-checks-every-document-and-update.md)
 
 ## Context
-A Yjs document reaches a device whole or not at all, and a device may only receive what its person can open ([ADR 13](0013-notion-style-access.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md)). The first two spikes kept the whole page tree, every page's title and parent, in one workspace document, and every row of a database in the database's document. Either would carry titles and values to people who must not see them, because any page can be shared on its own or restricted to No access, including a single database row ([ADR 14](0014-notion-page-access-levels.md)). Access data has the same problem: a private teamspace's name, or who a page is shared with, must only reach the people allowed to see it. All shared data is Yjs ([ADR 2](0002-yjs-stores-shared-data.md)), and every structure must merge under the CRDT rules ([ADR 7](0007-crdt-rules.md)).
+A Yjs document reaches a device whole or not at all, and a device may only receive what its person can open ([ADR 13](0013-notion-style-access.md), [ADR 1](0001-works-offline-on-what-its-person-can-open.md)). The first two spikes kept the whole page tree, every page's title and parent, in one workspace document, and every row of a database in the database's document. Either would carry titles and values to people who must not see them, because any page can be shared on its own or restricted to No access, including a single database row ([ADR 14](0014-notion-page-access-levels.md)). Access data has the same problem: a private teamspace's name, or who a page is shared with, must only reach the people allowed to see it. All shared data is Yjs ([ADR 2](0002-yjs-stores-shared-data.md)), and every structure must merge under the CRDT rules ([ADR 7](0007-crdt-rules.md)).
 
 ## Decision
 - **A document is the unit of access.** Each document holds only data that goes to exactly the same people, and nothing is copied into several documents.
@@ -23,7 +23,7 @@ A Yjs document reaches a device whole or not at all, and a device may only recei
   - each **row is a page** (`kind` row, `parentId` = the database) holding its title, order, **cells** (one key per property) and body. A row inherits the database's access like any subpage, and can be shared on its own.
 - **People and their workspace roles are account data**, stored with the accounts on the server ([ADR 11](0011-local-password-accounts.md)) and read by devices from it. Clients never edit them offline, so they are not shared Yjs data.
 - **Ids are random UUIDs** and may reach devices as references inside documents the person can open: a hidden parent's id as a page's `parentId` (a row's database id the same way), and, for a guest, a teamspace's id as a page's `section`. Titles, names and content of what the person cannot open never do.
-- **A page id the server has never seen** can be opened by any member, and by a guest, so it can be created there. The server reviews the first update where it places the page ([ADR 19](0019-hocuspocus-checks-every-document-and-update.md)). This is safe only because ids are random UUIDs.
+- **A page id the server has never seen** can be opened by any member, and by a guest, so it can be created there. The server reviews the first update where it places the page ([ADR 12](0012-hocuspocus-checks-every-document-and-update.md)). This is safe only because ids are random UUIDs.
 - **Rejected:**
   - **A filtered tree document per person, written by the server** from a canonical tree. Clients would edit their projection, so the server would translate every write back and fan it out, becoming a merge point. Offline moves would conflict with the server's re-projection, so the server would write repairs (against [ADR 7](0007-crdt-rules.md) rule 1). Every title would be stored once per person.
   - **One tree document per Private section or teamspace.** A subpage restricted to No access, or shared on its own, would still have its title in the container's document.

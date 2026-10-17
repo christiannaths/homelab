@@ -2,11 +2,11 @@
 
 Decisions that are **locked in** for the Notes app (LocalNotion), based on the requirements and the evidence from three spikes (PR #1: offline sync; PR #2: page tree and databases; the access spike, [`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md): Notion's access model on per-person sync). Decisions that hold for every app, such as the toolchain, are in the [platform ADRs](../../../../docs/adr/README.md), which also set the format and style every ADR follows.
 
-An ADR is written only once a decision is settled. Open questions go in **Not decided yet** below. An accepted ADR is not edited to change its decision: a new ADR supersedes it. Numbers are unique across the repo, so the gaps belong to platform ADRs.
+An ADR is written only once a decision is settled. Open questions go in **Not decided yet** below. Each topic has one ADR, edited in place when its decision changes, with the reason in its Changelog, as the [platform format](../../../../docs/adr/README.md#format-and-style) describes. Numbers are unique across the repo and never reused, so the gaps belong to platform ADRs and to numbers retired when two ADRs on one topic were merged (18 into 1, 19 into 12).
 
 | # | Decision | Depends on | Status |
 |---|---|---|---|
-| [1](0001-works-offline.md) | The app works fully offline | 4 | Superseded by [18](0018-works-offline-on-what-its-person-can-open.md) |
+| [1](0001-works-offline-on-what-its-person-can-open.md) | The app works fully offline with everything its person can open | 4, 11, 13 | Accepted |
 | [2](0002-yjs-stores-shared-data.md) | Yjs stores all shared data | 1 | Accepted |
 | [3](0003-pwa-client.md) | The client is a PWA installed on macOS and iOS | 1 | Accepted |
 | [4](0004-homelab-instance.md) | Each instance is a self-hosted homelab server for a few trusted users | none | Accepted |
@@ -15,14 +15,12 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [8](0008-blocknote-and-mantine.md) | BlockNote is the page editor, and Mantine is the UI library | 2 | Accepted |
 | [9](0009-pure-model-and-tests.md) | The data model is pure TypeScript, tested by unit and end-to-end tests | 5, 7 | Accepted |
 | [10](0010-yjs-13-until-stack-supports-14.md) | Yjs stays on version 13 until the whole stack supports 14 | 2, 8, 9, 12 | Accepted |
-| [11](0011-local-password-accounts.md) | Users sign in with local password accounts | 1, 4, 5, 6 | Accepted |
-| [12](0012-hocuspocus-sync-server.md) | Hocuspocus is the sync server | 1, 2, 6, 11 | Superseded by [19](0019-hocuspocus-checks-every-document-and-update.md) |
+| [11](0011-local-password-accounts.md) | Users sign in with local password accounts | 4, 5, 6 | Accepted |
+| [12](0012-hocuspocus-checks-every-document-and-update.md) | Hocuspocus is the sync server, and it checks access on every document and update | 1, 2, 6, 11, 13, 14, 17 | Accepted |
 | [13](0013-notion-style-access.md) | Access follows Notion's model of teamspaces and page sharing | 11 | Accepted |
 | [14](0014-notion-page-access-levels.md) | Page access levels mirror Notion's | 13 | Accepted |
-| [17](0017-per-page-documents-and-per-person-index.md) | Each page is its own Yjs document, found through a per-person index the server writes | 2, 7, 11, 13, 14, 18 | Accepted |
-| [18](0018-works-offline-on-what-its-person-can-open.md) | The app works fully offline with everything its person can open | 4, 11, 13 | Accepted |
-| [19](0019-hocuspocus-checks-every-document-and-update.md) | Hocuspocus is the sync server, and it checks access on every document and update | 2, 6, 11, 13, 14, 17, 18 | Accepted |
-| [20](0020-hono-http-and-better-auth-accounts.md) | Hono serves HTTP, and Better Auth manages accounts and sessions | 3, 4, 5, 6, 11, 13, 19 | Accepted |
+| [17](0017-per-page-documents-and-per-person-index.md) | Each page is its own Yjs document, found through a per-person index the server writes | 1, 2, 7, 11, 13, 14 | Accepted |
+| [20](0020-hono-http-and-better-auth-accounts.md) | Hono serves HTTP, and Better Auth manages accounts and sessions | 3, 4, 5, 6, 11, 12, 13 | Accepted |
 
 ## Not decided yet
 
