@@ -3,12 +3,14 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR-PLAT-001](ADR-PLAT-001-toolchain.md)
-- Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md)
+- Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md), [ADR-PLAT-004](ADR-PLAT-004-code-quality.md)
 
 ## Context
+
 The repo is growing from one app into a home for several homelab apps. What the apps share is their approach and their deployment, not their features: each app is built, tested and shipped on its own, and an app must never break because another one changed. A tool is needed that runs tasks across the apps in the right order, rebuilds only what a change touches, and keeps the apps from depending on each other.
 
 ## Decision
+
 - **Nx** runs tasks across the repo, on top of npm workspaces ([ADR-PLAT-001](ADR-PLAT-001-toolchain.md)).
 - **Layout:**
   - `apps/<app>/` holds one app, split into npm workspace packages such as `web`, `server` and `e2e`. Each package is one Nx project, named `<app>-<package>` (for example `notes-web`).
@@ -25,10 +27,12 @@ The repo is growing from one app into a home for several homelab apps. What the 
 - **No Nx Cloud.** `nx.json` sets `neverConnectToCloud` and turns analytics off, and the cache is local only. The `nx` package's install script is not approved in `allowScripts`, because it only updates the Nx Cloud client.
 
 ## Alternatives considered
+
 - **Turborepo**, on the maintainer's experience that it adds little.
 - **`@nx/enforce-module-boundaries`** for the boundary check. It needs typescript-eslint, which supports TypeScript up to 6.0, and the repo uses TypeScript 7.
 
 ## Evidence
+
 - This repo on Nx 23.3.0 and Node 26.12.0: through `nx run-many`, typecheck, the unit tests and the build pass, and a repeat run is served entirely from the cache. The e2e tests pass as `nx run notes-e2e:e2e`.
 - The Notes image builds from `apps/notes/Dockerfile`, starts, and answers `/api/health`.
 - The boundary script was tested against a planted shared package that imported from an app and was imported by the server across platforms, and it reported both violations.
@@ -36,6 +40,7 @@ The repo is growing from one app into a home for several homelab apps. What the 
 - With a root `tsconfig.base.json` and an import Nx cannot resolve, Nx 23.3.0 calls `readConfigFile` from the TypeScript API, which TypeScript 7 lacks. It then writes a partial graph and still exits 0, so the script treats that output as a failure.
 
 ## Consequences
+
 - Repo-wide commands are `nx run-many -t <target>` (wrapped as `npm run build`, `typecheck`, `test` and `test:e2e`), and one project's are `nx <target> <project>`. CI can use `nx affected` to build and test only what a change touched.
 - A runtime dependency that is not an import, such as the server serving the web build, is declared with `implicitDependencies` so that tasks run in the right order.
 - There must be no root `tsconfig.json` or `tsconfig.base.json`, because Nx then resolves imports through the TypeScript API, which TypeScript 7 does not provide. Shared packages are found through npm workspace links instead of TypeScript `paths`.
