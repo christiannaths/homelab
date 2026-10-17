@@ -2,7 +2,7 @@
 
 A server-only spike for the [Notes app](../../apps/notes/README.md). It checks whether **Hono**, **Hocuspocus** and **Better Auth** work together as the Notes server, as proposed in [`research/08-framework-options.md`](../../apps/notes/docs/research/08-framework-options.md). The findings are in [`research/09-server-stack-spike-findings.md`](../../apps/notes/docs/research/09-server-stack-spike-findings.md).
 
-> Status: **frozen** once its findings are recorded ([ADR 16](../../docs/adr/0016-spike-placement.md)). It is left out of the repo-wide scripts; run it by name, as below.
+> Status: **frozen** once its findings are recorded ([ADR 16](../../docs/adr/0016-proof-of-concept-code.md)). It is left out of the repo-wide scripts; run it by name, as below.
 
 ## What it shows
 1. **Hono serves the PWA and the API**: health, first-run setup, Better Auth's routes, static files with a fallback for client-side routes.
@@ -10,7 +10,7 @@ A server-only spike for the [Notes app](../../apps/notes/README.md). It checks w
 3. **A Better Auth session cookie authenticates the sync socket.** A missing, forged or expired session is refused with 401 before the upgrade. Access is then decided per document, including read-only documents.
 4. **Sessions are long-lived** (a year, extended on use), and **revoking a session closes that device's open socket** right away and stops it reconnecting.
 
-The access rules are stand-ins for [ADR 13](../../apps/notes/docs/adr/0013-access-model.md): `private/<userId>/…` documents are only for their owner, and `readonly/…` documents are read-only for everyone but admins.
+The access rules are stand-ins for [ADR 13](../../apps/notes/docs/adr/0013-access-control.md): `private/<userId>/…` documents are only for their owner, and `readonly/…` documents are read-only for everyone but admins.
 
 ## Layout
 - `server/src/app.ts`: the Hono app, the `/sync` upgrade route and the Hocuspocus instance

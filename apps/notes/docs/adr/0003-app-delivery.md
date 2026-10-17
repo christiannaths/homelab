@@ -1,4 +1,4 @@
-# 3. What kind of client do people install?
+# 3. How does the app reach people's Macs and iPhones?
 
 - Status: Accepted
 - Date: 2026-10-16

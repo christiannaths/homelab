@@ -1,9 +1,9 @@
-# 4. Who runs an instance, and for how many people?
+# 4. How is the app hosted, and for how many people?
 
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 1](0001-offline-use.md), [ADR 6](0006-server-storage.md), [ADR 11](0011-sign-in.md), [ADR 18](0018-http-and-accounts.md)
+- Dependency of: [ADR 1](0001-offline-use.md), [ADR 6](0006-document-persistence.md), [ADR 11](0011-identity.md), [ADR 18](0018-http-and-accounts.md)
 
 ## Context
 LocalNotion is meant for private, self-hosted instances. Each instance serves a handful of people who trust each other and the server.
@@ -20,4 +20,4 @@ LocalNotion is meant for private, self-hosted instances. Each instance serves a 
 
 ## Consequences
 - The scale target is hundreds to low thousands of pages, and databases of thousands of rows, for a few users. Other decisions rely on that, for example syncing everything a person can open, up to the whole workspace, to each of their devices ([ADR 1](0001-offline-use.md)).
-- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 11](0011-sign-in.md)), not on encryption at rest.
+- Security relies on network access control (Tailscale, LAN, reverse proxy) plus app accounts ([ADR 11](0011-identity.md)), not on encryption at rest.

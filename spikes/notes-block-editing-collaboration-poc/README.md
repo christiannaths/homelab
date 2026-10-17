@@ -2,7 +2,7 @@
 
 The spike behind the [Notes ADRs](../../apps/notes/docs/adr/README.md): a lean, self-hosted Notion-style workspace that is **offline-first** (every device keeps a full copy of the workspace) and **multiplayer** (edits and cursors sync live between users). Its findings are in [`apps/notes/docs/research/`](../../apps/notes/docs/research), and the real app is built from scratch in [`apps/notes/`](../../apps/notes/README.md).
 
-> Status: **frozen.** This code is kept for reference and still builds, but it is not maintained and nothing outside it may import from it. It is left out of the repo-wide `npm run build`, `typecheck`, `test`, `test:e2e` and `check` ([ADR 16](../../docs/adr/0016-spike-placement.md)); run its projects by name, as below.
+> Status: **frozen.** This code is kept for reference and still builds, but it is not maintained and nothing outside it may import from it. It is left out of the repo-wide `npm run build`, `typecheck`, `test`, `test:e2e` and `check` ([ADR 16](../../docs/adr/0016-proof-of-concept-code.md)); run its projects by name, as below.
 
 ## How it works (so far)
 - **Client**: a React PWA (Vite). Every page is a [Yjs](https://yjs.dev) document, edited with [BlockNote](https://www.blocknotejs.org) and stored in IndexedDB. A service worker caches the app, so it opens with no network.

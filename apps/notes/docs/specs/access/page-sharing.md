@@ -14,7 +14,7 @@
 | **Can view** | Read |
 | **No access** | Nothing. Used to restrict an inherited level (see Inheritance) |
 
-The UI does not offer what a level does not allow. The server also rejects edits from people below Can edit when their device syncs ([ADR 14](../../adr/0014-page-access-levels.md)). Until comments exist, Can comment behaves like Can view.
+The UI does not offer what a level does not allow. The server also rejects edits from people below Can edit when their device syncs ([ADR 14](../../adr/0014-page-permissions.md)). Until comments exist, Can comment behaves like Can view.
 
 ## The Share menu
 

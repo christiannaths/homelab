@@ -1,4 +1,4 @@
-# 16. Where do spikes live, and how do they relate to apps?
+# 16. How is proof-of-concept code kept apart from the apps?
 
 - Status: Accepted
 - Date: 2026-10-16

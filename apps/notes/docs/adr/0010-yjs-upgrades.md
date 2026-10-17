@@ -1,12 +1,12 @@
-# 10. Which major version of Yjs does the app use?
+# 10. How do Yjs upgrades stay compatible across the stack?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 2](0002-shared-data-model.md), [ADR 8](0008-editor-and-ui-library.md), [ADR 9](0009-model-and-testing.md), [ADR 12](0012-sync-server.md)
+- Depends on: [ADR 2](0002-merging-edits.md), [ADR 8](0008-page-editing-and-ui.md), [ADR 9](0009-model-correctness.md), [ADR 12](0012-sync-and-access-checks.md)
 - Dependency of: none
 
 ## Context
-Yjs 14 is in release candidates. BlockNote ([ADR 8](0008-editor-and-ui-library.md)) already ships entry points for both versions (`@blocknote/core/yjs` for 13, `@blocknote/core/y` for 14), but Hocuspocus ([ADR 12](0012-sync-server.md)) and `y-indexeddb` are still on 13. Mixing major versions would split the shared types between two runtimes.
+Yjs 14 is in release candidates. BlockNote ([ADR 8](0008-page-editing-and-ui.md)) already ships entry points for both versions (`@blocknote/core/yjs` for 13, `@blocknote/core/y` for 14), but Hocuspocus ([ADR 12](0012-sync-and-access-checks.md)) and `y-indexeddb` are still on 13. Mixing major versions would split the shared types between two runtimes.
 
 ## Decision
 - **Yjs 13** is used across the client, the server and the tests.
@@ -18,4 +18,4 @@ Yjs 14 is in release candidates. BlockNote ([ADR 8](0008-editor-and-ui-library.m
 
 ## Consequences
 - Yjs dependency upgrades stay within 13.x.
-- New code keeps Yjs use behind the model and sync modules ([ADR 9](0009-model-and-testing.md)), so the eventual migration stays contained.
+- New code keeps Yjs use behind the model and sync modules ([ADR 9](0009-model-correctness.md)), so the eventual migration stays contained.

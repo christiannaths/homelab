@@ -1,15 +1,15 @@
-# 6. Where does the server store document state?
+# 6. How does the server keep documents safe across restarts?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-language-and-runtime.md)
-- Dependency of: [ADR 11](0011-sign-in.md), [ADR 12](0012-sync-server.md), [ADR 18](0018-http-and-accounts.md)
+- Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-toolchain.md)
+- Dependency of: [ADR 11](0011-identity.md), [ADR 12](0012-sync-and-access-checks.md), [ADR 18](0018-http-and-accounts.md)
 
 ## Context
 The server only needs to keep each document's latest Yjs state and return it. At homelab scale ([ADR 4](0004-hosting-and-scale.md)), easy backup and zero operations matter more than horizontal scaling.
 
 ## Decision
-- Server data lives in **one SQLite database file** in `DATA_DIR`, accessed through Node's built-in `node:sqlite` ([ADR 5](../../../../docs/adr/0005-language-and-runtime.md)) in WAL mode.
+- Server data lives in **one SQLite database file** in `DATA_DIR`, accessed through Node's built-in `node:sqlite` ([ADR 5](../../../../docs/adr/0005-toolchain.md)) in WAL mode.
 - Each document is stored as its merged Yjs state (`documents(name, state BLOB, updated_at)`).
 - The server treats document contents as opaque. Server-side features that need the contents (such as search or history) are built alongside, without changing this storage format.
 - Postgres is not supported. Adding it would need a new ADR.
