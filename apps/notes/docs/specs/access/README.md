@@ -1,7 +1,7 @@
 # Specs: Access and sharing
 
 - Status: Draft
-- Decisions: [ADR 13](../../adr/0013-access-control.md) (the access model) and [ADR 14](../../adr/0014-page-permissions.md) (page access levels), both Accepted after the access spike ([findings](../../research/07-access-spike-findings.md)). How data reaches devices: [ADR 17](../../adr/0017-data-layout.md) and [ADR 1](../../adr/0001-offline-use.md).
+- Decisions: [ADR 12](../../adr/0012-access-control.md) (the access model) and [ADR 13](../../adr/0013-page-permissions.md) (page access levels), both Accepted after the access spike ([findings](../../research/07-access-spike-findings.md)). How data reaches devices: [ADR 16](../../adr/0016-data-layout.md) and [ADR 1](../../adr/0001-offline-use.md).
 
 LocalNotion copies **Notion's** sharing and permissions model, so it behaves the way Notion users already expect. These specs describe that model, adapted to a self-hosted instance for a few trusted people.
 
@@ -16,7 +16,7 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 | LocalNotion | Notion | Note |
 |---|---|---|
 | Instance | Workspace | One instance is one workspace. The specs say "workspace" to match Notion. |
-| Admin ([ADR 11](../../adr/0011-identity.md)) | Workspace owner | |
+| Admin ([ADR 10](../../adr/0010-identity.md)) | Workspace owner | |
 | Account | Member or guest | Every person has a local password account. |
 
 ## Adapted from Notion, not copied

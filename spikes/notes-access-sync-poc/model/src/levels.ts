@@ -1,4 +1,4 @@
-/** Notion's page access levels (ADR 14), most permissive first. */
+/** Notion's page access levels (ADR 13), most permissive first. */
 export const ACCESS_LEVELS = ["full", "edit", "edit-content", "comment", "view", "none"] as const;
 
 export type AccessLevel = (typeof ACCESS_LEVELS)[number];

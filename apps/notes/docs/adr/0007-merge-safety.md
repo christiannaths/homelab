@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 2](0002-merging-edits.md)
-- Dependency of: [ADR 9](0009-model-correctness.md), [ADR 17](0017-data-layout.md)
+- Dependency of: [ADR 9](0009-model-correctness.md), [ADR 16](0016-data-layout.md)
 
 ## Context
 The spikes found two ways in which a design that looks right becomes wrong once several devices edit offline. Concurrent page moves can form a cycle in the page tree. A device that has not synced yet can create a shared structure that then competes with the real one: `Y.Map` keys are last-writer-wins, so a fresh map can overwrite a renamed one.

@@ -171,7 +171,7 @@ export function visiblePageIds(workspace: Workspace, personId: string): Set<stri
   return new Set(pageLevels(workspace, personId).keys());
 }
 
-/** Only Full access can invite people or change anyone's access (ADR 14). */
+/** Only Full access can invite people or change anyone's access (ADR 13). */
 export const canShare = (level: AccessLevel): boolean => atLeast(level, "full");
 
 /** Can edit and above change a page's title, place and content. */

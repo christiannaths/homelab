@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-toolchain.md)
-- Dependency of: [ADR 11](0011-identity.md), [ADR 12](0012-sync-and-access-checks.md), [ADR 18](0018-http-and-accounts.md)
+- Dependency of: [ADR 10](0010-identity.md), [ADR 11](0011-sync-and-access-checks.md), [ADR 17](0017-http-and-accounts.md)
 
 ## Context
 The server only needs to keep each document's latest Yjs state and return it. At homelab scale ([ADR 4](0004-hosting-and-scale.md)), easy backup and zero operations matter more than horizontal scaling.

@@ -10,12 +10,12 @@ Measured against the first spike ([`spikes/notes-block-editing-collaboration-poc
 
 | Pick | Replaces | Value | Why |
 |---|---|---|---|
-| **Better Auth** | Hand-written accounts and sessions (ADR 11) | High | Security code you would otherwise write yourself, and its defaults already match ADR 11 |
+| **Better Auth** | Hand-written accounts and sessions (ADR 10) | High | Security code you would otherwise write yourself, and its defaults already match ADR 10 |
 | **Hono** (on `@hono/node-server`) | Using Hocuspocus's `onRequest` with `throw null`, plus the hand-written static server | Medium to high | The server is about to gain a real HTTP API: sign-in, setup, invites, people, sharing, teamspaces, attachments |
 | **TanStack Router** (client only, hash history) | Regex hash routes in `App.tsx` | Medium | Many more screens are coming, and database view state (filters, sorts) belongs in the URL |
 | Drizzle (optional) | Raw `node:sqlite` for access tables | Low to medium | Only worth it once the access tables (teamspaces, grants, memberships) exist |
 
-Keep Hocuspocus (ADR 12). It is already the sync framework, and its hooks are where the access work (ADR 13) has to happen.
+Keep Hocuspocus (ADR 11). It is already the sync framework, and its hooks are where the access work (ADR 12) has to happen.
 
 ## Why a full-stack framework adds little
 
@@ -26,27 +26,27 @@ What these frameworks offer is server rendering, server data loaders and actions
 - The service worker precaches the app shell (ADR 3). Server-rendered HTML works against that, and it would be a second code path.
 - One Node process serves everything (ADR 4), and that process belongs to Hocuspocus.
 - The client glue a framework would replace is small: `SyncManager.ts` plus `context.tsx` come to about 240 lines.
-- Risk to the toolchain: the repo is on TypeScript 7 and avoids Nx plugins (ADR 15). Frameworks that rely on compiler plugins and code generation are more likely to break against that than small libraries are. ADR 15 already ran into this with typescript-eslint.
+- Risk to the toolchain: the repo is on TypeScript 7 and avoids Nx plugins (ADR 14). Frameworks that rely on compiler plugins and code generation are more likely to break against that than small libraries are. ADR 14 already ran into this with typescript-eslint.
 
 Svelte, Vue and Solid frameworks are ruled out by ADR 8, which requires React for BlockNote and Mantine.
 
 ## Local-first data frameworks (Jazz, Zero, LiveStore, ElectricSQL, Instant)
 
-These are the only frameworks aimed at the hardest planned problem: syncing to each person only the data they can open (ADR 13). Jazz in particular has group-based read, write and admin permissions built in. They still lose here:
+These are the only frameworks aimed at the hardest planned problem: syncing to each person only the data they can open (ADR 12). Jazz in particular has group-based read, write and admin permissions built in. They still lose here:
 
-- Each one replaces Yjs as the source of truth (ADR 2), and with it the server storage (ADR 6) and Hocuspocus (ADR 12).
+- Each one replaces Yjs as the source of truth (ADR 2), and with it the server storage (ADR 6) and Hocuspocus (ADR 11).
 - BlockNote binds to Yjs (ADR 8), so the editor would need a new binding.
 - Jazz encrypts data end to end, while ADR 4 wants a trusted server that can read content for search and backups. I took this from what I already knew and did not re-check it today.
 
-Look at them again only if the ADR 13 feasibility design shows that per-person sync cannot be done on Yjs and Hocuspocus.
+Look at them again only if the ADR 12 feasibility design shows that per-person sync cannot be done on Yjs and Hocuspocus.
 
 ## The picks in detail
 
-### Better Auth (ADR 11)
+### Better Auth (ADR 10)
 
 - **What it gives you:**
-  - Hashes passwords with scrypt by default, which is what ADR 11 already chose.
-  - Built-in rate limiting, with stricter limits on sign-in. ADR 11 lists rate limiting as required.
+  - Hashes passwords with scrypt by default, which is what ADR 10 already chose.
+  - Built-in rate limiting, with stricter limits on sign-in. ADR 10 lists rate limiting as required.
   - Session revocation.
   - A username plugin for username sign-in.
   - An admin plugin for creating users and resetting passwords.
@@ -55,8 +55,8 @@ Look at them again only if the ADR 13 feasibility design shows that per-person s
   - Its CLI creates the tables.
 - **WebSocket sign-in:** the sync socket is on the same origin, so the session cookie arrives with the upgrade request. `onAuthenticate` (or the Hono upgrade route) calls `auth.api.getSession({ headers })`.
 - **Watch out for:**
-  - Sessions expire after 7 days by default. A long-lived offline session (ADR 11) needs `expiresIn` and the renewal settings tuned.
-  - It does not model Notion-style page access. Its organization and teams plugins are not page inheritance, so ADR 13 stays custom code.
+  - Sessions expire after 7 days by default. A long-lived offline session (ADR 10) needs `expiresIn` and the renewal settings tuned.
+  - It does not model Notion-style page access. Its organization and teams plugins are not page inheritance, so ADR 12 stays custom code.
 
 ### Hono (server HTTP)
 
@@ -85,10 +85,10 @@ Look at them again only if the ADR 13 feasibility design shows that per-person s
 
 ## The hard part no framework solves
 
-Per-person sync (ADR 13 and ADR 14) is custom work whatever you pick:
+Per-person sync (ADR 12 and ADR 13) is custom work whatever you pick:
 
 - **Document split:** the page tree has to be split across Yjs documents so that each person receives only the titles they can see.
-- **Per-document checks:** ADR 12 currently checks the session once per connection, but ADR 13 needs an access check for every document. One of the two has to be revised.
+- **Per-document checks:** ADR 11 currently checks the session once per connection, but ADR 12 needs an access check for every document. One of the two has to be revised.
 - **Read-only access:** Can view and Can comment map onto Hocuspocus's read-only connection flag (`readOnly` in the installed v4 types, set in `onAuthenticate`).
 - **Can edit content:** this needs `beforeHandleMessage` to inspect which part of the database document an update changes.
 

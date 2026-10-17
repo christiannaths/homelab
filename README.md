@@ -1,6 +1,6 @@
 # Homelab
 
-Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and apps never depend on each other ([ADR 15](docs/adr/0015-repo-structure.md)).
+Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and apps never depend on each other ([ADR 14](docs/adr/0014-repo-structure.md)).
 
 ## Apps
 | App | What it is |
@@ -8,7 +8,7 @@ Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app i
 | [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace (starting fresh) |
 
 ## Spikes
-Throwaway proofs of concept that settled an app's decisions. They are kept frozen and still build, but repo-wide commands skip them ([ADR 16](docs/adr/0016-proof-of-concept-code.md)).
+Throwaway proofs of concept that settled an app's decisions. They are kept frozen and still build, but repo-wide commands skip them ([ADR 15](docs/adr/0015-proof-of-concept-code.md)).
 
 | Spike | What it settled |
 |---|---|

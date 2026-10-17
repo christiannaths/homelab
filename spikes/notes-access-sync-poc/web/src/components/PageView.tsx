@@ -33,7 +33,7 @@ export function PageView({ page, pages, tree, identity, me }: Props) {
   const entry = pages.entry(page.id)!;
   const ready = useLocalReady(entry);
   const level = useLevel(pages, page.id);
-  // Below Can edit the page is read-only here too, not only on the server (ADR 14).
+  // Below Can edit the page is read-only here too, not only on the server (ADR 13).
   const editable = canEdit(level);
   const metas = useSyncExternalStore(pages.subscribe, pages.getSnapshot);
   // Built from this device's tree, so it starts below any parent this person can't open.

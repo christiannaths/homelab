@@ -1,7 +1,7 @@
 import type { Person, Role } from "@homelab/notes-access-sync-poc-model";
 
 // Spike-only identity: the device picks a person from the workspace's list and remembers it.
-// The person's id is the connection token, and the server trusts it. Real sign-in is ADR 11.
+// The person's id is the connection token, and the server trusts it. Real sign-in is ADR 10.
 
 const KEY = "notes-access.person";
 const COLORS = ["#e03131", "#2f9e44", "#1971c2", "#f08c00", "#9c36b5", "#0c8599", "#c2255c"];

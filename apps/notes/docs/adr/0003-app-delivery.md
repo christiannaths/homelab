@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 1](0001-offline-use.md)
-- Dependency of: [ADR 18](0018-http-and-accounts.md)
+- Dependency of: [ADR 17](0017-http-and-accounts.md)
 
 ## Context
 The target platforms are macOS and iOS, with a desktop-like experience on the Mac. Separate native apps would multiply the work, and the app must start without a network ([ADR 1](0001-offline-use.md)).

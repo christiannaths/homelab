@@ -1,9 +1,9 @@
-# 11. How does an instance know who is editing?
+# 10. How does an instance know who is editing?
 
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-toolchain.md), [ADR 6](0006-document-persistence.md)
-- Dependency of: [ADR 1](0001-offline-use.md), [ADR 12](0012-sync-and-access-checks.md), [ADR 13](0013-access-control.md), [ADR 17](0017-data-layout.md), [ADR 18](0018-http-and-accounts.md)
+- Dependency of: [ADR 1](0001-offline-use.md), [ADR 11](0011-sync-and-access-checks.md), [ADR 12](0012-access-control.md), [ADR 16](0016-data-layout.md), [ADR 17](0017-http-and-accounts.md)
 
 ## Context
 Each instance needs to know who is editing. A homelab install ([ADR 4](0004-hosting-and-scale.md)) should not depend on an external identity provider or proxy, and the app must keep working offline after sign-in ([ADR 1](0001-offline-use.md)).
@@ -21,4 +21,4 @@ Each instance needs to know who is editing. A homelab install ([ADR 4](0004-host
 ## Consequences
 - The server stores account and session data alongside the documents in its SQLite database ([ADR 6](0006-document-persistence.md)).
 - Login attempts need rate limiting, because an instance may be reachable beyond the LAN.
-- The sync server checks the session on each connection ([ADR 12](0012-sync-and-access-checks.md)).
+- The sync server checks the session on each connection ([ADR 11](0011-sync-and-access-checks.md)).

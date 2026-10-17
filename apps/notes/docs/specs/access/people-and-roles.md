@@ -7,7 +7,7 @@
 
 | Role | Who | Can |
 |---|---|---|
-| **Workspace owner** | Whoever set up the instance, plus anyone they promote | Everything a member can, plus: manage workspace settings; invite and remove people; change anyone's role; reset passwords ([ADR 11](../../adr/0011-identity.md)); manage teamspaces they are not in (see [Teamspaces](teamspaces.md)). There is always at least one. |
+| **Workspace owner** | Whoever set up the instance, plus anyone they promote | Everything a member can, plus: manage workspace settings; invite and remove people; change anyone's role; reset passwords ([ADR 10](../../adr/0010-identity.md)); manage teamspaces they are not in (see [Teamspaces](teamspaces.md)). There is always at least one. |
 | **Member** | The household: people who use the instance regularly | Create pages in their Private section and in teamspaces they can edit; join open teamspaces; create teamspaces; share pages they have Full access to, with members or guests. |
 | **Guest** | Outsiders: a contractor, a babysitter, an accountant | Open only the pages shared with them, at the level given (see [Page sharing](page-sharing.md)). |
 
@@ -22,7 +22,7 @@
 
 - Only workspace owners can invite people to the workspace as **members**. A workspace setting, **Allow members to request adding other members**, lets members ask; a workspace owner approves or declines. Here it is off by default.
 - Anyone with **Full access** to a page can invite a **guest** to it. If the person has no account yet, the invite creates a guest account. A workspace owner can turn off guest invites for the whole workspace.
-- An invite creates a local account with a temporary password ([ADR 11](../../adr/0011-identity.md)). The person changes the password on first sign-in.
+- An invite creates a local account with a temporary password ([ADR 10](../../adr/0010-identity.md)). The person changes the password on first sign-in.
 - New members automatically join the workspace's **default teamspaces** (see [Teamspaces](teamspaces.md)).
 
 ## Changing roles

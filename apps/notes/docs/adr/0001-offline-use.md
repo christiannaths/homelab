@@ -2,16 +2,16 @@
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 11](0011-identity.md), [ADR 13](0013-access-control.md)
-- Dependency of: [ADR 2](0002-merging-edits.md), [ADR 3](0003-app-delivery.md), [ADR 12](0012-sync-and-access-checks.md), [ADR 17](0017-data-layout.md)
+- Depends on: [ADR 4](0004-hosting-and-scale.md), [ADR 10](0010-identity.md), [ADR 12](0012-access-control.md)
+- Dependency of: [ADR 2](0002-merging-edits.md), [ADR 3](0003-app-delivery.md), [ADR 11](0011-sync-and-access-checks.md), [ADR 16](0016-data-layout.md)
 
 ## Context
-Full offline support is a core requirement. An offline mode added to a server-first app becomes a second code path that is rarely exercised and breaks easily. Access follows Notion's model ([ADR 13](0013-access-control.md)): a person's devices may only receive what that person can open, and losing access must remove data from their devices. Edits from people below Can edit are refused by the server, after the device has already applied them.
+Full offline support is a core requirement. An offline mode added to a server-first app becomes a second code path that is rarely exercised and breaks easily. Access follows Notion's model ([ADR 12](0012-access-control.md)): a person's devices may only receive what that person can open, and losing access must remove data from their devices. Edits from people below Can edit are refused by the server, after the device has already applied them.
 
 ## Decision
 - **Every read and write goes to the local copy first.** The UI never waits on the network to show or change anything.
-- The network is used only to exchange changes with other devices. The server is one more participant that relays and backs up changes. It never has to approve an edit before it appears on the device, but it checks each change against the person's access when it syncs, and refuses those that access does not allow ([ADR 12](0012-sync-and-access-checks.md)).
-- **Each device keeps everything its person can open**, not only the pages it has opened. Any page the person can open opens offline, including one the device has never opened before. Nothing the person cannot open reaches the device, apart from the random ids described in [ADR 17](0017-data-layout.md).
+- The network is used only to exchange changes with other devices. The server is one more participant that relays and backs up changes. It never has to approve an edit before it appears on the device, but it checks each change against the person's access when it syncs, and refuses those that access does not allow ([ADR 11](0011-sync-and-access-checks.md)).
+- **Each device keeps everything its person can open**, not only the pages it has opened. Any page the person can open opens offline, including one the device has never opened before. Nothing the person cannot open reaches the device, apart from the random ids described in [ADR 16](0016-data-layout.md).
 - **Data stays on a device until the next sync after its person loses access.** The device then deletes it from memory and storage. Unsynced edits to a lost page are offered back as a new Private page holding the page as the device had it.
 - **A refused change is discarded:** the device throws away its copy of that document and syncs it again from the server. The UI does not offer changes the person's level does not allow, so only a device whose access was lowered while it edited offline, or a modified client, loses work this way.
 - Being offline is a normal state. The UI shows it as a status ("Offline · saved locally"), never as an error. Connection loss is detected immediately from the browser's `offline` and `online` events, not left to a socket timeout, and the socket's close is completed on the device without waiting for a closing handshake that cannot finish without a network.
@@ -28,12 +28,12 @@ Full offline support is a core requirement. An offline mode added to a server-fi
 
 ## Consequences
 - Storage and memory on each device grow with what its person can open, which is at most the whole workspace. That is acceptable at the scale set by [ADR 4](0004-hosting-and-scale.md).
-- Permissions are enforced when changes sync, not when they are made ([ADR 12](0012-sync-and-access-checks.md)).
-- A device that never syncs again keeps what it has. A removed person's device learns of the removal only if the server still answers it: the session must keep reaching the server long enough to be told "no access". Signing out or revoking a session stops syncing and leaves the data ([ADR 11](0011-identity.md)).
+- Permissions are enforced when changes sync, not when they are made ([ADR 11](0011-sync-and-access-checks.md)).
+- A device that never syncs again keeps what it has. A removed person's device learns of the removal only if the server still answers it: the session must keep reaching the server long enough to be told "no access". Signing out or revoking a session stops syncing and leaves the data ([ADR 10](0010-identity.md)).
 - The offered copy of a lost page is the whole page, not only the unsynced edits, because a Yjs update cannot be split back into the server's part and the device's.
 - A device keeps pages it created offline before the server has indexed them, so it reopens every document in its storage and lets the server's answer decide what is deleted.
 - How docs are held in memory and stored on the device can still change (see "Not decided yet" in the [index](README.md)). The rule that every device holds everything its person can open does not.
 
 ## Changelog
-- 2026-10-17: Each device keeps only what its person can open, instead of the whole workspace, and deletes a page at the next sync after its person loses access, instead of keeping it. Access now follows Notion's model ([ADR 13](0013-access-control.md)), where any page can be private or shared alone, so whole-workspace sync would carry pages to people who must not see them. Refused changes are discarded and synced again, and the offline badge no longer waits on the socket's closing handshake. Evidence: the access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), PR #23). It was first recorded as a separate ADR, since merged in here.
+- 2026-10-17: Each device keeps only what its person can open, instead of the whole workspace, and deletes a page at the next sync after its person loses access, instead of keeping it. Access now follows Notion's model ([ADR 12](0012-access-control.md)), where any page can be private or shared alone, so whole-workspace sync would carry pages to people who must not see them. Refused changes are discarded and synced again, and the offline badge no longer waits on the socket's closing handshake. Evidence: the access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), PR #23). It was first recorded as a separate ADR, since merged in here.
 - 2026-10-16: Accepted. Every device kept the whole workspace, so any page opened offline, and data stayed on a device even after it lost access. Evidence: PR #1 and PR #2.

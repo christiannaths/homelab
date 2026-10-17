@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 2](0002-merging-edits.md)
-- Dependency of: [ADR 10](0010-yjs-upgrades.md)
+- Dependency of: none
 
 ## Context
 A Notion-style block editor with live collaboration on Yjs ([ADR 2](0002-merging-edits.md)) is the largest single UI component, and building one from scratch is not worthwhile. BlockNote draws its menus and toolbars through one of three interchangeable UI packages: `@blocknote/mantine`, `@blocknote/shadcn` or `@blocknote/ariakit`. All three provide the same editor components, because `@blocknote/react` defines one component interface that each implements, so choosing between them is really choosing the UI library for the whole app. The goal is mostly default styles, adjusted at a high level: semantic colours, border radius, depth (shadows) and font, in light and dark.

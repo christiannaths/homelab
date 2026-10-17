@@ -1,20 +1,20 @@
-# 18. How does the server handle HTTP requests and account security?
+# 17. How does the server handle HTTP requests and account security?
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 3](0003-app-delivery.md), [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-toolchain.md), [ADR 6](0006-document-persistence.md), [ADR 11](0011-identity.md), [ADR 12](0012-sync-and-access-checks.md), [ADR 13](0013-access-control.md)
+- Depends on: [ADR 3](0003-app-delivery.md), [ADR 4](0004-hosting-and-scale.md), [ADR 5](../../../../docs/adr/0005-toolchain.md), [ADR 6](0006-document-persistence.md), [ADR 10](0010-identity.md), [ADR 11](0011-sync-and-access-checks.md), [ADR 12](0012-access-control.md)
 - Dependency of: none
 
 ## Context
-The server is about to gain a real HTTP API: first-run setup, sign-in, invites, people and roles, sharing, teamspaces and attachments. The first spike served HTTP through Hocuspocus's `onRequest` hook ([ADR 12](0012-sync-and-access-checks.md)) and a hand-written static file server. Accounts ([ADR 11](0011-identity.md)) are security-sensitive code: password hashing, sessions that last while a device is offline, revocation, rate limiting and admin-only account creation. A full-stack framework was ruled out, because every read is local and the server cannot query Yjs data ([`research/08-framework-options.md`](../research/08-framework-options.md)). The server must stay one Node process with one SQLite file and no external services ([ADR 4](0004-hosting-and-scale.md), [ADR 6](0006-document-persistence.md)).
+The server is about to gain a real HTTP API: first-run setup, sign-in, invites, people and roles, sharing, teamspaces and attachments. The first spike served HTTP through Hocuspocus's `onRequest` hook ([ADR 11](0011-sync-and-access-checks.md)) and a hand-written static file server. Accounts ([ADR 10](0010-identity.md)) are security-sensitive code: password hashing, sessions that last while a device is offline, revocation, rate limiting and admin-only account creation. A full-stack framework was ruled out, because every read is local and the server cannot query Yjs data ([`research/08-framework-options.md`](../research/08-framework-options.md)). The server must stay one Node process with one SQLite file and no external services ([ADR 4](0004-hosting-and-scale.md), [ADR 6](0006-document-persistence.md)).
 
 ## Decision
 - **Hono serves all HTTP**, on `@hono/node-server` with its built-in WebSocket support (`ws`, `WebSocketServer` with `noServer: true`). That covers the API, the built PWA with a fallback to `index.html`, and the sync endpoint. `@hono/node-ws` is deprecated and is not used.
-- **Hocuspocus runs behind Hono** without a server of its own ([ADR 12](0012-sync-and-access-checks.md)):
+- **Hocuspocus runs behind Hono** without a server of its own ([ADR 11](0011-sync-and-access-checks.md)):
   - Hono's `upgradeWebSocket` passes each socket to `hocuspocus.handleConnection()`, with the signed-in person as the connection's context.
   - Hono forwards the socket's messages and close events to Hocuspocus.
   - Hocuspocus's `onRequest`, `onUpgrade` and `onListen` hooks are not used.
-- **Better Auth implements [ADR 11](0011-identity.md):**
+- **Better Auth implements [ADR 10](0010-identity.md):**
   - Plugins: `username` (sign-in with a username) and `admin` (creating accounts, resetting passwords, revoking sessions).
   - It uses Node's `node:sqlite` directly, in the same SQLite file as the documents ([ADR 6](0006-document-persistence.md)), and creates its tables at startup.
   - Public sign-up is off (`disableSignUp`). First-run setup creates the admin with `createUser`, and is refused once any account exists.
@@ -44,6 +44,6 @@ The server is about to gain a real HTTP API: first-run setup, sign-in, invites, 
 - Better Auth upgrades can change its schema. They are tested against an existing data directory before they are merged.
 - Without the forwarded IP header, every client shares one rate-limit bucket, so one person's failed sign-ins would lock everyone out for the window. The deploy setup must set it.
 - An open socket whose session expires without being deleted stays open until it reconnects. Sessions are extended on every use, so this only affects a device that stays connected for a whole year.
-- Better Auth's organization and team plugins are not used for teamspaces or page sharing. Access is decided per document in the sync server, from the access rules ([ADR 13](0013-access-control.md)).
+- Better Auth's organization and team plugins are not used for teamspaces or page sharing. Access is decided per document in the sync server, from the access rules ([ADR 12](0012-access-control.md)).
 - Startup logs a harmless "Database schema mismatch" on a fresh data directory, before the tables are created.
 - Hono's typed RPC client is available for the client's few API calls, so no separate RPC library is needed.

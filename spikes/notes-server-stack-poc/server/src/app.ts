@@ -51,13 +51,13 @@ export async function startServer({ dataDir, webRoot, port, baseURL, secret }: S
   const hocuspocus = new Hocuspocus<SyncContext>({
     debounce: 1000,
     maxDebounce: 10_000,
-    // ADR 12: the whole workspace syncs over one socket.
+    // ADR 11: the whole workspace syncs over one socket.
     maxPendingDocuments: 20_000,
     maxUnauthenticatedQueueMessages: 100_000,
     maxUnauthenticatedQueueSize: 256 * 1024 * 1024,
 
     // Runs for every document a socket opens. The session was already checked when
-    // the socket opened, so this only decides access to this one document (ADR 13, 14).
+    // the socket opened, so this only decides access to this one document (ADR 12, 13).
     // A stand-in for real access rules: "private/<userId>/…" is only for its owner,
     // and "readonly/…" is read-only for everyone but admins.
     async onAuthenticate({ context, documentName, connectionConfig }) {
@@ -81,7 +81,7 @@ export async function startServer({ dataDir, webRoot, port, baseURL, secret }: S
 
   app.get("/api/health", (c) => c.json({ ok: true, documents: store.count() }));
 
-  // First run: create the admin account (ADR 11). Refused once any account exists.
+  // First run: create the admin account (ADR 10). Refused once any account exists.
   app.post("/api/setup", async (c) => {
     const { n } = db.prepare(`SELECT COUNT(*) AS n FROM "user"`).get() as { n: number };
     if (n > 0) return c.json({ error: "Already set up" }, 409);
