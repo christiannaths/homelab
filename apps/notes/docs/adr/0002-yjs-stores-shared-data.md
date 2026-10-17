@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 1](0001-works-offline.md)
-- Dependency of: [ADR 7](0007-crdt-rules.md), [ADR 8](0008-blocknote-and-mantine.md), [ADR 10](0010-yjs-13-until-stack-supports-14.md), [ADR 12](0012-hocuspocus-sync-server.md)
+- Dependency of: [ADR 7](0007-crdt-rules.md), [ADR 8](0008-blocknote-and-mantine.md), [ADR 10](0010-yjs-13-until-stack-supports-14.md), [ADR 12](0012-hocuspocus-sync-server.md), [ADR 17](0017-per-page-documents-and-per-person-index.md), [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
 
 ## Context
 Offline edits from several devices ([ADR 1](0001-works-offline.md)) must merge automatically and identically everywhere, with no "pick a version" prompts. That requires a CRDT. Yjs, Automerge and Loro were compared in [`research/01-foss-landscape.md`](../research/01-foss-landscape.md) and [`research/03-architecture.md`](../research/03-architecture.md).

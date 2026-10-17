@@ -1,6 +1,6 @@
 # 1. The app works fully offline
 
-- Status: Accepted
+- Status: Superseded by [ADR 18](0018-works-offline-on-what-its-person-can-open.md)
 - Date: 2026-10-16
 - Depends on: [ADR 4](0004-homelab-instance.md)
 - Dependency of: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 3](0003-pwa-client.md), [ADR 11](0011-local-password-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md), [ADR 13](0013-notion-style-access.md)
