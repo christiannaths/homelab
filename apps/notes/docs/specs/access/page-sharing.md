@@ -35,7 +35,7 @@ Only people with Full access can change entries. Others see the list read-only.
   - **Expand:** invite more people, or raise someone's level, on just this page and its subpages.
   - **Restrict:** lower someone's inherited level, down to No access, on just this page and its subpages. The Share menu shows "Restricted" next to an overridden inherited entry, with **Restore inherited access**.
 - **The most permissive level wins** when a person has access from more than one source: teamspace, parent page, direct invite or general access.
-- A page whose access differs from its parent shows a small indicator in the Share menu **(verify)**.
+- A page that restricts what it inherits shows **Restricted** in the Share menu, with **Restore inherited access**. A page that only adds access shows no indicator.
 
 ## The Private and Shared sections
 
@@ -43,8 +43,8 @@ Only people with Full access can change entries. Others see the list read-only.
 - **Shared:**
   - for the person who shared: Private pages they have shared with others move here;
   - for the recipient: pages shared with them directly that are not in a teamspace they belong to, each with its subpages.
-- **Moving a page to Private** removes everyone else's access to that page. As in Notion, explicit invites on its subpages stay **(verify)**. The move asks first, naming who loses access.
-- **Moving a page into a teamspace, or under a different parent,** changes what it inherits. If that changes who can see it, the move asks first and names the people affected.
+- **Moving a page to Private** removes everyone else's access to that page. Explicit invites on its subpages stay, so each such subpage moves to the top of its invitee's Shared section; subpages that only inherited go with the page. This is Notion's behaviour, and LocalNotion follows it (Notion's help centre states the first part, and a third-party guide the subpage part: item 2 of the [Notion check](../../research/06-notion-access-verification.md)). The move asks first, naming who loses access.
+- **Moving a page into a teamspace, or under a different parent,** changes what it inherits. If that changes who can see it, the move asks first and names the people affected. Such a move is a change of access, so it needs Full access on the page; Can edit may move a page only where nobody's access changes **(LocalNotion choice)**.
 
 ## Pages you can only partly reach
 
@@ -54,8 +54,8 @@ Only people with Full access can change entries. Others see the list read-only.
 
 ## Databases
 
-- A database's rows (and their row pages) inherit the database page's access.
-- **Can edit content** lets people work with rows without changing the database's structure.
+- A database's rows (and their row pages) inherit the database page's access. A single row can also be shared on its own, like any page.
+- **Can edit content** lets people work with rows without changing the database's structure: they add, edit and trash rows **(LocalNotion choice)** and edit their values and bodies, but not the database page itself (its title, body **(LocalNotion choice)** and views) or its properties.
 - Notion's per-row rules ("people in this Person property can edit this row") are left out of this version.
 
 ## Acceptance criteria

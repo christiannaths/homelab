@@ -2,15 +2,15 @@
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 3](0003-pwa-client.md), [ADR 4](0004-homelab-instance.md), [ADR 5](../../../../docs/adr/0005-typescript-node-26-npm.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md), [ADR 12](0012-hocuspocus-sync-server.md), [ADR 13](0013-notion-style-access.md)
+- Depends on: [ADR 3](0003-pwa-client.md), [ADR 4](0004-homelab-instance.md), [ADR 5](../../../../docs/adr/0005-typescript-node-26-npm.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md), [ADR 13](0013-notion-style-access.md), [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
 - Dependency of: none
 
 ## Context
-The server is about to gain a real HTTP API: first-run setup, sign-in, invites, people and roles, sharing, teamspaces and attachments. The first spike served HTTP through Hocuspocus's `onRequest` hook ([ADR 12](0012-hocuspocus-sync-server.md)) and a hand-written static file server. Accounts ([ADR 11](0011-local-password-accounts.md)) are security-sensitive code: password hashing, sessions that last while a device is offline, revocation, rate limiting and admin-only account creation. A full-stack framework was ruled out, because every read is local and the server cannot query Yjs data ([`research/08-framework-options.md`](../research/08-framework-options.md)). The server must stay one Node process with one SQLite file and no external services ([ADR 4](0004-homelab-instance.md), [ADR 6](0006-sqlite-server-storage.md)).
+The server is about to gain a real HTTP API: first-run setup, sign-in, invites, people and roles, sharing, teamspaces and attachments. The first spike served HTTP through Hocuspocus's `onRequest` hook ([ADR 19](0019-hocuspocus-checks-every-document-and-update.md)) and a hand-written static file server. Accounts ([ADR 11](0011-local-password-accounts.md)) are security-sensitive code: password hashing, sessions that last while a device is offline, revocation, rate limiting and admin-only account creation. A full-stack framework was ruled out, because every read is local and the server cannot query Yjs data ([`research/08-framework-options.md`](../research/08-framework-options.md)). The server must stay one Node process with one SQLite file and no external services ([ADR 4](0004-homelab-instance.md), [ADR 6](0006-sqlite-server-storage.md)).
 
 ## Decision
 - **Hono serves all HTTP**, on `@hono/node-server` with its built-in WebSocket support (`ws`, `WebSocketServer` with `noServer: true`). That covers the API, the built PWA with a fallback to `index.html`, and the sync endpoint. `@hono/node-ws` is deprecated and is not used.
-- **Hocuspocus runs behind Hono** without a server of its own ([ADR 12](0012-hocuspocus-sync-server.md)):
+- **Hocuspocus runs behind Hono** without a server of its own ([ADR 19](0019-hocuspocus-checks-every-document-and-update.md)):
   - Hono's `upgradeWebSocket` passes each socket to `hocuspocus.handleConnection()`, with the signed-in person as the connection's context.
   - Hono forwards the socket's messages and close events to Hocuspocus.
   - Hocuspocus's `onRequest`, `onUpgrade` and `onListen` hooks are not used.

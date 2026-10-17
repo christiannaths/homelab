@@ -61,7 +61,7 @@ Two mutations confirmed that the tests catch failures. Removing the read-only fl
 ## What this means for the ADRs
 
 - **[ADR 11](../adr/0011-local-password-accounts.md)** can be implemented with Better Auth without changing the decision. Its defaults match it: scrypt hashing, rate limiting, revocable sessions, and admin-created accounts.
-- **[ADR 12](../adr/0012-hocuspocus-sync-server.md)'s "authentication runs once per connection" splits in two.** The session is checked once, when the socket opens, and access is checked for each document in `onAuthenticate`. That split is what [ADR 13](../adr/0013-notion-style-access.md) needs, and it costs no extra session lookups.
+- **[ADR 19](../adr/0019-hocuspocus-checks-every-document-and-update.md) already splits the check in two, as this spike does:** the session is checked once, when the socket opens, and access is checked for each document in `onAuthenticate`. Like ADR 19, the real app should not rely on Hocuspocus's silent read-only handling (gotcha 4).
 - **[ADR 20](../adr/0020-hono-http-and-better-auth-accounts.md) records the result:** Hono serves HTTP, and Better Auth manages accounts and sessions.
 
 ## Not verified

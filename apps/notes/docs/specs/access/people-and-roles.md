@@ -15,12 +15,12 @@
 
 - Join teamspaces, or see that teamspaces exist.
 - See pages shared with "everyone in the workspace".
-- Create pages of their own: no Private section and no top-level pages. They can only create subpages inside a page they can edit.
+- Create pages of their own: no Private section and no top-level pages. They can only create subpages inside a page they can edit, and get the level they inherit there, not Full access **(LocalNotion choice)**.
 - Share, unless given **Full access** to a page. They can then share that page, including with other guests.
 
 ## Inviting people
 
-- Only workspace owners can invite people to the workspace as **members** **(verify)**. In Notion, members can sometimes invite too, depending on a workspace setting. Here, that setting is off by default.
+- Only workspace owners can invite people to the workspace as **members**. A workspace setting, **Allow members to request adding other members**, lets members ask; a workspace owner approves or declines. Here it is off by default.
 - Anyone with **Full access** to a page can invite a **guest** to it. If the person has no account yet, the invite creates a guest account. A workspace owner can turn off guest invites for the whole workspace.
 - An invite creates a local account with a temporary password ([ADR 11](../../adr/0011-local-password-accounts.md)). The person changes the password on first sign-in.
 - New members automatically join the workspace's **default teamspaces** (see [Teamspaces](teamspaces.md)).
@@ -29,7 +29,7 @@
 
 - Workspace owners change roles in **Settings → People**: promote a member to owner, demote an owner to member, convert a guest to a member, or remove someone.
 - Converting a member to a guest removes their teamspace memberships. They keep any pages shared with them directly.
-- **Removing someone** stops their syncing and removes their access at their devices' next sync. Their private pages stay on the server, and a workspace owner can transfer them to someone else **(verify)**.
+- **Removing someone** stops their syncing and removes their access at their devices' next sync. Their Private pages stay on the server. Within 30 days, a workspace owner can transfer them, once, to another member (Settings → People → Recently left); they appear in that member's Private section under a new top-level page. Pages already shared with a current member are not transferred; they stay where they are. The 30-day limit is Notion's retention rule; LocalNotion may choose to keep them longer.
 
 ## Acceptance criteria
 

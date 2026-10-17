@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 1](0001-works-offline.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md), [ADR 20](0020-hono-http-and-better-auth-accounts.md)
+- Dependency of: [ADR 1](0001-works-offline.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md), [ADR 20](0020-hono-http-and-better-auth-accounts.md)
 
 ## Context
 LocalNotion is meant for private, self-hosted instances. Each instance serves a handful of people who trust each other and the server.
