@@ -136,7 +136,7 @@ describe("3. A Better Auth session cookie authenticates the sync socket", () => 
     const editor = track(device(s, admin.cookie)).open("readonly/house-manual");
     const viewer = track(device(s, sam.cookie)).open("readonly/house-manual");
     await Promise.all([editor.synced, viewer.synced]);
-    // The device is told, so the UI can turn editing off (ADR 13).
+    // The device is told, so the UI can turn editing off (ADR-NOTE-012).
     expect(viewer.provider.authorizedScope).toBe("readonly");
     expect(editor.provider.authorizedScope).toBe("read-write");
 

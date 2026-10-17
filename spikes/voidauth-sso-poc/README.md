@@ -1,6 +1,6 @@
 # VoidAuth as the homelab's single sign-on (spike)
 
-A throwaway spike for [issue #35](https://github.com/christiannaths/homelab/issues/35): can [VoidAuth](https://github.com/voidauth/voidauth) be the shared sign-in for every homelab app, starting with Notes? It is left out of repo-wide runs ([ADR 15](../../docs/adr/0015-proof-of-concept-code.md)).
+A throwaway spike for [issue #35](https://github.com/christiannaths/homelab/issues/35): can [VoidAuth](https://github.com/voidauth/voidauth) be the shared sign-in for every homelab app, starting with Notes? It is left out of repo-wide runs ([ADR-PLAT-003](../../docs/adr/ADR-PLAT-003-proof-of-concept-code.md)).
 
 The answers, with evidence, are in [FINDINGS.md](FINDINGS.md).
 

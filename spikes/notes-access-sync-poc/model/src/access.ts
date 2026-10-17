@@ -14,7 +14,7 @@ export type { AccessLevel, PageAccess } from "./levels.ts";
  * ask them what to offer.
  *
  * How a level is worked out (`resolveAccess`, then `levelOf`):
- * 1. Walk the *derived* tree (ADR 7) top-down, so a cycle or a missing parent never leaves a page
+ * 1. Walk the *derived* tree (ADR-NOTE-006) top-down, so a cycle or a missing parent never leaves a page
  *    without an answer. A top-level page starts from its section's defaults (a Private section
  *    has none: only its member, below; a teamspace has its members' level and, if open, a
  *    non-member level); a subpage starts from its parent's resolved access.
@@ -171,7 +171,7 @@ export function visiblePageIds(workspace: Workspace, personId: string): Set<stri
   return new Set(pageLevels(workspace, personId).keys());
 }
 
-/** Only Full access can invite people or change anyone's access (ADR 13). */
+/** Only Full access can invite people or change anyone's access (ADR-NOTE-012). */
 export const canShare = (level: AccessLevel): boolean => atLeast(level, "full");
 
 /** Can edit and above change a page's title, place and content. */

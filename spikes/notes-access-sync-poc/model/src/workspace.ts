@@ -56,12 +56,12 @@ export function parseSection(section: string): SectionRef | null {
   return null;
 }
 
-/** A page document's metadata: one key per field, so a rename and a move merge (ADR 7 rule 4). */
+/** A page document's metadata: one key per field, so a rename and a move merge (ADR-NOTE-006 rule 4). */
 export const metaMap = (doc: Y.Doc) => doc.getMap<unknown>("meta");
 
 /**
  * A page document's own access (see `PageAccess`): one key per entry, `person:<id>` → level,
- * `workspace` → level and `teamspace` → level, so concurrent changes to different entries merge (ADR 7 rule 4) and two
+ * `workspace` → level and `teamspace` → level, so concurrent changes to different entries merge (ADR-NOTE-006 rule 4) and two
  * changes to the same entry end with the same winner everywhere. Only Full access may write it.
  */
 export const accessMap = (doc: Y.Doc) => doc.getMap<unknown>("access");
@@ -114,7 +114,7 @@ export const indexMap = (doc: Y.Doc) => doc.getMap<unknown>("pages");
 
 /**
  * The page's metadata, or null while it hasn't arrived yet (a document opened before its first
- * sync). Never creates anything: the creating device writes the whole map once (ADR 7 rule 2).
+ * sync). Never creates anything: the creating device writes the whole map once (ADR-NOTE-006 rule 2).
  */
 export function readMeta(id: string, doc: Y.Doc): PageMeta | null {
   const m = metaMap(doc);

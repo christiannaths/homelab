@@ -1,12 +1,12 @@
-# 9. How is the data model kept correct?
+# ADR-NOTE-008. How is the data model kept correct?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 5](../../../../docs/adr/0005-toolchain.md), [ADR 7](0007-merge-safety.md)
+- Depends on: [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md), [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)
 - Dependency of: none
 
 ## Context
-The riskiest logic (merging, ordering, cycle repair, view computation) is easy to get subtly wrong and hard to check by clicking around. [ADR 7](0007-merge-safety.md) requires a convergence test for every CRDT rule.
+The riskiest logic (merging, ordering, cycle repair, view computation) is easy to get subtly wrong and hard to check by clicking around. [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) requires a convergence test for every CRDT rule.
 
 ## Decision
 - The data model is **plain TypeScript with no React or DOM** (`apps/notes/web/src/model/`, plus the doc helpers in `apps/notes/web/src/sync/`). UI components call it and do not re-implement it.

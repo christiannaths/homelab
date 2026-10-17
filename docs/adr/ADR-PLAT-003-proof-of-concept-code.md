@@ -1,15 +1,15 @@
-# 15. How is proof-of-concept code kept apart from the apps?
+# ADR-PLAT-003. How is proof-of-concept code kept apart from the apps?
 
 - Status: Accepted
 - Date: 2026-10-16
-- Depends on: [ADR 14](0014-repo-structure.md)
+- Depends on: [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)
 - Dependency of: none
 
 ## Context
 An app's decisions are often settled by throwaway spikes before the app itself is built. A spike is worth keeping as a record of how a decision was tested, and worth keeping buildable so that it can be rerun. It must not slow down or break the repo-wide build and tests, and the real app must not grow out of it by accident.
 
 ## Decision
-- **Layout:** `spikes/<spike>/` holds one spike, split into npm workspace packages such as `web`, `server` and `e2e`, like an app in `apps/` ([ADR 14](0014-repo-structure.md)). A spike for one app is named after it, starting with the app's name (for example `notes-block-editing-collaboration-poc`).
+- **Layout:** `spikes/<spike>/` holds one spike, split into npm workspace packages such as `web`, `server` and `e2e`, like an app in `apps/` ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)). A spike for one app is named after it, starting with the app's name (for example `notes-block-editing-collaboration-poc`).
 - Each package is still an npm workspace and an Nx project, named `<spike>-<package>`, so it installs, builds and tests by name (`npx nx build <spike>-web`).
 - **Tags:** every spike project has `scope:<spike>`, the tag `spike`, and a `platform:` tag. Its own scope means the boundary check already stops apps and shared packages from depending on it.
 - **Repo-wide runs skip spikes.** The root `build`, `typecheck`, `test`, `test:e2e` and `check` scripts pass `--exclude=tag:spike` to `nx run-many`.

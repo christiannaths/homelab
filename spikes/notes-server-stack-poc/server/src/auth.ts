@@ -19,13 +19,13 @@ export function createAuth({ db, baseURL, secret, onSessionDeleted }: AuthOption
     baseURL,
     secret,
     basePath: "/api/auth",
-    // ADR 10: no public sign-up. Accounts come from first-run setup or an admin.
+    // ADR-NOTE-009: no public sign-up. Accounts come from first-run setup or an admin.
     emailAndPassword: { enabled: true, disableSignUp: true },
     plugins: [username(), admin()],
-    // ADR 4: no external services. Telemetry is off by default; keep it off explicitly.
+    // ADR-NOTE-004: no external services. Telemetry is off by default; keep it off explicitly.
     telemetry: { enabled: false },
     session: {
-      // ADR 10: a device keeps working offline for a long time without asking for the
+      // ADR-NOTE-009: a device keeps working offline for a long time without asking for the
       // password again. The session is extended whenever the device syncs.
       expiresIn: 365 * DAY,
       updateAge: DAY,
@@ -51,7 +51,7 @@ export async function migrateAuth(auth: Auth): Promise<void> {
 }
 
 /**
- * Better Auth requires an email on every user, but ADR 10 accounts only have a username.
+ * Better Auth requires an email on every user, but ADR-NOTE-009 accounts only have a username.
  * Each account gets a placeholder address on a reserved domain that can never receive mail.
  */
 export const placeholderEmail = (username: string) => `${username.toLowerCase()}@users.invalid`;

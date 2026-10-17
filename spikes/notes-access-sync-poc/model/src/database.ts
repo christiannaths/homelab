@@ -17,7 +17,7 @@ import { createPage, type PageDocs } from "./workspace.ts";
  *   map: property id → value) and its page body (`content`). A row inherits the database page's
  *   access like any subpage, and can be shared on its own like any page.
  * Adding a row writes only the new row's document, and each cell is its own key, so concurrent
- * edits to different cells (or rows) merge (ADR 7 rule 4).
+ * edits to different cells (or rows) merge (ADR-NOTE-006 rule 4).
  */
 
 /** The property types this spike keeps: enough to test with. The title (Name) is the row page's title. */
@@ -47,7 +47,7 @@ export const cellsMap = (row: Y.Doc) => row.getMap<unknown>("cells");
 
 /**
  * Creates a database page, with its default view, in a document of its own and returns its id.
- * The view is written once, by the creating device (ADR 7 rule 2). Properties are added to its
+ * The view is written once, by the creating device (ADR-NOTE-006 rule 2). Properties are added to its
  * `schema:<id>` document with `addProperty`.
  */
 export function createDatabase(

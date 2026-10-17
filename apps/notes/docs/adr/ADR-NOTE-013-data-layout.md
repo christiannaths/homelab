@@ -1,12 +1,12 @@
-# 16. How is data laid out so each person receives only what they can open?
+# ADR-NOTE-013. How is data laid out so each person receives only what they can open?
 
 - Status: Accepted
 - Date: 2026-10-17
-- Depends on: [ADR 1](0001-offline-use.md), [ADR 2](0002-merging-edits.md), [ADR 7](0007-merge-safety.md), [ADR 10](0010-identity.md), [ADR 12](0012-access-control.md), [ADR 13](0013-page-permissions.md)
-- Dependency of: [ADR 11](0011-sync-and-access-checks.md)
+- Depends on: [ADR-NOTE-001](ADR-NOTE-001-offline-use.md), [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md), [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)
+- Dependency of: [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)
 
 ## Context
-A Yjs document reaches a device whole or not at all, and a device may only receive what its person can open ([ADR 12](0012-access-control.md), [ADR 1](0001-offline-use.md)). The first two spikes kept the whole page tree, every page's title and parent, in one workspace document, and every row of a database in the database's document. Either would carry titles and values to people who must not see them, because any page can be shared on its own or restricted to No access, including a single database row ([ADR 13](0013-page-permissions.md)). Access data has the same problem: a private teamspace's name, or who a page is shared with, must only reach the people allowed to see it. All shared data is Yjs ([ADR 2](0002-merging-edits.md)), and every structure must merge under the CRDT rules ([ADR 7](0007-merge-safety.md)).
+A Yjs document reaches a device whole or not at all, and a device may only receive what its person can open ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-001](ADR-NOTE-001-offline-use.md)). The first two spikes kept the whole page tree, every page's title and parent, in one workspace document, and every row of a database in the database's document. Either would carry titles and values to people who must not see them, because any page can be shared on its own or restricted to No access, including a single database row ([ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)). Access data has the same problem: a private teamspace's name, or who a page is shared with, must only reach the people allowed to see it. All shared data is Yjs ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)), and every structure must merge under the CRDT rules ([ADR-NOTE-006](ADR-NOTE-006-merge-safety.md)).
 
 ## Decision
 - **A document is the unit of access.** Each document holds only data that goes to exactly the same people, and nothing is copied into several documents.
@@ -14,23 +14,24 @@ A Yjs document reaches a device whole or not at all, and a device may only recei
   - `meta`, one key per field: `title`, `kind` (page, database or row), `parentId`, `section`, `order`, `createdAt` and `deletedAt`;
   - `access`: the access set on this page, one key per entry (`person:<id>`, `workspace` for general access, `teamspace` for an override of the teamspace members' level). An absent key inherits from the parent;
   - `content`: the page body.
-- **There is no workspace-wide document.** Each device builds its person's page tree from the page documents it received, with the existing derived tree ([ADR 7](0007-merge-safety.md) rule 1): a parent the device never received counts as missing, so the page is top level and goes in the Shared section. A subpage's section is its top-level ancestor's, and a move writes only the moved page's `parentId`, `section` and `order`, in one transaction.
+- **There is no workspace-wide document.** Each device builds its person's page tree from the page documents it received, with the existing derived tree ([ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) rule 1): a parent the device never received counts as missing, so the page is top level and goes in the Shared section. A subpage's section is its top-level ancestor's, and a move writes only the moved page's `parentId`, `section` and `order`, in one transaction.
 - **`index:<personId>`: one document per person, written only by the server.** It maps the ids of the pages and teamspaces the person can open to their level, with no titles. Devices follow it to find which documents to open, and read their own level from it to decide what to offer. Devices never work out their own level, because it depends on ancestors they may not hold. The server opens a person's index read-only for them and for nobody else.
 - **`teamspace:<id>`: one document per teamspace**, with its settings (name, kind, default flag, members' level, non-member level) and its members, one key each. It reaches every member of the workspace for open and closed teamspaces, and only its members and the workspace owners for private ones. Guests never receive it.
 - **A database is split by who may receive each part:**
   - its page (`kind` database) holds its title, access, body and **views**;
   - `schema:<id>` holds its **properties**, and reaches everyone who can open the database or any of its rows (Can view for the latter);
   - each **row is a page** (`kind` row, `parentId` = the database) holding its title, order, **cells** (one key per property) and body. A row inherits the database's access like any subpage, and can be shared on its own.
-- **People and their workspace roles are account data**, stored with the accounts on the server ([ADR 10](0010-identity.md)) and read by devices from it. Clients never edit them offline, so they are not shared Yjs data.
+- **People and their workspace roles are account data**, stored with the accounts on the server ([ADR-NOTE-009](ADR-NOTE-009-identity.md)) and read by devices from it. Clients never edit them offline, so they are not shared Yjs data.
 - **Ids are random UUIDs** and may reach devices as references inside documents the person can open: a hidden parent's id as a page's `parentId` (a row's database id the same way), and, for a guest, a teamspace's id as a page's `section`. Titles, names and content of what the person cannot open never do.
-- **A page id the server has never seen** can be opened by any member, and by a guest, so it can be created there. The server reviews the first update where it places the page ([ADR 11](0011-sync-and-access-checks.md)). This is safe only because ids are random UUIDs.
-- **Rejected:**
-  - **A filtered tree document per person, written by the server** from a canonical tree. Clients would edit their projection, so the server would translate every write back and fan it out, becoming a merge point. Offline moves would conflict with the server's re-projection, so the server would write repairs (against [ADR 7](0007-merge-safety.md) rule 1). Every title would be stored once per person.
-  - **One tree document per Private section or teamspace.** A subpage restricted to No access, or shared on its own, would still have its title in the container's document.
-  - **A separate `meta:<id>` document beside each page.** It doubles the documents, both must always carry the same access, and "meta without content" becomes a state to handle. It was kept as the fallback in case startup was slow, which it was not.
-  - **One workspace document, hidden in the UI.** Titles would reach every device.
-  - **Access in an `access:<id>` document** (doubles the documents), **in SQLite with an HTTP API** (no offline sharing and no merge, against [ADR 2](0002-merging-edits.md)), or **in the per-person index** (every sharer's change fanned out by the server, and the Share menu needs other people's entries).
-  - **Every row's cells in the database document**, as in the first spikes (a row shared alone would carry every other row's values), **a copy of the properties in every row** (fanned out on each property change), and **the properties inside the database page** (it would carry the views and the title to people given one row).
+- **A page id the server has never seen** can be opened by any member, and by a guest, so it can be created there. The server reviews the first update where it places the page ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)). This is safe only because ids are random UUIDs.
+
+## Alternatives considered
+- **A filtered tree document per person, written by the server** from a canonical tree. Clients would edit their projection, so the server would translate every write back and fan it out, becoming a merge point. Offline moves would conflict with the server's re-projection, so the server would write repairs (against [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) rule 1). Every title would be stored once per person.
+- **One tree document per Private section or teamspace.** A subpage restricted to No access, or shared on its own, would still have its title in the container's document.
+- **A separate `meta:<id>` document beside each page.** It doubles the documents, both must always carry the same access, and "meta without content" becomes a state to handle. It was kept as the fallback in case startup was slow, which it was not.
+- **One workspace document, hidden in the UI.** Titles would reach every device.
+- **Access in an `access:<id>` document** (doubles the documents), **in SQLite with an HTTP API** (no offline sharing and no merge, against [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)), or **in the per-person index** (every sharer's change fanned out by the server, and the Share menu needs other people's entries).
+- **Every row's cells in the database document**, as in the first spikes (a row shared alone would carry every other row's values), **a copy of the properties in every row** (fanned out on each property change), and **the properties inside the database page** (it would carry the views and the title to people given one row).
 
 ## Evidence
 - The access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), risk 1), in `spikes/notes-access-sync-poc/`:
