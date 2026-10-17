@@ -9,21 +9,18 @@ A branch name is `<type>/<slug>`, for example `feat/offline-sync` or `fix/42-log
 
 ## Convention
 
-- **type** is the kind of change, using the Conventional Commits words:
+- **type** is one of these five:
 
-  | Type       | For                                                  |
-  | ---------- | ---------------------------------------------------- |
-  | `feat`     | New behaviour a user can see                         |
-  | `fix`      | A bug fix                                            |
-  | `refactor` | Restructuring with no behaviour change               |
-  | `test`     | Tests only                                           |
-  | `docs`     | Documentation, ADRs, agent docs                      |
-  | `chore`    | Tooling, dependencies, config, CI, repo housekeeping |
-  | `spike`    | Throwaway exploration (lives in `spikes/`)           |
-  | `design`   | Design work: specs, data models, access control      |
+  | Type    | For                                                               |
+  | ------- | ----------------------------------------------------------------- |
+  | `feat`  | New or changed behaviour, including refactors and tests around it |
+  | `fix`   | A bug fix                                                         |
+  | `docs`  | Documentation, ADRs, design specs, agent docs                     |
+  | `chore` | Tooling, dependencies, config, CI, repo housekeeping              |
+  | `spike` | Throwaway exploration (lives in `spikes/`)                        |
 
 - **slug** is 2 to 5 lowercase kebab-case words naming the change, not the task (`offline-sync`, not `work-on-ticket`). When the work comes from a GitHub issue, lead with its number: `feat/42-offline-sync`.
-- **`claude/*`** names are assigned by Claude Code cloud sessions. When the session instructions name a branch, that branch is the one: use it as given.
+- **`claude/*`** names are assigned by Claude Code cloud sessions and are the one exception. When the session instructions name a branch, that branch is the one: use it as given.
 
 ## Steps
 

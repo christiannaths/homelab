@@ -14,7 +14,7 @@ The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 
 ### Branch names
 
-Branches are named `<type>/<slug>` (e.g. `feat/offline-sync`). Use the `branch` skill (`.agents/skills/branch/`) whenever you create one; a Claude Code hook rejects other names.
+Branches are named `<type>/<slug>` (e.g. `feat/offline-sync`), with `<type>` one of `feat`, `fix`, `docs`, `chore`, `spike`. Use the `branch` skill (`.agents/skills/branch/`) whenever you create one; a Claude Code hook rejects other names.
 
 ### Domain docs
 

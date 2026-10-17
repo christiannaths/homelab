@@ -13,10 +13,10 @@ interface HookInput {
   tool_input: { command?: string; branch?: string };
 }
 
-const TYPES = ["feat", "fix", "chore", "docs", "refactor", "test", "spike", "design"];
+const TYPES = ["feat", "fix", "chore", "docs", "spike"];
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
-// claude/* names are assigned by Claude Code cloud sessions, which must push to them as given.
-const VALID = new RegExp(`^(?:(?:${TYPES.join("|")})/(?:\\d+-)?${SLUG}|claude/${SLUG})$`);
+// Any claude/* name is allowed: Claude Code cloud sessions assign them and must push to them as given.
+const VALID = new RegExp(`^(?:(?:${TYPES.join("|")})/(?:\\d+-)?${SLUG}|claude/.+)$`);
 
 const CREATE = [
   /\bgit\s+(?:-C\s+\S+\s+)?checkout\s+-[bB]\s+(\S+)/g,
