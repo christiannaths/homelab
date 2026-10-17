@@ -7,7 +7,7 @@ Spike for [issue #35](https://github.com/christiannaths/homelab/issues/35), run 
 **Adopt VoidAuth.** Neither of the two risky questions fails outright; each has a workaround that fits what was already decided.
 
 - **Spotting the instance admin works as-is** (question 2).
-- **Invites have no limited API** (question 1). VoidAuth's admin API takes only a full admin's session cookie, so an app that can invite can also delete users. The workaround with the least risk: turn on VoidAuth's open sign-up and let each app keep its own one-time invite links. A VoidAuth account then grants nothing by itself, which is already the decided model. No app holds admin credentials. The cost is that the "owners create the invite through the accounts system" step goes away: the invitee creates their own account during sign-in. The alternative that keeps that step needs VoidAuth admin credentials somewhere. If that matters, put them in one small invite service in front of VoidAuth, never in each app.
+- **Invites have no limited API** (question 1). VoidAuth's admin API takes only a full admin's session cookie, so an app that can invite can also delete users. The workaround with the least risk: turn on VoidAuth's open sign-up and let each app keep its own one-time invite links. A VoidAuth account then grants nothing by itself, which is already the decided model. No app holds admin credentials. The cost is that this **changes an already-decided step**: owners no longer create the invite through the accounts system; the invitee creates their own account during sign-in. A human needs to accept that change. The alternative that keeps that step needs VoidAuth admin credentials somewhere. If that matters, put them in one small invite service in front of VoidAuth, never in each app.
 - **Two settings matter in production:** set `TRUSTED_PROXIES` to the reverse proxy's address, and don't publish VoidAuth's port (question 8). Expect about 300–400 MB of memory (question 6).
 
 ## 1. Apps creating invites
@@ -27,12 +27,12 @@ Spike for [issue #35](https://github.com/christiannaths/homelab/issues/35), run 
 
 ## 2. Spotting the instance admin
 
-**Yes.** With the `groups` scope, the ID token and userinfo both carry `groups: ["auth_admins"]` for VoidAuth admins and `groups: []` for everyone else ([`server/db/user.ts:227`](https://github.com/voidauth/voidauth/blob/v1.16.0/server/db/user.ts#L227)). The stand-in app makes the first `auth_admins` member to sign in its first owner, and nobody after that (`access.ts`, unit tested; e2e in `claims.test.ts`). Without the `groups` scope there is no `groups` claim. Note that `auth_admins` members also skip any group restriction on an OIDC app.
+**Yes.** With the `groups` scope, the ID token and userinfo both carry `groups: ["auth_admins"]` for VoidAuth admins and `groups: []` for everyone else ([`server/db/user.ts:227`](https://github.com/voidauth/voidauth/blob/v1.16.0/server/db/user.ts#L227)). The stand-in app makes the first `auth_admins` member to sign in its first owner, and nobody after that (`access.ts`, unit tested; e2e in `claims.test.ts`). Without the `groups` scope there is no `groups` claim (per the source; not tested by signing in without it). Note that `auth_admins` members also skip any group restriction on an OIDC app.
 
 ## 3. Sign-in basics
 
 - **Email sign-in: yes.** The sign-in box takes a username or an email (tested). But VoidAuth always has a username as well (`[A-Za-z0-9_]{1,32}`): the person picks one when registering, unless an invite sets it.
-- **Minimum password length of 8: no such setting.** VoidAuth only has `PASSWORD_STRENGTH`, a zxcvbn score from 0 to 4 (default 3). Tested by trying passwords (`claims.test.ts`, plus probing levels 0–3):
+- **Minimum password length of 8: no such setting.** VoidAuth only has `PASSWORD_STRENGTH`, a zxcvbn score from 0 to 4 (default 3). Level 3 is tested in `claims.test.ts`; levels 0–2 were probed by hand against the register endpoint, not in the suite:
   - At 3: `Password123!`, `qwertyuiop` and the random `k7Rp2wXq` are refused; `violet quartz` is accepted.
   - At 1 or 2: a 6-character random password passes at 1, and 8 random characters pass at 2.
   - `PASSWORD_STRENGTH=0` is silently ignored and becomes 3, because the parser only accepts positive numbers ([`server/util/config.ts:353`](https://github.com/voidauth/voidauth/blob/v1.16.0/server/util/config.ts#L353)).
@@ -54,13 +54,13 @@ Not tested: a real browser, or the `Secure` cookie over real HTTPS. The tests ru
 
 ## 6. Running cost
 
-- **Memory:** `docker stats` showed 285 MiB just after start and 404 MiB after the full suite (about 60 accounts created, each password hashed with argon2). It stayed at 404 MiB after a minute idle.
+- **Memory** (printed by `running-cost.test.ts`, not asserted): `docker stats` showed 285 MiB just after start and 404 MiB after the full suite (about 60 accounts created, each password hashed with argon2). It stayed at 404 MiB after a minute idle.
 - **Image:** 278 MB on disk (55 MB download), for amd64 and arm64. It runs Node 24 inside and has no shell.
 - **Compose needs:**
   - Required: `APP_URL` (the public https URL) and `STORAGE_KEY` (32+ random characters; keep it, it encrypts secrets at rest).
   - Settings used here: `DB_ADAPTER: sqlite`, `DEFAULT_REDIRECT`, `SIGNUP` and `SIGNUP_REQUIRES_APPROVAL` for the workaround, and `TRUSTED_PROXIES` (question 8).
   - Volumes: `/app/config` (branding, email templates) and `/app/db` (`db.sqlite`).
-  - Apps can be declared as `OIDC_<id>_CLIENT_*` variables instead of through the admin screens, as `compose.yml` does for Notes.
+  - Apps can be declared as `OIDC_<id>_CLIENT_*` variables instead of through the admin screens, as `compose.yaml` does for Notes.
 - **HTTPS:** VoidAuth has no TLS of its own; it expects a reverse proxy to provide it. **Not tested here:** behind a real HTTPS proxy.
 - The container runs as root.
 
@@ -84,6 +84,7 @@ VoidAuth limits every POST, PUT, PATCH and DELETE (sign-in attempts included) to
 - **A proxy that appends `X-Forwarded-For`** (like nginx's `$proxy_add_x_forwarded_for`) keeps people apart: one is limited, the other isn't.
 - **With the default `TRUSTED_PROXIES`, a client on a trusted address can forge its address and is never limited**, through the proxy or straight to VoidAuth. VoidAuth trusts the client's own address as a "proxy", so it reads the forged address to its left. Every device on a home network (192.168.x.x) counts as trusted this way. So if VoidAuth's port is reachable on the network, password guessing is effectively unlimited.
 - **With `TRUSTED_PROXIES` set to the proxy's address only**, forging is ignored, both through the proxy and when going around it.
+- **Docker's published port has the same problem with no proxy at all.** Through a published port every client appears as the Docker bridge gateway (172.x), which the default trusts. So the plain `compose.yaml` setup puts everyone in one bucket and lets anyone forge `X-Forwarded-For`. That is why `rate-limit.compose.yaml` uses host networking: to see real client addresses.
 
 For the homelab: set `TRUSTED_PROXIES` to the reverse proxy's address, don't publish VoidAuth's port (only the proxy should reach it), and make sure the proxy passes on the client's address. Even then the limit is per address: a household behind one public address shares one bucket, and an attacker can lock that bucket out for a minute. It also counts the app servers' own token requests (one per sign-in). **Not tested:** Caddy, Traefik or nginx themselves; only a proxy that behaves like them.
 

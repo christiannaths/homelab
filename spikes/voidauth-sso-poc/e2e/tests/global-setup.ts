@@ -1,4 +1,4 @@
-// Starts VoidAuth from compose.yml with empty data, takes the first-run link from its log and
+// Starts VoidAuth from compose.yaml with empty data, takes the first-run link from its log and
 // sets the instance admin's password, as a person would on first run.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

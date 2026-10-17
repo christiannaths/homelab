@@ -1,19 +1,17 @@
 // Behind a reverse proxy: does VoidAuth's per-address limit still tell people apart, and can a
-// client forge its address? Runs its own VoidAuth (rate-limit.compose.yml) allowing 5 sign-in
+// client forge its address? Runs its own VoidAuth (rate-limit.compose.yaml) allowing 5 sign-in
 // attempts a minute per address, and a small proxy in this process. Each client and the proxy
 // connect from their own loopback address, so VoidAuth sees real, distinct addresses.
-import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, request, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { composeWith } from "./voidauth.ts";
 
-const run = promisify(execFile);
-const composeFile = fileURLToPath(new URL("../rate-limit.compose.yml", import.meta.url));
+const composeFile = fileURLToPath(new URL("../rate-limit.compose.yaml", import.meta.url));
 const VOIDAUTH_PORT = 3320;
 const PROXY_PORT = 3321;
 const PROXY_ADDRESS = "127.0.0.10";
@@ -24,7 +22,7 @@ let dataDir: string;
 
 async function startVoidAuth(trustedProxies: string) {
   env = { VOIDAUTH_DATA: dataDir, STORAGE_KEY: randomBytes(24).toString("hex"), TRUSTED_PROXIES: trustedProxies };
-  await run("docker", ["compose", "-f", composeFile, "up", "--detach", "--wait", "--force-recreate"], { env: { ...process.env, ...env } });
+  await composeWith(composeFile, env, "up", "--detach", "--wait", "--force-recreate");
 }
 
 /** One sign-in attempt (a POST, so it counts against the limit) from `from`; returns the HTTP status. */
@@ -80,7 +78,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   proxy.close();
-  if (env) await run("docker", ["compose", "-f", composeFile, "down", "--volumes"], { env: { ...process.env, ...env } });
+  if (env) await composeWith(composeFile, env, "down", "--volumes");
   await rm(dataDir, { recursive: true, force: true });
 });
 

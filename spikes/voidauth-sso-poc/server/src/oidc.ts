@@ -49,7 +49,7 @@ export class OidcClient {
     return this.#discovery;
   }
 
-  async start(scope = "openid profile email groups"): Promise<{ url: string; pending: PendingSignIn }> {
+  async start(): Promise<{ url: string; pending: PendingSignIn }> {
     const { authorization_endpoint } = await this.discovery();
     const pending: PendingSignIn = {
       state: base64url(randomBytes(16)),
@@ -61,7 +61,7 @@ export class OidcClient {
       client_id: this.#config.clientId,
       redirect_uri: this.#config.redirectUri,
       response_type: "code",
-      scope,
+      scope: "openid profile email groups",
       state: pending.state,
       nonce: pending.nonce,
       code_challenge: base64url(createHash("sha256").update(pending.verifier).digest()),

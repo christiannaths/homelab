@@ -39,8 +39,7 @@ describe("spotting the instance admin", () => {
     expect(signIn.userinfo.groups).toEqual([]);
   });
 
-  it("sends no groups claim when the app does not ask for the groups scope", async () => {
-    // Shown by the claim list VoidAuth advertises: groups is its own scope, not part of profile.
+  it("advertises groups as its own scope and claim, separate from profile", async () => {
     const discovery = (await (await fetch(`${app.lastSignIn.get(ownerSub)!.idToken.iss as string}/.well-known/openid-configuration`)).json()) as {
       scopes_supported: string[];
       claims_supported: string[];

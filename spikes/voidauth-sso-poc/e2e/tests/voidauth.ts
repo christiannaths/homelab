@@ -1,11 +1,11 @@
-// Drives the spike's compose.yml: one VoidAuth container with its data in a fresh temp directory.
+// Drives the spike's compose.yaml: one VoidAuth container with its data in a fresh temp directory.
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const composeFile = fileURLToPath(new URL("../../compose.yml", import.meta.url));
+export const COMPOSE_FILE = fileURLToPath(new URL("../../compose.yaml", import.meta.url));
 
 export const VOIDAUTH_PORT = 3310;
 export const APP_PORT = 4110;
@@ -33,7 +33,11 @@ export function composeEnv(dataDir: string, overrides: ComposeEnv = {}): Compose
 }
 
 export async function compose(env: ComposeEnv, ...args: string[]): Promise<string> {
-  const { stdout, stderr } = await run("docker", ["compose", "-f", composeFile, ...args], {
+  return composeWith(COMPOSE_FILE, env, ...args);
+}
+
+export async function composeWith(file: string, env: ComposeEnv, ...args: string[]): Promise<string> {
+  const { stdout, stderr } = await run("docker", ["compose", "-f", file, ...args], {
     env: { ...process.env, ...env },
     maxBuffer: 16 * 1024 * 1024,
   });

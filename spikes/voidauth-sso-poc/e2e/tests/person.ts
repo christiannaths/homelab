@@ -1,7 +1,7 @@
 // A person with a browser's cookie jar, walking VoidAuth's pages the way its web UI does
 // (its UI is a single-page app calling these JSON endpoints).
 import { CookieJar } from "@homelab/voidauth-sso-poc-server/cookies";
-import { signInToVoidAuth, submitLogin } from "@homelab/voidauth-sso-poc-server/voidauth-admin";
+import { signInToVoidAuth, startVoidAuthInteraction, submitLogin } from "@homelab/voidauth-sso-poc-server/voidauth-admin";
 import WebSocket from "ws";
 import { APP_URL, VOIDAUTH_URL } from "./voidauth.ts";
 
@@ -45,14 +45,7 @@ export class Person {
   async acceptInvite(link: string, registration: Omit<Registration, "email">): Promise<Response> {
     const url = new URL(link);
     // VoidAuth's invite page first starts an interaction with its internal client, like its UI does.
-    const start = new URL(`${VOIDAUTH_URL}/oidc/auth`);
-    start.search = new URLSearchParams({
-      client_id: "auth_internal_client",
-      response_type: "none",
-      redirect_uri: `${VOIDAUTH_URL}/api/cb`,
-      scope: "openid",
-    }).toString();
-    await this.jar.follow(start, onVoidAuthLogin);
+    await startVoidAuthInteraction(this.jar, VOIDAUTH_URL);
     const response = await this.register({
       ...registration,
       inviteId: url.searchParams.get("invite") as string,

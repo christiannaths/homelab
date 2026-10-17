@@ -18,7 +18,6 @@ export type AppConfig = {
   oidc: OidcConfig;
   /** Set to create invites through VoidAuth for people with no account yet. */
   voidauthAdmin?: VoidAuthAdmin;
-  now?: () => number;
 };
 
 export type App = {
@@ -45,7 +44,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 
 export function createApp(config: AppConfig): App {
   const oidc = new OidcClient(config.oidc);
-  const devices = new Devices(config.now);
+  const devices = new Devices();
   const members = new Map<string, Member>();
   const invites = new Map<string, Invite>();
   const lastSignIn: App["lastSignIn"] = new Map();

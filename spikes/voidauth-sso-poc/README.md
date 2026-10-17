@@ -9,9 +9,9 @@ The answers, with evidence, are in [FINDINGS.md](FINDINGS.md).
 VoidAuth is AGPL-3.0. This spike runs its official image unmodified and contains none of its code: the tests drive it over HTTP, the way its own web UI does.
 
 ## Packages
-- `compose.yml`: VoidAuth `1.16.0`, pinned by digest, on SQLite. Notes is declared as an OIDC app with environment variables.
+- `compose.yaml`: VoidAuth `1.16.0`, pinned by digest, on SQLite. Notes is declared as an OIDC app with environment variables.
 - `server` (`voidauth-sso-poc-server`): a stand-in for Notes' server. It signs people in through VoidAuth (authorization code with PKCE, on `fetch` and `jose`), keeps its own member list and invites (`access.ts`), sets its own 30-day device cookie (`devices.ts`), and accepts that cookie on a `/sync` WebSocket. `voidauth-admin.ts` creates VoidAuth invites by signing in as a VoidAuth admin.
-- `e2e` (`voidauth-sso-poc-e2e`): Vitest against the real container. Global setup starts VoidAuth with empty data, takes the first-run link from its log and sets the admin password. One file per question. `rate-limit.test.ts` runs its own VoidAuth from `e2e/rate-limit.compose.yml`, on host networking.
+- `e2e` (`voidauth-sso-poc-e2e`): Vitest against the real container. Global setup starts VoidAuth with empty data, takes the first-run link from its log and sets the admin password. One file per question. `rate-limit.test.ts` runs its own VoidAuth from `e2e/rate-limit.compose.yaml`, on host networking.
 
 ## Run it
 ```sh
