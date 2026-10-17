@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR 6](../../apps/notes/docs/adr/0006-sqlite-server-storage.md), [ADR 9](../../apps/notes/docs/adr/0009-pure-model-and-tests.md), [ADR 11](../../apps/notes/docs/adr/0011-local-password-accounts.md), [ADR 15](0015-nx-monorepo.md)
+- Dependency of: [ADR 6](../../apps/notes/docs/adr/0006-sqlite-server-storage.md), [ADR 9](../../apps/notes/docs/adr/0009-pure-model-and-tests.md), [ADR 11](../../apps/notes/docs/adr/0011-local-password-accounts.md), [ADR 15](0015-nx-monorepo.md), [ADR 20](../../apps/notes/docs/adr/0020-hono-http-and-better-auth-accounts.md)
 
 ## Context
 The client and the server share data-model code and Yjs, and a very small team maintains the project.

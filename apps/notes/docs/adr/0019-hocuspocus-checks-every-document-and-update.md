@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Depends on: [ADR 2](0002-yjs-stores-shared-data.md), [ADR 6](0006-sqlite-server-storage.md), [ADR 11](0011-local-password-accounts.md), [ADR 13](0013-notion-style-access.md), [ADR 14](0014-notion-page-access-levels.md), [ADR 17](0017-per-page-documents-and-per-person-index.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md)
-- Dependency of: none
+- Dependency of: [ADR 20](0020-hono-http-and-better-auth-accounts.md)
 
 ## Context
 Hocuspocus relays Yjs updates ([ADR 2](0002-yjs-stores-shared-data.md)) between devices and the server's storage ([ADR 6](0006-sqlite-server-storage.md)). The first sync decision checked the session once per connection and let any authenticated connection write any document. Access now differs per document ([ADR 13](0013-notion-style-access.md), [ADR 14](0014-notion-page-access-levels.md)): a device may only open what its person can open ([ADR 18](0018-works-offline-on-what-its-person-can-open.md)), people below Can edit must not change what they read, and Can edit content allows only part of a database. Every page is its own document ([ADR 17](0017-per-page-documents-and-per-person-index.md)), so a device syncs thousands of documents over one socket. A device applies its own edits before the server sees them, and a Yjs update cannot be taken back. Hocuspocus authenticates each document a connection opens, and its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnected large workspaces in a loop during PR #1.

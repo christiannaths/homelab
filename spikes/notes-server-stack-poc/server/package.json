@@ -1,0 +1,34 @@
+{
+  "name": "@homelab/notes-server-stack-poc-server",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "notes-server-stack-poc-server",
+    "tags": [
+      "scope:notes-server-stack-poc",
+      "spike",
+      "platform:node"
+    ]
+  },
+  "scripts": {
+    "dev": "node --watch --no-experimental-webstorage src/index.ts",
+    "start": "node --no-experimental-webstorage src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "^4.7.1",
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^4.7.1",
+    "@hono/node-server": "^2.1.5",
+    "better-auth": "^1.7.10",
+    "hono": "^4.13.13",
+    "ws": "^8.22.0",
+    "yjs": "^13.6.33"
+  }
+}

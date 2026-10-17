@@ -22,6 +22,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [17](0017-per-page-documents-and-per-person-index.md) | Each page is its own Yjs document, found through a per-person index the server writes | 2, 7, 11, 13, 14, 18 | Accepted |
 | [18](0018-works-offline-on-what-its-person-can-open.md) | The app works fully offline with everything its person can open | 4, 11, 13 | Accepted |
 | [19](0019-hocuspocus-checks-every-document-and-update.md) | Hocuspocus is the sync server, and it checks access on every document and update | 2, 6, 11, 13, 14, 17, 18 | Accepted |
+| [20](0020-hono-http-and-better-auth-accounts.md) | Hono serves HTTP, and Better Auth manages accounts and sessions | 3, 4, 5, 6, 11, 13, 19 | Accepted |
 
 ## Not decided yet
 

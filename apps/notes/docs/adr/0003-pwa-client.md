@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR 1](0001-works-offline.md)
-- Dependency of: none
+- Dependency of: [ADR 20](0020-hono-http-and-better-auth-accounts.md)
 
 ## Context
 The target platforms are macOS and iOS, with a desktop-like experience on the Mac. Separate native apps would multiply the work, and the app must start without a network ([ADR 1](0001-works-offline.md)).

@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Depends on: [ADR 11](0011-local-password-accounts.md)
-- Dependency of: [ADR 14](0014-notion-page-access-levels.md), [ADR 17](0017-per-page-documents-and-per-person-index.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md), [ADR 19](0019-hocuspocus-checks-every-document-and-update.md)
+- Dependency of: [ADR 14](0014-notion-page-access-levels.md), [ADR 17](0017-per-page-documents-and-per-person-index.md), [ADR 18](0018-works-offline-on-what-its-person-can-open.md), [ADR 19](0019-hocuspocus-checks-every-document-and-update.md), [ADR 20](0020-hono-http-and-better-auth-accounts.md)
 
 ## Context
 An instance serves a few trusted people, but not everything is for everyone: drafts and journals are personal, and outsiders such as a contractor or babysitter need a handful of pages and nothing else. Several custom models were explored (partial shares of spaces, rules for new pages, a single sharing tree). Their extra flexibility did not justify the cost of a model users would have to learn. Notion's model is familiar to the intended users, and covers these cases. Each device holds a local copy of what its user can open ([ADR 18](0018-works-offline-on-what-its-person-can-open.md)), so access also decides what reaches each device, and every document is synced whole ([ADR 19](0019-hocuspocus-checks-every-document-and-update.md)).
