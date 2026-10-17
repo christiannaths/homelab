@@ -1,0 +1,27 @@
+{
+  "name": "@homelab/voidauth-sso-poc-e2e",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "voidauth-sso-poc-e2e",
+    "tags": [
+      "scope:voidauth-sso-poc",
+      "spike",
+      "platform:node"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "vitest run"
+  },
+  "dependencies": {
+    "@homelab/voidauth-sso-poc-server": "*",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
