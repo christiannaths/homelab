@@ -1,4 +1,4 @@
-# ADR-PLAT-005. How is code kept consistently formatted and free of common mistakes?
+# ADR-PLAT-006. How is code kept consistently formatted and free of common mistakes?
 
 - Status: Accepted
 - Date: 2026-10-17

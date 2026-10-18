@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Depends on: [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)
-- Dependency of: [ADR-PLAT-005](ADR-PLAT-005-code-quality.md)
+- Dependency of: [ADR-PLAT-006](ADR-PLAT-006-code-quality.md)
 
 ## Context
 
@@ -15,7 +15,7 @@ An app's decisions are often settled by throwaway spikes before the app itself i
 - Each package is still an npm workspace and an Nx project, named `<spike>-<package>`, so it installs, builds and tests by name (`npx nx build <spike>-web`).
 - **Tags:** every spike project has `scope:<spike>`, the tag `spike`, and a `platform:` tag. Its own scope means the boundary check already stops apps and shared packages from depending on it.
 - **Repo-wide builds and tests skip spikes.** The root `build`, `typecheck`, `test` and `test:e2e` scripts, and the Nx part of `check`, pass `--exclude=tag:spike` to `nx run-many`.
-- **Formatting and linting cover spikes** like the rest of the repo ([ADR-PLAT-005](ADR-PLAT-005-code-quality.md))., with no rule relaxed for them.
+- **Formatting and linting cover spikes** like the rest of the repo ([ADR-PLAT-006](ADR-PLAT-006-code-quality.md)), with no rule relaxed for them.
 - A spike is frozen once its decisions are recorded: it is kept for reference and not maintained beyond formatting and lint fixes. Its decisions and findings live in the app's `docs/`, not in the spike.
 
 ## Evidence
@@ -31,5 +31,5 @@ An app's decisions are often settled by throwaway spikes before the app itself i
 
 ## Changelog
 
-- 2026-10-17: Formatting and linting cover spikes, instead of spikes staying out of every repo-wide run. Prettier, Oxlint, markdownlint, Stylelint and ls-lint run over the whole repo ([ADR-PLAT-005](ADR-PLAT-005-code-quality.md)), so that `npm run check` and the pre-commit hook hold every file to the same rules. Spikes were fixed by hand to pass them. Builds and tests still skip spikes. Evidence: PR #44.
+- 2026-10-17: Formatting and linting cover spikes, instead of spikes staying out of every repo-wide run. Prettier, Oxlint, markdownlint, Stylelint and ls-lint run over the whole repo ([ADR-PLAT-006](ADR-PLAT-006-code-quality.md)), so that `npm run check` and the pre-commit hook hold every file to the same rules. Spikes were fixed by hand to pass them. Builds and tests still skip spikes. Evidence: PR #44.
 - 2026-10-16: Accepted. Spikes lived in `spikes/`, and every repo-wide script, `check` included, skipped them.
