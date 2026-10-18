@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR-NOTE-005](../../apps/notes/docs/adr/ADR-NOTE-005-document-persistence.md), [ADR-NOTE-008](../../apps/notes/docs/adr/ADR-NOTE-008-model-correctness.md), [ADR-NOTE-009](../../apps/notes/docs/adr/ADR-NOTE-009-identity.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md), [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md), [ADR-PLAT-004](ADR-PLAT-004-code-quality.md)
+- Dependency of: [ADR-NOTE-005](../../apps/notes/docs/adr/ADR-NOTE-005-document-persistence.md), [ADR-NOTE-008](../../apps/notes/docs/adr/ADR-NOTE-008-model-correctness.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md), [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md), [ADR-PLAT-005](ADR-PLAT-005-code-quality.md)
 
 ## Context
 

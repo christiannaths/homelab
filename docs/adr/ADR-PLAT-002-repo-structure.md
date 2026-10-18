@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: [ADR-PLAT-001](ADR-PLAT-001-toolchain.md)
-- Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md), [ADR-PLAT-004](ADR-PLAT-004-code-quality.md)
+- Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md), [ADR-PLAT-004](ADR-PLAT-004-sign-in.md), [ADR-PLAT-005](ADR-PLAT-005-code-quality.md)
 
 ## Context
 
