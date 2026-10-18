@@ -6,6 +6,7 @@ Decisions that hold for **every app** in this repo: the toolchain, the repo layo
 | --- | --- | --- |
 | `PLAT` | Every app | `docs/adr/` (this folder) |
 | `NOTE` | Notes (LocalNotion) | [`apps/notes/docs/adr/`](../../apps/notes/docs/adr/README.md) |
+| `ENCY` | Encyclopedia | [`apps/encyclopedia/docs/adr/`](../../apps/encyclopedia/docs/adr/README.md) |
 
 Each topic has exactly one ADR, and it always states the current decision. When a decision changes, its ADR is edited in place and its **Changelog** says what changed and why. Open questions go in **Not decided yet** below. How to write and edit ADRs, and the format they follow, is in the [`adr` skill](../../.agents/skills/adr/SKILL.md).
 
