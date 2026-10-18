@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Person } from "@homelab/notes-access-sync-poc-model";
-import { connectAs, indexDocName, pageDocName, TestServer, type TestClient } from "./index.ts";
+import {
+  connectAs,
+  indexDocName,
+  pageDocName,
+  TestServer,
+  type TestClient,
+} from "./index.ts";
 
 // The sync boundary: a real server process, and test clients connecting as named people.
 describe("sync boundary", () => {
@@ -40,9 +46,15 @@ describe("sync boundary", () => {
 
     it("reach the member's other devices, with the sidebar built from the received pages", async () => {
       const phone = await connect(server, max);
-      await expect.poll(() => phone.syncAll()).toEqual(
-        [indexDocName(max.id), pageDocName(diary), pageDocName(secret)].sort(),
-      );
+      await expect
+        .poll(() => phone.syncAll())
+        .toEqual(
+          [
+            indexDocName(max.id),
+            pageDocName(diary),
+            pageDocName(secret),
+          ].toSorted(),
+        );
       expect(phone.pageTitles()).toEqual(["Max's diary", "Secret plans"]);
       expect(phone.sidebar()).toEqual({ shared: [], private: ["Max's diary"] });
       expect(phone.pageText(secret)).toBe("Surprise party");
@@ -55,18 +67,37 @@ describe("sync boundary", () => {
         expect(received.filter((n) => n.startsWith("page:"))).toEqual([]);
         expect(device.pageTitles()).toEqual([]);
         const everything = device.receivedContent();
-        for (const trace of ["Max's diary", "Secret plans", diary, secret]) expect(everything).not.toContain(trace);
+        for (const trace of ["Max's diary", "Secret plans", diary, secret])
+          expect(everything).not.toContain(trace);
       }
     });
 
     it("are refused when someone else asks for them by name, as is their page index", async () => {
       const device = await connect(server, olive);
-      expect(await device.open(pageDocName(diary))).toEqual({ status: "denied", reason: "no-access" });
-      expect(await device.open(pageDocName(secret))).toEqual({ status: "denied", reason: "no-access" });
-      expect(await device.open(indexDocName(max.id))).toEqual({ status: "denied", reason: "no-access" });
+      expect(await device.open(pageDocName(diary))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
+      expect(await device.open(pageDocName(secret))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
+      expect(await device.open(indexDocName(max.id))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
       // Checked per document on the same connection: her own index still opens.
-      expect(await device.open(indexDocName(olive.id))).toMatchObject({ status: "synced", scope: "readonly" });
-      expect(device.denied()).toEqual([indexDocName(max.id), pageDocName(diary), pageDocName(secret)].sort());
+      expect(await device.open(indexDocName(olive.id))).toMatchObject({
+        status: "synced",
+        scope: "readonly",
+      });
+      expect(device.denied()).toEqual(
+        [
+          indexDocName(max.id),
+          pageDocName(diary),
+          pageDocName(secret),
+        ].toSorted(),
+      );
       expect(device.receivedContent()).not.toContain("Dear diary");
     });
   });
@@ -94,18 +125,32 @@ describe("sync boundary", () => {
       await maxDevice.settled();
 
       const phone = await connect(server, nia);
-      await expect.poll(() => phone.syncAll()).toEqual(
-        [indexDocName(nia.id), pageDocName(trip), pageDocName(packing), pageDocName(shoes)].sort(),
-      );
+      await expect
+        .poll(() => phone.syncAll())
+        .toEqual(
+          [
+            indexDocName(nia.id),
+            pageDocName(trip),
+            pageDocName(packing),
+            pageDocName(shoes),
+          ].toSorted(),
+        );
       expect(phone.pageTitles()).toEqual(["Trip", "Packing", "Shoes"]);
       expect(phone.pageText(shoes)).toBe("Boots");
       for (const id of [trip, packing, shoes]) {
-        expect(await phone.open(pageDocName(id))).toMatchObject({ status: "synced", scope: "readonly" });
+        expect(await phone.open(pageDocName(id))).toMatchObject({
+          status: "synced",
+          scope: "readonly",
+        });
         expect(phone.level(id)).toBe("view");
       }
       const everything = phone.receivedContent();
-      for (const trace of ["Max's journal", "Not for Nia", journal]) expect(everything).not.toContain(trace);
-      expect(await phone.open(pageDocName(journal))).toEqual({ status: "denied", reason: "no-access" });
+      for (const trace of ["Max's journal", "Not for Nia", journal])
+        expect(everything).not.toContain(trace);
+      expect(await phone.open(pageDocName(journal))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
       // Nobody else got it.
       const olivesDevice = await connect(server, olive);
       expect(await olivesDevice.syncAll()).toEqual([indexDocName(olive.id)]);
@@ -116,9 +161,14 @@ describe("sync boundary", () => {
       await expect.poll(() => phone.syncAll()).toContain(pageDocName(trip));
       expect(phone.sidebar()).toEqual({ shared: ["Trip"], private: [] });
       const maxPhone = await connect(server, max);
-      await expect.poll(async () => (await maxPhone.syncAll(), maxPhone.sidebar().shared)).toEqual(["Trip"]);
+      await expect
+        .poll(async () => (await maxPhone.syncAll(), maxPhone.sidebar().shared))
+        .toEqual(["Trip"]);
       // His unshared pages (the journal, and the diary from earlier) stay in Private.
-      expect(maxPhone.sidebar().private.sort()).toEqual(["Max's diary", "Max's journal"]);
+      expect(maxPhone.sidebar().private.toSorted()).toEqual([
+        "Max's diary",
+        "Max's journal",
+      ]);
     });
   });
 
@@ -136,7 +186,10 @@ describe("sync boundary", () => {
       }
       const guest = await connect(server, gus);
       expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
-      expect(await guest.open(pageDocName(notice))).toEqual({ status: "denied", reason: "no-access" });
+      expect(await guest.open(pageDocName(notice))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
     });
   });
 
@@ -160,11 +213,18 @@ describe("sync boundary", () => {
       await expect.poll(() => sharer.pageText(plan)).toBe("Tomatoes\nBasil");
 
       await editor.share(plan, gus.id, "full");
-      await expect.poll(() => editor.refusals(pageDocName(plan))).toEqual(["access-change-refused"]);
+      await expect
+        .poll(() => editor.refusals(pageDocName(plan)))
+        .toEqual(["access-change-refused"]);
       const guest = await connect(server, gus);
       expect(await guest.syncAll()).toEqual([indexDocName(gus.id)]);
-      expect(await guest.open(pageDocName(plan))).toEqual({ status: "denied", reason: "no-access" });
-      expect(sharer.access(plan)).toEqual({ people: { [max.id]: "edit", [nia.id]: "full" } });
+      expect(await guest.open(pageDocName(plan))).toEqual({
+        status: "denied",
+        reason: "no-access",
+      });
+      expect(sharer.access(plan)).toEqual({
+        people: { [max.id]: "edit", [nia.id]: "full" },
+      });
     });
 
     it("is accepted from someone invited with Full access", async () => {
@@ -188,13 +248,26 @@ describe("sync boundary", () => {
   it("knows which person each connection belongs to", async () => {
     const device = await connect(server, gus);
     await device.syncAll();
-    expect(await server.connections()).toContainEqual({ personId: gus.id, documentName: indexDocName(gus.id) });
+    expect(await server.connections()).toContainEqual({
+      personId: gus.id,
+      documentName: indexDocName(gus.id),
+    });
   });
 
   it("refuses a connection from someone who is not in the workspace", async () => {
-    const stranger = await connect(server, { id: "stranger", name: "Stranger", role: "member" });
-    expect(await stranger.open(indexDocName("stranger"))).toEqual({ status: "denied", reason: "no-access" });
-    expect(await stranger.open("workspace:default")).toEqual({ status: "denied", reason: "no-access" });
+    const stranger = await connect(server, {
+      id: "stranger",
+      name: "Stranger",
+      role: "member",
+    });
+    expect(await stranger.open(indexDocName("stranger"))).toEqual({
+      status: "denied",
+      reason: "no-access",
+    });
+    expect(await stranger.open("workspace:default")).toEqual({
+      status: "denied",
+      reason: "no-access",
+    });
     expect(stranger.received()).toEqual([]);
   });
 

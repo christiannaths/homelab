@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import {
-  addProperty, addRow, createDatabase, databaseTable, readCells, readProperties, renameProperty, setCell, setView,
+  addProperty,
+  addRow,
+  createDatabase,
+  databaseTable,
+  readCells,
+  readProperties,
+  renameProperty,
+  setCell,
+  setView,
 } from "./database.ts";
 import { buildTree } from "./tree.ts";
-import { privateSection, readMeta, renamePage, type PageDocs } from "./workspace.ts";
+import {
+  privateSection,
+  readMeta,
+  renamePage,
+  type PageDocs,
+} from "./workspace.ts";
 
 /** A device: one Y.Doc per page (rows included), and one per database's properties. */
 class Device implements PageDocs {
@@ -22,15 +35,23 @@ class Device implements PageDocs {
     return this.docs.get(id)!;
   }
   schema(databaseId: string) {
-    if (!this.schemas.has(databaseId)) this.schemas.set(databaseId, new Y.Doc());
+    if (!this.schemas.has(databaseId))
+      this.schemas.set(databaseId, new Y.Doc());
     return this.schemas.get(databaseId)!;
   }
   tree() {
-    return buildTree([...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []));
+    return buildTree(
+      [...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []),
+    );
   }
   /** The database as a table: its rows in view order, each as [title, ...cells by property name]. */
   table(databaseId: string) {
-    return databaseTable(this, this.tree(), databaseId, this.schema(databaseId));
+    return databaseTable(
+      this,
+      this.tree(),
+      databaseId,
+      this.schema(databaseId),
+    );
   }
 }
 
@@ -53,11 +74,20 @@ function sync(x: Device, y: Device) {
 /** Max's "Chores" database with Points (number) and Done (checkbox), and two rows, on a laptop and a synced phone. */
 function setup() {
   const laptop = new Device();
-  const chores = createDatabase(laptop, laptop.tree(), { title: "Chores", section: privateSection("max") });
+  const chores = createDatabase(laptop, laptop.tree(), {
+    title: "Chores",
+    section: privateSection("max"),
+  });
   const points = addProperty(laptop.schema(chores), "Points", "number");
   const done = addProperty(laptop.schema(chores), "Done", "checkbox");
-  const dishes = addRow(laptop, laptop.tree(), chores, { title: "Dishes", cells: { [points]: 3 } });
-  const bins = addRow(laptop, laptop.tree(), chores, { title: "Bins", cells: { [points]: 1, [done]: true } });
+  const dishes = addRow(laptop, laptop.tree(), chores, {
+    title: "Dishes",
+    cells: { [points]: 3 },
+  });
+  const bins = addRow(laptop, laptop.tree(), chores, {
+    title: "Bins",
+    cells: { [points]: 1, [done]: true },
+  });
   const phone = new Device();
   sync(laptop, phone);
   return { laptop, phone, chores, points, done, dishes, bins };
@@ -70,8 +100,13 @@ describe("a database across documents", () => {
       { title: "Dishes", Points: 3, Done: undefined },
       { title: "Bins", Points: 1, Done: true },
     ]);
-    setView(laptop.doc(chores), { sort: { propertyId: points, direction: "asc" } });
-    expect(laptop.table(chores).map((r) => r.title)).toEqual(["Bins", "Dishes"]);
+    setView(laptop.doc(chores), {
+      sort: { propertyId: points, direction: "asc" },
+    });
+    expect(laptop.table(chores).map((r) => r.title)).toEqual([
+      "Bins",
+      "Dishes",
+    ]);
     setView(laptop.doc(chores), { filter: "dish" });
     expect(laptop.table(chores).map((r) => r.title)).toEqual(["Dishes"]);
   });
@@ -83,7 +118,10 @@ describe("concurrent edits to a database", () => {
     setCell(laptop.doc(dishes), points, 5);
     setCell(phone.doc(dishes), done, true);
     sync(laptop, phone);
-    expect(readCells(laptop.doc(dishes))).toEqual({ [points]: 5, [done]: true });
+    expect(readCells(laptop.doc(dishes))).toEqual({
+      [points]: 5,
+      [done]: true,
+    });
     expect(laptop.table(chores)).toEqual(phone.table(chores));
   });
 
@@ -93,7 +131,11 @@ describe("concurrent edits to a database", () => {
     setCell(phone.doc(dishes), points, 4);
     renameProperty(phone.schema(chores), points, "Effort");
     sync(laptop, phone);
-    expect(laptop.table(chores)[0]).toEqual({ title: "Wash up", Effort: 4, Done: undefined });
+    expect(laptop.table(chores)[0]).toEqual({
+      title: "Wash up",
+      Effort: 4,
+      Done: undefined,
+    });
     expect(phone.table(chores)).toEqual(laptop.table(chores));
   });
 
@@ -110,7 +152,14 @@ describe("concurrent edits to a database", () => {
     addRow(laptop, laptop.tree(), chores, { title: "Laundry" });
     addRow(phone, phone.tree(), chores, { title: "Plants" });
     sync(laptop, phone);
-    expect(laptop.table(chores).map((r) => r.title).sort()).toEqual(["Bins", "Dishes", "Laundry", "Plants"]);
-    expect(readProperties(laptop.schema(chores))).toEqual(readProperties(phone.schema(chores)));
+    expect(
+      laptop
+        .table(chores)
+        .map((r) => r.title)
+        .toSorted(),
+    ).toEqual(["Bins", "Dishes", "Laundry", "Plants"]);
+    expect(readProperties(laptop.schema(chores))).toEqual(
+      readProperties(phone.schema(chores)),
+    );
   });
 });

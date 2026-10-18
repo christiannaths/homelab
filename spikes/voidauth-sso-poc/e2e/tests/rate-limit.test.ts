@@ -11,7 +11,9 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { composeWith } from "./voidauth.ts";
 
-const composeFile = fileURLToPath(new URL("../rate-limit.compose.yaml", import.meta.url));
+const composeFile = fileURLToPath(
+  new URL("../rate-limit.compose.yaml", import.meta.url),
+);
 const VOIDAUTH_PORT = 3320;
 const PROXY_PORT = 3321;
 const PROXY_ADDRESS = "127.0.0.10";
@@ -21,16 +23,38 @@ let env: Record<string, string>;
 let dataDir: string;
 
 async function startVoidAuth(trustedProxies: string) {
-  env = { VOIDAUTH_DATA: dataDir, STORAGE_KEY: randomBytes(24).toString("hex"), TRUSTED_PROXIES: trustedProxies };
-  await composeWith(composeFile, env, "up", "--detach", "--wait", "--force-recreate");
+  env = {
+    VOIDAUTH_DATA: dataDir,
+    STORAGE_KEY: randomBytes(24).toString("hex"),
+    TRUSTED_PROXIES: trustedProxies,
+  };
+  await composeWith(
+    composeFile,
+    env,
+    "up",
+    "--detach",
+    "--wait",
+    "--force-recreate",
+  );
 }
 
 /** One sign-in attempt (a POST, so it counts against the limit) from `from`; returns the HTTP status. */
-function attempt(port: number, from: string, headers: Record<string, string> = {}): Promise<number> {
+function attempt(
+  port: number,
+  from: string,
+  headers: Record<string, string> = {},
+): Promise<number> {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ input: "auth_admin", password: "guess" });
     const req = request(
-      { host: "127.0.0.1", port, localAddress: from, method: "POST", path: "/api/interaction/login", headers: { "content-type": "application/json", ...headers } },
+      {
+        host: "127.0.0.1",
+        port,
+        localAddress: from,
+        method: "POST",
+        path: "/api/interaction/login",
+        headers: { "content-type": "application/json", ...headers },
+      },
       (res) => {
         res.resume();
         res.on("end", () => resolve(res.statusCode ?? 0));
@@ -42,7 +66,11 @@ function attempt(port: number, from: string, headers: Record<string, string> = {
 }
 
 /** Attempts until refused; returns how many got through (capped at LIMIT * 3). */
-async function attemptsAllowed(port: number, from: string, headers: () => Record<string, string> = () => ({})) {
+async function attemptsAllowed(
+  port: number,
+  from: string,
+  headers: () => Record<string, string> = () => ({}),
+) {
   for (let i = 0; i < LIMIT * 3; i++) {
     if ((await attempt(port, from, headers())) === 429) return i;
   }
@@ -57,12 +85,21 @@ const proxy: Server = createServer((req, res) => {
   const headers = { ...req.headers };
   if (forwardClientAddress) {
     const prior = req.headers["x-forwarded-for"];
-    headers["x-forwarded-for"] = prior ? `${String(prior)}, ${req.socket.remoteAddress}` : String(req.socket.remoteAddress);
+    headers["x-forwarded-for"] = prior
+      ? `${String(prior)}, ${req.socket.remoteAddress}`
+      : String(req.socket.remoteAddress);
   } else {
     delete headers["x-forwarded-for"];
   }
   const upstream = request(
-    { host: "127.0.0.1", port: VOIDAUTH_PORT, localAddress: PROXY_ADDRESS, method: req.method, path: req.url, headers },
+    {
+      host: "127.0.0.1",
+      port: VOIDAUTH_PORT,
+      localAddress: PROXY_ADDRESS,
+      method: req.method,
+      path: req.url,
+      headers,
+    },
     (upstreamRes) => {
       res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
       upstreamRes.pipe(res);
@@ -74,7 +111,9 @@ const proxy: Server = createServer((req, res) => {
 
 beforeAll(async () => {
   dataDir = await mkdtemp(join(tmpdir(), "voidauth-sso-poc-ratelimit-"));
-  await new Promise<void>((resolve) => proxy.listen(PROXY_PORT, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) =>
+    proxy.listen(PROXY_PORT, "127.0.0.1", resolve),
+  );
 });
 afterAll(async () => {
   proxy.close();
@@ -103,9 +142,13 @@ describe("with VoidAuth's default TRUSTED_PROXIES (loopback, linklocal, uniquelo
     // 127.0.0.6 is loopback, so VoidAuth trusts it as a proxy too and reads the forged address
     // to its left. A home network's 192.168.x.x addresses are trusted the same way.
     const forged = () => ({ "x-forwarded-for": randomAddress() });
-    expect(await attemptsAllowed(PROXY_PORT, "127.0.0.6", forged)).toBe(LIMIT * 3);
+    expect(await attemptsAllowed(PROXY_PORT, "127.0.0.6", forged)).toBe(
+      LIMIT * 3,
+    );
     // Straight to VoidAuth, skipping the proxy, works just as well.
-    expect(await attemptsAllowed(VOIDAUTH_PORT, "127.0.0.7", forged)).toBe(LIMIT * 3);
+    expect(await attemptsAllowed(VOIDAUTH_PORT, "127.0.0.7", forged)).toBe(
+      LIMIT * 3,
+    );
   });
 });
 
@@ -114,11 +157,19 @@ describe("with TRUSTED_PROXIES set to the proxy's address only", () => {
 
   it("limits a client that forges X-Forwarded-For through the proxy", async () => {
     forwardClientAddress = true;
-    expect(await attemptsAllowed(PROXY_PORT, "127.0.0.2", () => ({ "x-forwarded-for": randomAddress() }))).toBe(LIMIT);
+    expect(
+      await attemptsAllowed(PROXY_PORT, "127.0.0.2", () => ({
+        "x-forwarded-for": randomAddress(),
+      })),
+    ).toBe(LIMIT);
     expect(await attempt(PROXY_PORT, "127.0.0.3")).not.toBe(429);
   });
 
   it("ignores X-Forwarded-For from anyone who skips the proxy", async () => {
-    expect(await attemptsAllowed(VOIDAUTH_PORT, "127.0.0.4", () => ({ "x-forwarded-for": randomAddress() }))).toBe(LIMIT);
+    expect(
+      await attemptsAllowed(VOIDAUTH_PORT, "127.0.0.4", () => ({
+        "x-forwarded-for": randomAddress(),
+      })),
+    ).toBe(LIMIT);
   });
 });

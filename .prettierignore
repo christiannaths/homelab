@@ -1,0 +1,9 @@
+# Vendored: Matt Pocock's skills, managed by `npx skills` (adr and comments are this repo's own).
+.agents/skills/*
+!.agents/skills/adr/
+!.agents/skills/comments/
+.claude/skills/
+skills-lock.json
+
+# Generated
+package-lock.json

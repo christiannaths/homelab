@@ -1,10 +1,20 @@
 /** Notion's page access levels (ADR-NOTE-012), most permissive first. */
-export const ACCESS_LEVELS = ["full", "edit", "edit-content", "comment", "view", "none"] as const;
+export const ACCESS_LEVELS = [
+  "full",
+  "edit",
+  "edit-content",
+  "comment",
+  "view",
+  "none",
+] as const;
 
 export type AccessLevel = (typeof ACCESS_LEVELS)[number];
 
 export function isAccessLevel(value: unknown): value is AccessLevel {
-  return typeof value === "string" && (ACCESS_LEVELS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (ACCESS_LEVELS as readonly string[]).includes(value)
+  );
 }
 
 /** The more permissive of two levels: when access comes from several sources, the most permissive wins. */

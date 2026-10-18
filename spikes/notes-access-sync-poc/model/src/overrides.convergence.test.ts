@@ -4,7 +4,13 @@ import { pageLevels, type Workspace } from "./access.ts";
 import type { Person } from "./people.ts";
 import { buildTree } from "./tree.ts";
 import {
-  createPage, movePage, privateSection, readMeta, setPersonAccess, setWorkspaceAccess, type PageDocs,
+  createPage,
+  movePage,
+  privateSection,
+  readMeta,
+  setPersonAccess,
+  setWorkspaceAccess,
+  type PageDocs,
 } from "./workspace.ts";
 
 // Overrides are ordinary Yjs edits to page documents, so two devices that change them offline must
@@ -32,12 +38,19 @@ class Device implements PageDocs {
     return this.docs.get(id)!;
   }
   tree() {
-    return buildTree([...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []));
+    return buildTree(
+      [...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []),
+    );
   }
   /** Every person's levels, as the server would work them out from this device's documents. */
   levels(): Record<string, Record<string, string>> {
-    const ws: Workspace = { people, pages: [...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []) };
-    return Object.fromEntries(people.map((p) => [p.id, Object.fromEntries([...pageLevels(ws, p.id)].sort())]));
+    const ws: Workspace = {
+      people,
+      pages: [...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []),
+    };
+    return Object.fromEntries(
+      people.map((p) => [p.id, Object.fromEntries(pageLevels(ws, p.id))]),
+    );
   }
 }
 
@@ -53,16 +66,26 @@ function sync(x: Device, y: Device) {
 /** Max's trip > packing > shoes, shared with Nia at Can edit from the top, on a laptop and a synced phone. */
 function setup() {
   const laptop = new Device();
-  const trip = createPage(laptop, laptop.tree(), { title: "Trip", section: MAX });
-  const packing = createPage(laptop, laptop.tree(), { title: "Packing", parentId: trip });
-  const shoes = createPage(laptop, laptop.tree(), { title: "Shoes", parentId: packing });
+  const trip = createPage(laptop, laptop.tree(), {
+    title: "Trip",
+    section: MAX,
+  });
+  const packing = createPage(laptop, laptop.tree(), {
+    title: "Packing",
+    parentId: trip,
+  });
+  const shoes = createPage(laptop, laptop.tree(), {
+    title: "Shoes",
+    parentId: packing,
+  });
   setPersonAccess(laptop.doc(trip), "nia", "edit");
   const phone = new Device();
   sync(laptop, phone);
   return { laptop, phone, trip, packing, shoes };
 }
 
-const visibleTo = (device: Device, personId: string) => Object.keys(device.levels()[personId]).sort();
+const visibleTo = (device: Device, personId: string) =>
+  Object.keys(device.levels()[personId]).toSorted();
 
 describe("concurrent overrides of the same page", () => {
   it("a restriction and an expansion of the same person agree on one of them on every device", () => {
@@ -72,7 +95,10 @@ describe("concurrent overrides of the same page", () => {
     sync(laptop, phone);
     expect(laptop.levels()).toEqual(phone.levels());
     const nia = laptop.levels().nia;
-    expect([{ [trip]: "edit" }, { [trip]: "edit", [packing]: "full", [shoes]: "full" }]).toContainEqual(nia);
+    expect([
+      { [trip]: "edit" },
+      { [trip]: "edit", [packing]: "full", [shoes]: "full" },
+    ]).toContainEqual(nia);
   });
 
   it("Restore inherited access on one device and a new level on another agree", () => {
@@ -82,7 +108,9 @@ describe("concurrent overrides of the same page", () => {
     setPersonAccess(laptop.doc(packing), "nia", null);
     setPersonAccess(phone.doc(packing), "nia", "comment");
     sync(laptop, phone);
-    expect(readMeta(packing, laptop.doc(packing))?.access).toEqual(readMeta(packing, phone.doc(packing))?.access);
+    expect(readMeta(packing, laptop.doc(packing))?.access).toEqual(
+      readMeta(packing, phone.doc(packing))?.access,
+    );
     expect(laptop.levels()).toEqual(phone.levels());
   });
 
@@ -107,12 +135,15 @@ describe("a move that changes who can see a page", () => {
     setPersonAccess(phone.doc(packing), "nia", "none");
     sync(laptop, phone);
     expect(laptop.levels()).toEqual(phone.levels());
-    expect(visibleTo(laptop, "nia")).toEqual([shoes, trip].sort());
+    expect(visibleTo(laptop, "nia")).toEqual([shoes, trip].toSorted());
   });
 
   it("moving a page into a subtree another device restricts puts it under the restriction on both", () => {
     const { laptop, phone, trip, packing } = setup();
-    const notes = createPage(laptop, laptop.tree(), { title: "Notes", parentId: trip });
+    const notes = createPage(laptop, laptop.tree(), {
+      title: "Notes",
+      parentId: trip,
+    });
     sync(laptop, phone);
     expect(movePage(laptop, laptop.tree(), notes, packing, 0)).toBe(true);
     setPersonAccess(phone.doc(packing), "nia", "none");
@@ -124,7 +155,10 @@ describe("a move that changes who can see a page", () => {
   it("two moves that make a cycle across a restriction agree on who sees what", () => {
     const { laptop, phone, trip, packing } = setup();
     const a = createPage(laptop, laptop.tree(), { title: "A", parentId: trip });
-    const b = createPage(laptop, laptop.tree(), { title: "B", parentId: packing });
+    const b = createPage(laptop, laptop.tree(), {
+      title: "B",
+      parentId: packing,
+    });
     setPersonAccess(laptop.doc(packing), "nia", "none");
     sync(laptop, phone);
     expect(movePage(laptop, laptop.tree(), a, b, 0)).toBe(true);

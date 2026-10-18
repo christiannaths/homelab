@@ -18,7 +18,14 @@ export function RowPage({ database, rowId, identity }: Props) {
   const manager = useSyncManager();
   const dbEntry = manager.open(databaseDocName(database.id));
   const ready = useLocalReady(dbEntry);
-  return ready ? <RowPageBody db={dbEntry.doc} database={database} rowId={rowId} identity={identity} /> : null;
+  return ready ? (
+    <RowPageBody
+      db={dbEntry.doc}
+      database={database}
+      rowId={rowId}
+      identity={identity}
+    />
+  ) : null;
 }
 
 function RowPageBody({ db, database, rowId, identity }: { db: Y.Doc } & Props) {
@@ -30,13 +37,27 @@ function RowPageBody({ db, database, rowId, identity }: { db: Y.Doc } & Props) {
   const bodyReady = useLocalReady(body);
   const title = schema.find((p) => p.id === TITLE);
 
-  if (!row || !title) return <p className="muted page">This row doesn't exist (it may have been deleted).</p>;
+  if (!row || !title)
+    return (
+      <p className="muted page">
+        This row doesn't exist (it may have been deleted).
+      </p>
+    );
   return (
     <article className="page row-page">
-      <a className="muted back" href={`#/page/${database.id}`}>
+      <a
+        className="muted back"
+        href={`#/page/${database.id}`}
+      >
         ← {database.title || "Untitled database"}
       </a>
-      <CellEditor doc={db} rowId={row.id} prop={title} value={row.cells[TITLE]} className="page-title row-title" />
+      <CellEditor
+        doc={db}
+        rowId={row.id}
+        prop={title}
+        value={row.cells[TITLE]}
+        className="page-title row-title"
+      />
       <table className="row-props">
         <tbody>
           {schema
@@ -45,7 +66,13 @@ function RowPageBody({ db, database, rowId, identity }: { db: Y.Doc } & Props) {
               <tr key={p.id}>
                 <td className="muted">{p.name}</td>
                 <td>
-                  <CellEditor doc={db} rowId={row.id} prop={p} value={row.cells[p.id]} className="cell-input" />
+                  <CellEditor
+                    doc={db}
+                    rowId={row.id}
+                    prop={p}
+                    value={row.cells[p.id]}
+                    className="cell-input"
+                  />
                 </td>
               </tr>
             ))}

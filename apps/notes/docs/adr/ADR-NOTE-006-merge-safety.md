@@ -6,9 +6,11 @@
 - Dependency of: [ADR-NOTE-008](ADR-NOTE-008-model-correctness.md), [ADR-NOTE-013](ADR-NOTE-013-data-layout.md)
 
 ## Context
+
 The spikes found two ways in which a design that looks right becomes wrong once several devices edit offline. Concurrent page moves can form a cycle in the page tree. A device that has not synced yet can create a shared structure that then competes with the real one: `Y.Map` keys are last-writer-wins, so a fresh map can overwrite a renamed one.
 
 ## Decision
+
 1. **Derive, do not repair.** When merged data can be invalid (cycles, dangling references, duplicate positions), every client computes the same valid view from it deterministically, instead of writing a fix. Two clients writing fixes would conflict or loop.
    - The page tree breaks a cycle at the page with the smallest id, which becomes top level.
    - A missing parent, or a parent that is not a page, counts as the root.
@@ -18,10 +20,12 @@ The spikes found two ways in which a design that looks right becomes wrong once 
 5. **Every rule is covered by a convergence test.** Two `Y.Doc`s are edited independently and then synced both ways, and both must produce the same valid result.
 
 ## Evidence
+
 - PR #2 unit tests: cycles in any input order, concurrent A-into-B and B-into-A moves, concurrent inserts at the same position, and concurrent cell edits.
 - PR #2 e2e test: conflicting offline moves in two browsers converge.
 - The schema-initialization hazard was found in design review during PR #2 and fixed under rule 2.
 
 ## Consequences
+
 - A new feature is done only once it has a short "how does this merge?" note and a convergence test ([ADR-NOTE-008](ADR-NOTE-008-model-correctness.md)).
 - A derived view can differ from the stored data (for example, a page whose `parentId` points into a cycle). Code reads the derived view (`buildTree`), not raw fields.

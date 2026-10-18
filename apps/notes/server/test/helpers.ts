@@ -1,18 +1,38 @@
 import { mkdtempSync } from "node:fs";
-import { createServer, type AddressInfo } from "node:net";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import {
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+} from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { startServer, type NotesServer } from "../src/server.ts";
-import { CLIENT_ID, CLIENT_SECRET, StandInVoidAuth, type Account } from "./stand-in-voidauth.ts";
+import {
+  CLIENT_ID,
+  CLIENT_SECRET,
+  StandInVoidAuth,
+  type Account,
+} from "./stand-in-voidauth.ts";
 
 export const DAY_MS = 24 * 3600 * 1000;
 
-export const OWNER: Account = { sub: "sub-owner", name: "Alex", groups: ["auth_admins"] };
-export const OTHER_ADMIN: Account = { sub: "sub-admin-2", name: "Robin", groups: ["auth_admins"] };
-export const STRANGER: Account = { sub: "sub-stranger", name: "Sam", groups: [] };
+export const OWNER: Account = {
+  sub: "sub-owner",
+  name: "Alex",
+  groups: ["auth_admins"],
+};
+export const OTHER_ADMIN: Account = {
+  sub: "sub-admin-2",
+  name: "Robin",
+  groups: ["auth_admins"],
+};
+export const STRANGER: Account = {
+  sub: "sub-stranger",
+  name: "Sam",
+  groups: [],
+};
 
 export interface TestServer extends NotesServer {
   url: string;
@@ -24,9 +44,11 @@ export interface TestServer extends NotesServer {
 async function freePort(): Promise<number> {
   const probe = createServer();
   await new Promise<void>((resolve) => probe.listen(0, resolve));
-  const { port } = probe.address() as AddressInfo;
+  const address = probe.address();
+  if (typeof address !== "object" || address === null)
+    throw new Error("Probe is not listening on a TCP port");
   await new Promise<void>((resolve) => probe.close(() => resolve()));
-  return port;
+  return address.port;
 }
 
 export function tempDataDir(): string {
@@ -34,7 +56,10 @@ export function tempDataDir(): string {
 }
 
 /** Starts a server on a free port; pass the same dataDir to simulate a restart. */
-export async function start(voidauth: StandInVoidAuth, dataDir = tempDataDir()): Promise<TestServer> {
+export async function start(
+  voidauth: StandInVoidAuth,
+  dataDir = tempDataDir(),
+): Promise<TestServer> {
   let offset = 0;
   const port = await freePort();
   const url = `http://localhost:${port}`;
@@ -42,7 +67,11 @@ export async function start(voidauth: StandInVoidAuth, dataDir = tempDataDir()):
     dataDir,
     port,
     publicUrl: url,
-    oidc: { issuer: voidauth.issuer, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET },
+    oidc: {
+      issuer: voidauth.issuer,
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+    },
     now: () => Date.now() + offset,
   });
   return { ...server, url, dataDir, advance: (ms) => (offset += ms) };
@@ -57,22 +86,45 @@ export interface SignInResult {
 }
 
 /** Walks the sign-in redirects as a browser would, with `account` signing in on VoidAuth. */
-export async function signIn(server: TestServer, voidauth: StandInVoidAuth, account: Account | undefined) {
+export async function signIn(
+  server: TestServer,
+  voidauth: StandInVoidAuth,
+  account: Account | undefined,
+) {
   voidauth.account = account;
-  const start = await fetch(`${server.url}/api/sign-in`, { redirect: "manual" });
-  const pending = start.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
-  const atVoidAuth = await fetch(start.headers.get("location")!, { redirect: "manual" });
+  const started = await fetch(`${server.url}/api/sign-in`, {
+    redirect: "manual",
+  });
+  const pending = started.headers
+    .getSetCookie()
+    .map((c) => c.split(";")[0])
+    .join("; ");
+  const atVoidAuth = await fetch(started.headers.get("location")!, {
+    redirect: "manual",
+  });
   return callback(server, atVoidAuth.headers.get("location")!, pending);
 }
 
 /** Calls Notes' sign-in callback with the given location and cookies. */
-export async function callback(server: TestServer, location: string, cookie: string): Promise<SignInResult> {
-  const response = await fetch(location, { redirect: "manual", headers: { cookie } });
+export async function callback(
+  server: TestServer,
+  location: string,
+  cookie: string,
+): Promise<SignInResult> {
+  const response = await fetch(location, {
+    redirect: "manual",
+    headers: { cookie },
+  });
   const setCookie = response.headers.getSetCookie();
-  const session = setCookie.find((c) => c.startsWith("notes_session=") && !c.startsWith("notes_session=;"));
+  const session = setCookie.find(
+    (c) => c.startsWith("notes_session=") && !c.startsWith("notes_session=;"),
+  );
   return {
     status: response.status,
-    body: response.status === 302 ? response.headers.get("location") : await response.json(),
+    body:
+      response.status === 302
+        ? response.headers.get("location")
+        : await response.json(),
     cookie: session?.split(";")[0],
     setCookie,
   };
@@ -88,7 +140,12 @@ function cookieWebSocket(cookie: string) {
 }
 
 export interface Device {
-  open(name: string): { doc: Y.Doc; provider: HocuspocusProvider; synced: Promise<void>; denied: Promise<string> };
+  open(name: string): {
+    doc: Y.Doc;
+    provider: HocuspocusProvider;
+    synced: Promise<void>;
+    denied: Promise<string>;
+  };
   closed: Promise<number>;
   destroy(): void;
 }
@@ -133,7 +190,10 @@ export function device(server: TestServer, cookie: string): Device {
   };
 }
 
-export async function waitFor(check: () => boolean, timeoutMs = 5000): Promise<void> {
+export async function waitFor(
+  check: () => boolean,
+  timeoutMs = 5000,
+): Promise<void> {
   const started = Date.now();
   while (!check()) {
     if (Date.now() - started > timeoutMs) throw new Error("timed out");
@@ -142,9 +202,14 @@ export async function waitFor(check: () => boolean, timeoutMs = 5000): Promise<v
 }
 
 /** Opens a raw WebSocket to /sync and reports how the upgrade went. */
-export function tryUpgrade(server: TestServer, cookie?: string): Promise<"open" | number> {
+export function tryUpgrade(
+  server: TestServer,
+  cookie?: string,
+): Promise<"open" | number> {
   return new Promise((resolve) => {
-    const ws = new WebSocket(server.url.replace("http", "ws") + "/sync", { headers: cookie ? { cookie } : {} });
+    const ws = new WebSocket(server.url.replace("http", "ws") + "/sync", {
+      headers: cookie ? { cookie } : {},
+    });
     ws.on("open", () => {
       ws.close();
       resolve("open");

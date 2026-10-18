@@ -27,15 +27,20 @@ An ADR records a **durable, foundational decision**: one that other decisions bu
 
 - Status: Proposed | Accepted | Deprecated
 - Date: YYYY-MM-DD
-- Depends on: [ADR-<NS>-<NNN>](…), …   (or "none")
+- Depends on: [ADR-<NS>-<NNN>](…), … (or "none")
 - Dependency of: [ADR-<NS>-<NNN>](…), … (or "none")
 
 ## Context
+
 ## Decision
-## Alternatives considered   (when options were weighed)
+
+## Alternatives considered (when options were weighed)
+
 ## Evidence
+
 ## Consequences
-## Changelog                 (once the decision has changed)
+
+## Changelog (once the decision has changed)
 ```
 
 ## Rules

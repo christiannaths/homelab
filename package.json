@@ -23,12 +23,25 @@
     "typecheck": "nx run-many -t typecheck --exclude=tag:spike",
     "test": "nx run-many -t test --exclude=tag:spike",
     "test:e2e": "nx run-many -t e2e --exclude=tag:spike",
+    "format:check": "prettier --check .",
+    "lint": "oxlint && markdownlint-cli2 \"**/*.md\" && stylelint --allow-empty-input \"**/*.css\" && ls-lint",
+    "fix": "oxlint --fix && markdownlint-cli2 --fix \"**/*.md\" && stylelint --allow-empty-input --fix \"**/*.css\" && prettier --write .",
     "boundaries": "node tools/check-boundaries.ts",
     "adrs": "node tools/check-adrs.ts",
-    "check": "npm run boundaries && npm run adrs && nx run-many -t typecheck test --exclude=tag:spike"
+    "check": "npm run format:check && npm run lint && npm run boundaries && npm run adrs && nx run-many -t typecheck test --exclude=tag:spike",
+    "prepare": "husky || true"
   },
   "devDependencies": {
-    "nx": "^23.3.0"
+    "@ls-lint/ls-lint": "^2.3.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "markdownlint-cli2": "^0.23.3",
+    "nx": "^23.3.0",
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "prettier": "^3.9.10",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard": "^40.0.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

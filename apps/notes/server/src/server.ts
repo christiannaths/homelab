@@ -1,10 +1,9 @@
-import type { AddressInfo } from "node:net";
-import { Hocuspocus, type WebSocketLike } from "@hocuspocus/server";
+import { Hocuspocus } from "@hocuspocus/server";
 import { serve, upgradeWebSocket } from "@hono/node-server";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { WSContext } from "hono/ws";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
@@ -31,21 +30,36 @@ interface SyncContext {
   session: Session;
 }
 
+/** What the /sync middleware hands to the WebSocket upgrade. */
+interface SyncEnv {
+  Variables: { sync: SyncContext };
+}
+
 const PENDING_SIGN_IN_COOKIE = "notes_sign_in";
 export const CALLBACK_PATH = "/api/sign-in/callback";
 
-export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions, now }: ServerOptions) {
+export async function startServer({
+  dataDir,
+  port,
+  publicUrl,
+  oidc: oidcOptions,
+  now,
+}: ServerOptions) {
   const db = openDatabase(dataDir);
   const documents = new DocumentStore(db);
   const people = new People(db);
   const sessions = new Sessions(db, now);
-  const oidc = new OidcClient({ ...oidcOptions, redirectUri: new URL(CALLBACK_PATH, publicUrl).href });
+  const oidc = new OidcClient({
+    ...oidcOptions,
+    redirectUri: new URL(CALLBACK_PATH, publicUrl).href,
+  });
 
   // Open sync sockets by session token, so ending a session closes them at once (ADR-NOTE-014).
   const socketsBySession = new Map<string, Set<WSContext>>();
   const endSession = (token: string) => {
     sessions.revoke(token);
-    for (const ws of socketsBySession.get(token) ?? []) ws.close(4401, "Session ended");
+    for (const ws of socketsBySession.get(token) ?? [])
+      ws.close(4401, "Session ended");
   };
 
   const hocuspocus = new Hocuspocus<SyncContext>({
@@ -59,7 +73,8 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
     // Runs for every document a socket opens; the session was checked when the socket opened.
     // Until the access rules are built (ADR-NOTE-011), only workspace owners open documents.
     async onAuthenticate({ context }) {
-      if (people.get(context.person.id)?.role !== "owner") throw new Error("No access");
+      if (people.get(context.person.id)?.role !== "owner")
+        throw new Error("No access");
     },
 
     async onLoadDocument({ documentName, document }) {
@@ -79,7 +94,7 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
     return session && person ? { session, person } : undefined;
   };
 
-  const app = new Hono();
+  const app = new Hono<SyncEnv>();
 
   app.get("/api/health", (c) => c.json({ ok: true }));
 
@@ -99,11 +114,17 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
 
   app.get(CALLBACK_PATH, async (c) => {
     const saved = getCookie(c, PENDING_SIGN_IN_COOKIE);
-    deleteCookie(c, PENDING_SIGN_IN_COOKIE, { path: "/api/sign-in", secure: true });
+    deleteCookie(c, PENDING_SIGN_IN_COOKIE, {
+      path: "/api/sign-in",
+      secure: true,
+    });
     if (!saved) return c.json({ error: "no_sign_in_in_progress" }, 400);
     let identity;
     try {
-      identity = await oidc.finish(new URL(c.req.url), JSON.parse(saved) as PendingSignIn);
+      identity = await oidc.finish(
+        new URL(c.req.url),
+        parsePendingSignIn(saved),
+      );
     } catch (error) {
       if (error instanceof SignInError || error instanceof SyntaxError) {
         return c.json({ error: "sign_in_failed" }, 400);
@@ -112,7 +133,9 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
     }
     const person = people.admit(identity);
     if (!person) return c.json({ error: "not_a_member" }, 403);
-    c.header("set-cookie", sessions.cookie(sessions.issue(person.id)), { append: true });
+    c.header("set-cookie", sessions.cookie(sessions.issue(person.id)), {
+      append: true,
+    });
     return c.redirect("/", 302);
   });
 
@@ -137,22 +160,28 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
     async (c, next) => {
       const current = signedIn(getCookie(c, SESSION_COOKIE));
       if (!current) return c.text("Unauthorized", 401);
-      c.set("sync" as never, current satisfies SyncContext as never);
-      await next();
+      c.set("sync", current);
+      return next();
     },
-    upgradeWebSocket((c) => {
-      const context = c.get("sync" as never) as SyncContext;
+    upgradeWebSocket((c: Context<SyncEnv>) => {
+      const context = c.get("sync");
       const token = context.session.token;
-      let connection: ReturnType<typeof hocuspocus.handleConnection> | undefined;
+      let connection:
+        ReturnType<typeof hocuspocus.handleConnection> | undefined;
       return {
         onOpen(_event, ws) {
           const sockets = socketsBySession.get(token) ?? new Set();
           sockets.add(ws);
           socketsBySession.set(token, sockets);
-          connection = hocuspocus.handleConnection(ws.raw as WebSocketLike, c.req.raw, context);
+          // The socket is created by this module's WebSocketServer, so it is a ws WebSocket.
+          if (!(ws.raw instanceof WebSocket))
+            throw new Error("Sync socket is not a ws WebSocket");
+          connection = hocuspocus.handleConnection(ws.raw, c.req.raw, context);
         },
         onMessage(event) {
-          connection?.handleMessage(new Uint8Array(event.data as ArrayBuffer));
+          // Binary frames arrive as ArrayBuffers; the sync protocol sends no text frames.
+          if (event.data instanceof ArrayBuffer)
+            connection?.handleMessage(new Uint8Array(event.data));
         },
         onClose(event, ws) {
           const sockets = socketsBySession.get(token);
@@ -167,8 +196,11 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
   const wss = new WebSocketServer({ noServer: true });
   const server = serve({ fetch: app.fetch, port, websocket: { server: wss } });
   await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  if (typeof address !== "object" || address === null)
+    throw new Error("Server is not listening on a TCP port");
   return {
-    port: (server.address() as AddressInfo).port,
+    port: address.port,
     db,
     hocuspocus,
     async close() {
@@ -178,6 +210,23 @@ export async function startServer({ dataDir, port, publicUrl, oidc: oidcOptions,
       db.close();
     },
   };
+}
+
+/** The pending sign-in cookie, which a browser could have altered. Bad JSON throws a SyntaxError. */
+function parsePendingSignIn(saved: string): PendingSignIn {
+  const value: unknown = JSON.parse(saved);
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("state" in value) ||
+    !("nonce" in value) ||
+    !("verifier" in value) ||
+    typeof value.state !== "string" ||
+    typeof value.nonce !== "string" ||
+    typeof value.verifier !== "string"
+  )
+    throw new SignInError("Malformed pending sign-in cookie");
+  return { state: value.state, nonce: value.nonce, verifier: value.verifier };
 }
 
 export type NotesServer = Awaited<ReturnType<typeof startServer>>;

@@ -4,7 +4,14 @@ import { pageLevels, type Workspace } from "./access.ts";
 import type { Person } from "./people.ts";
 import { buildTree } from "./tree.ts";
 import {
-  copyPageContent, createPage, movePage, movesToPrivate, privateSection, readMeta, setPersonAccess, setWorkspaceAccess,
+  copyPageContent,
+  createPage,
+  movePage,
+  movesToPrivate,
+  privateSection,
+  readMeta,
+  setPersonAccess,
+  setWorkspaceAccess,
   type PageDocs,
 } from "./workspace.ts";
 
@@ -36,7 +43,7 @@ class Device implements PageDocs {
   /** One person's levels, as the server would work them out from this device's documents. */
   levels(personId: string): Record<string, string> {
     const ws: Workspace = { people, pages: this.pages() };
-    return Object.fromEntries([...pageLevels(ws, personId)].sort());
+    return Object.fromEntries(pageLevels(ws, personId));
   }
 }
 
@@ -52,17 +59,28 @@ function sync(x: Device, y: Device) {
 describe("keeping edits to a lost page as a new Private page", () => {
   it("copies the blocks, and none of the lost page's metadata or access", () => {
     const device = new Device();
-    const lost = createPage(device, device.tree(), { title: "Pancakes", section: NIA });
+    const lost = createPage(device, device.tree(), {
+      title: "Pancakes",
+      section: NIA,
+    });
     const lostDoc = device.get(lost)!;
     setPersonAccess(lostDoc, "max", "edit");
     const paragraph = new Y.XmlElement("paragraph");
     paragraph.insert(0, [new Y.XmlText("Flour, eggs, a pinch of salt")]);
     lostDoc.getXmlFragment("content").insert(0, [paragraph]);
 
-    const kept = createPage(device, device.tree(), { title: "Pancakes", section: MAX });
+    const kept = createPage(device, device.tree(), {
+      title: "Pancakes",
+      section: MAX,
+    });
     copyPageContent(lostDoc, device.get(kept)!);
-    expect(device.get(kept)!.getXmlFragment("content").toString()).toBe("<paragraph>Flour, eggs, a pinch of salt</paragraph>");
-    expect(readMeta(kept, device.get(kept)!)).toMatchObject({ section: MAX, access: undefined });
+    expect(device.get(kept)!.getXmlFragment("content").toString()).toBe(
+      "<paragraph>Flour, eggs, a pinch of salt</paragraph>",
+    );
+    expect(readMeta(kept, device.get(kept)!)).toMatchObject({
+      section: MAX,
+      access: undefined,
+    });
   });
 });
 
@@ -70,8 +88,14 @@ describe("keeping edits to a lost page as a new Private page", () => {
 describe("moving a page to Private", () => {
   it("removes the invites and general access set on the page itself, in the same change as the move", () => {
     const device = new Device();
-    const trip = createPage(device, device.tree(), { title: "Trip", section: MAX });
-    const budget = createPage(device, device.tree(), { title: "Budget", parentId: trip });
+    const trip = createPage(device, device.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
+    const budget = createPage(device, device.tree(), {
+      title: "Budget",
+      parentId: trip,
+    });
     setPersonAccess(device.get(trip)!, "nia", "edit");
     setPersonAccess(device.get(budget)!, "olive", "view");
     setWorkspaceAccess(device.get(budget)!, "comment");
@@ -83,7 +107,11 @@ describe("moving a page to Private", () => {
     expect(movePage(device, device.tree(), budget, null, 0, MAX)).toBe(true);
 
     expect(updates).toHaveLength(1);
-    expect(readMeta(budget, device.get(budget)!)).toMatchObject({ parentId: null, section: MAX, access: undefined });
+    expect(readMeta(budget, device.get(budget)!)).toMatchObject({
+      parentId: null,
+      section: MAX,
+      access: undefined,
+    });
     expect(device.levels("nia")).toEqual({ [trip]: "edit" });
     expect(device.levels("olive")).toEqual({});
     expect(device.levels("max")).toEqual({ [budget]: "full", [trip]: "full" });
@@ -91,7 +119,10 @@ describe("moving a page to Private", () => {
 
   it("also applies to a page moved into Private from someone else's section", () => {
     const device = new Device();
-    const plan = createPage(device, device.tree(), { title: "Plan", section: NIA });
+    const plan = createPage(device, device.tree(), {
+      title: "Plan",
+      section: NIA,
+    });
     setPersonAccess(device.get(plan)!, "max", "full");
     setPersonAccess(device.get(plan)!, "olive", "edit");
     expect(movesToPrivate(device.tree(), plan, null, MAX)).toBe(true);
@@ -103,13 +134,21 @@ describe("moving a page to Private", () => {
 
   it("keeps the access when a shared page is only reordered within Private, or moved under another page", () => {
     const device = new Device();
-    const trip = createPage(device, device.tree(), { title: "Trip", section: MAX });
-    const recipes = createPage(device, device.tree(), { title: "Recipes", section: MAX });
+    const trip = createPage(device, device.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
+    const recipes = createPage(device, device.tree(), {
+      title: "Recipes",
+      section: MAX,
+    });
     setPersonAccess(device.get(trip)!, "nia", "edit");
 
     expect(movesToPrivate(device.tree(), trip, null, MAX)).toBe(false);
     movePage(device, device.tree(), trip, null, 1, MAX);
-    expect(readMeta(trip, device.get(trip)!)?.access).toEqual({ people: { nia: "edit" } });
+    expect(readMeta(trip, device.get(trip)!)?.access).toEqual({
+      people: { nia: "edit" },
+    });
 
     // Under another Private page: still the page's own invite, so Nia keeps it (below a hidden parent).
     expect(movesToPrivate(device.tree(), trip, recipes, undefined)).toBe(false);
@@ -120,7 +159,10 @@ describe("moving a page to Private", () => {
   it("an invite added offline while the page moves to Private survives the merge (it was never seen by the move)", () => {
     const max = new Device();
     const trip = createPage(max, max.tree(), { title: "Trip", section: MAX });
-    const budget = createPage(max, max.tree(), { title: "Budget", parentId: trip });
+    const budget = createPage(max, max.tree(), {
+      title: "Budget",
+      parentId: trip,
+    });
     setPersonAccess(max.get(budget)!, "nia", "edit");
     const laptop = new Device();
     sync(max, laptop);
@@ -131,7 +173,9 @@ describe("moving a page to Private", () => {
 
     // The move removed only the entries it saw; Olive's later invite is a new decision.
     for (const d of [max, laptop]) {
-      expect(readMeta(budget, d.get(budget)!)?.access).toEqual({ people: { olive: "view" } });
+      expect(readMeta(budget, d.get(budget)!)?.access).toEqual({
+        people: { olive: "view" },
+      });
       expect(d.levels("nia")).toEqual({});
     }
   });

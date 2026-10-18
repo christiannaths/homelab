@@ -1,6 +1,7 @@
 # Server stack spike findings: Hono, Hocuspocus and Better Auth
 
 **Goal:** check that the server libraries proposed in [`08-framework-options.md`](08-framework-options.md) work together:
+
 1. Hono serves the PWA and the API.
 2. Hocuspocus runs behind Hono through `handleConnection`.
 3. A Better Auth session cookie authenticates the sync socket.
@@ -15,7 +16,7 @@
 All 17 Vitest tests pass, in three runs in a row (about 10 s per run). Each test starts a real server with its own data directory and connects real Hocuspocus providers over WebSockets.
 
 | Check | Result |
-|---|---|
+| --- | --- |
 | Health, static files, client-side route fallback | ✅ |
 | First-run setup creates the admin once, then returns 409 | ✅ |
 | No public sign-up; only an admin can create accounts | ✅ |

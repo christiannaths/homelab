@@ -1,0 +1,5 @@
+{
+  "proseWrap": "never",
+  "singleAttributePerLine": true,
+  "quoteProps": "consistent"
+}

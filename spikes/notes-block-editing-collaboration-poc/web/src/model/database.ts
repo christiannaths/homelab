@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { stringField } from "./fields";
 import { compareOrder, keyBetween } from "./order";
 
 /**
@@ -13,9 +14,20 @@ import { compareOrder, keyBetween } from "./order";
  * 5,000 docs to sync.
  */
 
-export type PropType = "title" | "text" | "number" | "select" | "checkbox" | "date";
-export const PROP_TYPES: PropType[] = ["text", "number", "select", "checkbox", "date"];
+export type PropType =
+  "title" | "text" | "number" | "select" | "checkbox" | "date";
+export const PROP_TYPES: PropType[] = [
+  "text",
+  "number",
+  "select",
+  "checkbox",
+  "date",
+];
 export const TITLE = "title";
+
+function isPropType(value: unknown): value is PropType {
+  return value === TITLE || PROP_TYPES.some((t) => t === value);
+}
 
 export interface SelectOption {
   id: string;
@@ -46,11 +58,52 @@ export interface SortSpec {
   dir: "asc" | "desc";
 }
 
+function isSelectOption(value: unknown): value is SelectOption {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "name" in value &&
+    typeof value.name === "string" &&
+    "color" in value &&
+    typeof value.color === "string"
+  );
+}
+
+function isCellValue(value: unknown): value is CellValue {
+  return (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+function isSortSpec(value: unknown): value is SortSpec {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "propId" in value &&
+    typeof value.propId === "string" &&
+    "dir" in value &&
+    (value.dir === "asc" || value.dir === "desc")
+  );
+}
+
 export interface ViewConfig {
   sort: SortSpec | null;
 }
 
-const OPTION_COLORS = ["#e3f2fd", "#e8f5e9", "#fff3e0", "#fce4ec", "#f3e5f5", "#e0f7fa", "#fffde7"];
+const OPTION_COLORS = [
+  "#e3f2fd",
+  "#e8f5e9",
+  "#fff3e0",
+  "#fce4ec",
+  "#f3e5f5",
+  "#e0f7fa",
+  "#fffde7",
+];
 
 export const schemaMap = (doc: Y.Doc) => doc.getMap<Y.Map<unknown>>("schema");
 export const rowsMap = (doc: Y.Doc) => doc.getMap<Y.Map<unknown>>("rows");
@@ -85,15 +138,22 @@ export function readSchema(doc: Y.Doc): Property[] {
   const props: Property[] = [];
   schemaMap(doc).forEach((m, id) => {
     if (m.get("deletedAt")) return;
+    const type = m.get("type");
+    const options = m.get("options");
     props.push({
       id,
-      name: (m.get("name") as string) ?? "",
-      type: (m.get("type") as PropType) ?? "text",
-      order: (m.get("order") as string) ?? "",
-      options: ((m.get("options") as Y.Array<SelectOption> | undefined)?.toArray() ?? []),
+      name: stringField(m, "name", ""),
+      type: isPropType(type) ? type : "text",
+      order: stringField(m, "order", ""),
+      options:
+        options instanceof Y.Array
+          ? options.toArray().filter(isSelectOption)
+          : [],
     });
   });
-  return props.sort((a, b) => compareOrder(a.order, b.order) || (a.id < b.id ? -1 : 1));
+  return props.toSorted(
+    (a, b) => compareOrder(a.order, b.order) || (a.id < b.id ? -1 : 1),
+  );
 }
 
 export function readRows(doc: Y.Doc): Row[] {
@@ -104,10 +164,12 @@ export function readRows(doc: Y.Doc): Row[] {
     let createdAt = 0;
     let hasBody = false;
     m.forEach((v, k) => {
-      if (k === "_order") order = v as string;
-      else if (k === "_createdAt") createdAt = v as number;
-      else if (k === "_hasBody") hasBody = !!v;
-      else cells[k] = v as CellValue;
+      if (k === "_order") {
+        if (typeof v === "string") order = v;
+      } else if (k === "_createdAt") {
+        if (typeof v === "number") createdAt = v;
+      } else if (k === "_hasBody") hasBody = !!v;
+      else if (isCellValue(v)) cells[k] = v;
     });
     rows.push({ id, order, createdAt, hasBody, cells });
   });
@@ -115,11 +177,15 @@ export function readRows(doc: Y.Doc): Row[] {
 }
 
 export function readView(doc: Y.Doc, viewId = DEFAULT_VIEW): ViewConfig {
-  const v = viewsMap(doc).get(viewId);
-  return { sort: (v?.get("sort") as SortSpec | null) ?? null };
+  const sort = viewsMap(doc).get(viewId)?.get("sort");
+  return { sort: isSortSpec(sort) ? sort : null };
 }
 
-export function setSort(doc: Y.Doc, sort: SortSpec | null, viewId = DEFAULT_VIEW): void {
+export function setSort(
+  doc: Y.Doc,
+  sort: SortSpec | null,
+  viewId = DEFAULT_VIEW,
+): void {
   viewsMap(doc).get(viewId)?.set("sort", sort);
 }
 
@@ -143,25 +209,42 @@ export function renameProperty(doc: Y.Doc, propId: string, name: string): void {
 
 export function deleteProperty(doc: Y.Doc, propId: string): void {
   // Soft delete: cells keep their values, so an undo or a concurrent edit loses nothing.
-  if (propId !== TITLE) schemaMap(doc).get(propId)?.set("deletedAt", Date.now());
+  if (propId !== TITLE)
+    schemaMap(doc).get(propId)?.set("deletedAt", Date.now());
 }
 
-export function addSelectOption(doc: Y.Doc, propId: string, name: string): string {
-  const options = schemaMap(doc).get(propId)?.get("options") as Y.Array<SelectOption> | undefined;
+export function addSelectOption(
+  doc: Y.Doc,
+  propId: string,
+  name: string,
+): string {
+  const options = schemaMap(doc).get(propId)?.get("options");
   const id = crypto.randomUUID();
-  options?.push([{ id, name, color: OPTION_COLORS[(options.length ?? 0) % OPTION_COLORS.length] }]);
+  if (options instanceof Y.Array) {
+    const option: SelectOption = {
+      id,
+      name,
+      color: OPTION_COLORS[options.length % OPTION_COLORS.length],
+    };
+    options.push([option]);
+  }
   return id;
 }
 
 /** Rows are created with order keys after the current last row. */
-export function addRow(doc: Y.Doc, cells: Record<string, CellValue> = {}, afterOrder?: string | null): string {
+export function addRow(
+  doc: Y.Doc,
+  cells: Record<string, CellValue> = {},
+  afterOrder?: string | null,
+): string {
   const id = crypto.randomUUID();
   const last = afterOrder !== undefined ? afterOrder : lastRowOrder(doc);
   doc.transact(() => {
     const m = new Y.Map<unknown>();
     m.set("_order", keyBetween(last, null));
     m.set("_createdAt", Date.now());
-    for (const [k, v] of Object.entries(cells)) if (v !== null && v !== "") m.set(k, v);
+    for (const [k, v] of Object.entries(cells))
+      if (v !== null && v !== "") m.set(k, v);
     rowsMap(doc).set(id, m);
   });
   return id;
@@ -170,13 +253,18 @@ export function addRow(doc: Y.Doc, cells: Record<string, CellValue> = {}, afterO
 function lastRowOrder(doc: Y.Doc): string | null {
   let last: string | null = null;
   rowsMap(doc).forEach((m) => {
-    const o = m.get("_order") as string;
+    const o = stringField(m, "_order", "");
     if (o && (last === null || compareOrder(o, last) > 0)) last = o;
   });
   return last;
 }
 
-export function setCell(doc: Y.Doc, rowId: string, propId: string, value: CellValue): void {
+export function setCell(
+  doc: Y.Doc,
+  rowId: string,
+  propId: string,
+  value: CellValue,
+): void {
   const row = rowsMap(doc).get(rowId);
   if (!row) return;
   if (value === null || value === "") row.delete(propId);
@@ -196,19 +284,25 @@ export function deleteRow(doc: Y.Doc, rowId: string): void {
 
 export function cellText(prop: Property, value: CellValue | undefined): string {
   if (value === undefined || value === null) return "";
-  if (prop.type === "select") return prop.options.find((o) => o.id === value)?.name ?? "";
+  if (prop.type === "select")
+    return prop.options.find((o) => o.id === value)?.name ?? "";
   if (prop.type === "checkbox") return value ? "Yes" : "";
   return String(value);
 }
 
-function compareCells(prop: Property, a: CellValue | undefined, b: CellValue | undefined): number {
+function compareCells(
+  prop: Property,
+  a: CellValue | undefined,
+  b: CellValue | undefined,
+): number {
   // Empty cells sort last in both directions, like Notion.
   const aEmpty = a === undefined || a === null || a === "";
   const bEmpty = b === undefined || b === null || b === "";
-  if (aEmpty || bEmpty) return aEmpty === bEmpty ? 0 : aEmpty ? Infinity : -Infinity;
+  if (aEmpty || bEmpty)
+    return aEmpty === bEmpty ? 0 : aEmpty ? Infinity : -Infinity;
   switch (prop.type) {
     case "number":
-      return (a as number) - (b as number);
+      return Number(a) - Number(b);
     case "checkbox":
       return Number(a) - Number(b);
     case "select": {
@@ -219,25 +313,42 @@ function compareCells(prop: Property, a: CellValue | undefined, b: CellValue | u
     }
     default:
       // Dates are stored as YYYY-MM-DD, so string order is date order.
-      return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+      return String(a).localeCompare(String(b), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
   }
 }
 
-export function computeView(rows: Row[], schema: Property[], view: ViewConfig, filter = ""): Row[] {
+export function computeView(
+  rows: Row[],
+  schema: Property[],
+  view: ViewConfig,
+  filter = "",
+): Row[] {
   let out = rows;
   const q = filter.trim().toLowerCase();
   if (q) {
-    out = out.filter((r) => schema.some((p) => cellText(p, r.cells[p.id]).toLowerCase().includes(q)));
+    out = out.filter((r) =>
+      schema.some((p) => cellText(p, r.cells[p.id]).toLowerCase().includes(q)),
+    );
   }
-  const byOrder = (a: Row, b: Row) => compareOrder(a.order, b.order) || a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1);
+  const byOrder = (a: Row, b: Row) =>
+    compareOrder(a.order, b.order) ||
+    a.createdAt - b.createdAt ||
+    (a.id < b.id ? -1 : 1);
   const sortProp = view.sort && schema.find((p) => p.id === view.sort!.propId);
   if (sortProp) {
     const dir = view.sort!.dir === "asc" ? 1 : -1;
-    return [...out].sort((a, b) => {
-      const c = compareCells(sortProp, a.cells[sortProp.id], b.cells[sortProp.id]);
+    return [...out].toSorted((a, b) => {
+      const c = compareCells(
+        sortProp,
+        a.cells[sortProp.id],
+        b.cells[sortProp.id],
+      );
       if (c === Infinity || c === -Infinity) return c > 0 ? 1 : -1; // empties last regardless of dir
       return c * dir || byOrder(a, b);
     });
   }
-  return [...out].sort(byOrder);
+  return [...out].toSorted(byOrder);
 }

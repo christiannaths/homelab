@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { stringField } from "./fields.ts";
 import { compareOrder, keyBetween } from "./order.ts";
 import { comparePages, type PageMeta, type Tree } from "./tree.ts";
 import { createPage, type PageDocs } from "./workspace.ts";
@@ -22,7 +23,11 @@ import { createPage, type PageDocs } from "./workspace.ts";
 
 /** The property types this spike keeps: enough to test with. The title (Name) is the row page's title. */
 export type PropertyType = "text" | "number" | "checkbox";
-export const PROPERTY_TYPES: readonly PropertyType[] = ["text", "number", "checkbox"];
+export const PROPERTY_TYPES: readonly PropertyType[] = [
+  "text",
+  "number",
+  "checkbox",
+];
 
 export interface Property {
   id: string;
@@ -30,6 +35,9 @@ export interface Property {
   type: PropertyType;
   order: string;
 }
+
+const isPropertyType = (value: unknown): value is PropertyType =>
+  PROPERTY_TYPES.some((type) => type === value);
 
 export type CellValue = string | number | boolean;
 
@@ -41,8 +49,10 @@ export interface ViewSettings {
 /** A database's only view in this spike: a plain table. */
 export const DEFAULT_VIEW = "table";
 
-export const propertiesMap = (schema: Y.Doc) => schema.getMap<Y.Map<unknown>>("properties");
-export const viewsMap = (database: Y.Doc) => database.getMap<Y.Map<unknown>>("views");
+export const propertiesMap = (schema: Y.Doc) =>
+  schema.getMap<Y.Map<unknown>>("properties");
+export const viewsMap = (database: Y.Doc) =>
+  database.getMap<Y.Map<unknown>>("views");
 export const cellsMap = (row: Y.Doc) => row.getMap<unknown>("cells");
 
 /**
@@ -66,13 +76,28 @@ export function createDatabase(
 }
 
 /** `createPage`, also returning the document it created (`docs` may not hand it back from `get`). */
-function createPageDoc(docs: PageDocs, tree: Tree, opts: Parameters<typeof createPage>[2]): { id: string; doc: Y.Doc } {
+function createPageDoc(
+  docs: PageDocs,
+  tree: Tree,
+  opts: Parameters<typeof createPage>[2],
+): { id: string; doc: Y.Doc } {
   let doc!: Y.Doc;
-  const id = createPage({ get: (pageId) => docs.get(pageId), create: (pageId) => (doc = docs.create(pageId)) }, tree, opts);
+  const id = createPage(
+    {
+      get: (pageId) => docs.get(pageId),
+      create: (pageId) => (doc = docs.create(pageId)),
+    },
+    tree,
+    opts,
+  );
   return { id, doc };
 }
 
-export function addProperty(schema: Y.Doc, name: string, type: PropertyType): string {
+export function addProperty(
+  schema: Y.Doc,
+  name: string,
+  type: PropertyType,
+): string {
   const id = crypto.randomUUID();
   const last = readProperties(schema).at(-1)?.order ?? null;
   schema.transact(() => {
@@ -85,26 +110,36 @@ export function addProperty(schema: Y.Doc, name: string, type: PropertyType): st
   return id;
 }
 
-export function renameProperty(schema: Y.Doc, propertyId: string, name: string): void {
+export function renameProperty(
+  schema: Y.Doc,
+  propertyId: string,
+  name: string,
+): void {
   propertiesMap(schema).get(propertyId)?.set("name", name);
 }
 
 export function readProperties(schema: Y.Doc): Property[] {
   const out: Property[] = [];
   propertiesMap(schema).forEach((m, id) => {
-    const type = m.get("type") as PropertyType;
+    const type = m.get("type");
     out.push({
       id,
-      name: (m.get("name") as string) ?? "",
-      type: PROPERTY_TYPES.includes(type) ? type : "text",
-      order: (m.get("order") as string) ?? "",
+      name: stringField(m, "name", ""),
+      type: isPropertyType(type) ? type : "text",
+      order: stringField(m, "order", ""),
     });
   });
-  return out.sort((a, b) => compareOrder(a.order, b.order) || (a.id < b.id ? -1 : 1));
+  return out.toSorted(
+    (a, b) => compareOrder(a.order, b.order) || (a.id < b.id ? -1 : 1),
+  );
 }
 
 /** Changes the database's view settings: one key per setting, so a sort and a filter set at once both stick. */
-export function setView(database: Y.Doc, changes: Partial<ViewSettings>, viewId = DEFAULT_VIEW): void {
+export function setView(
+  database: Y.Doc,
+  changes: Partial<ViewSettings>,
+  viewId = DEFAULT_VIEW,
+): void {
   const view = viewsMap(database).get(viewId);
   if (!view) return;
   database.transact(() => {
@@ -115,9 +150,19 @@ export function setView(database: Y.Doc, changes: Partial<ViewSettings>, viewId 
 export function readView(database: Y.Doc, viewId = DEFAULT_VIEW): ViewSettings {
   const view = viewsMap(database).get(viewId);
   return {
-    sort: (view?.get("sort") as ViewSettings["sort"]) ?? null,
-    filter: (view?.get("filter") as string) ?? "",
+    sort: parseSort(view?.get("sort")),
+    filter: stringField(view, "filter", ""),
   };
+}
+
+/** A view's stored sort, or null when it is unset or not a sort. */
+function parseSort(value: unknown): ViewSettings["sort"] {
+  if (typeof value !== "object" || value === null) return null;
+  if (!("propertyId" in value) || !("direction" in value)) return null;
+  const { propertyId, direction } = value;
+  if (typeof propertyId !== "string") return null;
+  if (direction !== "asc" && direction !== "desc") return null;
+  return { propertyId, direction };
 }
 
 /**
@@ -130,32 +175,49 @@ export function addRow(
   databaseId: string,
   opts: { title?: string; cells?: Record<string, CellValue> } = {},
 ): string {
-  const { id, doc } = createPageDoc(docs, tree, { parentId: databaseId, kind: "row", title: opts.title ?? "" });
+  const { id, doc } = createPageDoc(docs, tree, {
+    parentId: databaseId,
+    kind: "row",
+    title: opts.title ?? "",
+  });
   doc.transact(() => {
-    for (const [propertyId, value] of Object.entries(opts.cells ?? {})) setCell(doc, propertyId, value);
+    for (const [propertyId, value] of Object.entries(opts.cells ?? {}))
+      setCell(doc, propertyId, value);
   });
   return id;
 }
 
 /** Sets a row's cell; null or "" clears it. */
-export function setCell(row: Y.Doc, propertyId: string, value: CellValue | null): void {
+export function setCell(
+  row: Y.Doc,
+  propertyId: string,
+  value: CellValue | null,
+): void {
   if (value === null || value === "") cellsMap(row).delete(propertyId);
   else cellsMap(row).set(propertyId, value);
 }
 
 export function readCells(row: Y.Doc): Record<string, CellValue> {
-  return cellsMap(row).toJSON() as Record<string, CellValue>;
+  return cellsMap(row).toJSON();
 }
 
 /** One line of a database table: the row's title, and its cells by property name. */
-export type TableRow = { title: string } & Record<string, CellValue | string | undefined>;
+export type TableRow = { title: string } & Record<
+  string,
+  CellValue | string | undefined
+>;
 
 /**
  * The database's rows that the device holds, as its table view shows them: in row order, then
  * sorted and filtered by the view (when the device holds the database page; a device given only
  * some rows has no view settings, so it shows them in row order).
  */
-export function databaseTable(docs: PageDocs, tree: Tree, databaseId: string, schema: Y.Doc): TableRow[] {
+export function databaseTable(
+  docs: PageDocs,
+  tree: Tree,
+  databaseId: string,
+  schema: Y.Doc,
+): TableRow[] {
   const properties = readProperties(schema);
   const database = docs.get(databaseId);
   const view = database ? readView(database) : { sort: null, filter: "" };
@@ -164,15 +226,22 @@ export function databaseTable(docs: PageDocs, tree: Tree, databaseId: string, sc
     .map((n) => ({ page: n.page, cells: readCells(docs.get(n.page.id)!) }));
   const q = view.filter.trim().toLowerCase();
   const matches = (r: { page: PageMeta; cells: Record<string, CellValue> }) =>
-    !q || [r.page.title, ...Object.values(r.cells)].some((v) => String(v).toLowerCase().includes(q));
-  const sortBy = view.sort && properties.find((p) => p.id === view.sort!.propertyId);
-  const shown = rows.filter(matches).sort((a, b) => {
+    !q ||
+    [r.page.title, ...Object.values(r.cells)].some((v) =>
+      String(v).toLowerCase().includes(q),
+    );
+  const sortBy =
+    view.sort && properties.find((p) => p.id === view.sort!.propertyId);
+  const shown = rows.filter(matches).toSorted((a, b) => {
     const x = sortBy ? a.cells[sortBy.id] : undefined;
     const y = sortBy ? b.cells[sortBy.id] : undefined;
     // Empty cells go last in both directions, as in Notion.
-    if ((x === undefined) !== (y === undefined)) return x === undefined ? 1 : -1;
+    if ((x === undefined) !== (y === undefined))
+      return x === undefined ? 1 : -1;
     const c = x !== undefined && y !== undefined ? compareCells(x, y) : 0;
-    return (view.sort?.direction === "desc" ? -c : c) || comparePages(a.page, b.page);
+    return (
+      (view.sort?.direction === "desc" ? -c : c) || comparePages(a.page, b.page)
+    );
   });
   return shown.map((r) => {
     const line: TableRow = { title: r.page.title };
@@ -183,5 +252,8 @@ export function databaseTable(docs: PageDocs, tree: Tree, databaseId: string, sc
 
 function compareCells(a: CellValue, b: CellValue): number {
   if (typeof a === "number" && typeof b === "number") return a - b;
-  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+  return String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
 }

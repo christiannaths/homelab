@@ -22,24 +22,83 @@ import { mkdtempSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  buildTree, createPage, isRefusal, indexDocName, indexMap, pageDocName, parseDocName, privateSection, readIndex,
-  movePage, readIndexLevels, readMeta, renamePage, setPersonAccess, setWorkspaceAccess, sidebarSections,
-  type AccessLevel, type PageAccess, type PageDocs, type PageMeta, type Person, type Role, type Tree, type TreeNode,
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+  WebSocketStatus,
+} from "@hocuspocus/provider";
+import {
+  buildTree,
+  createPage,
+  isRefusal,
+  indexDocName,
+  parsePerson,
+  indexMap,
+  pageDocName,
+  parseDocName,
+  privateSection,
+  readIndex,
+  movePage,
+  readIndexLevels,
+  readMeta,
+  renamePage,
+  setPersonAccess,
+  setWorkspaceAccess,
+  sidebarSections,
+  type AccessLevel,
+  type PageAccess,
+  type PageDocs,
+  type PageMeta,
+  type Person,
+  type Role,
+  type Tree,
+  type TreeNode,
 } from "@homelab/notes-access-sync-poc-model";
 import {
-  createTeamspace, readTeamspace, readTeamspaceIndex, setTeamspaceAccess, setTeamspaceMember, setTeamspaceSettings, teamspaceDocName,
-  teamspaceSection, type Teamspace, type TeamspaceKind, type TeamspaceRole,
+  createTeamspace,
+  readTeamspace,
+  readTeamspaceIndex,
+  setTeamspaceAccess,
+  setTeamspaceMember,
+  setTeamspaceSettings,
+  teamspaceDocName,
+  teamspaceSection,
+  type Teamspace,
+  type TeamspaceKind,
+  type TeamspaceRole,
 } from "@homelab/notes-access-sync-poc-model";
 import {
-  addProperty, addRow, createDatabase, databaseTable, readCells, readProperties, readView, renameProperty, schemaDocName,
-  setCell, setView, type CellValue, type PropertyType, type TableRow, type ViewSettings,
+  addProperty,
+  addRow,
+  createDatabase,
+  databaseTable,
+  readCells,
+  readProperties,
+  readView,
+  renameProperty,
+  schemaDocName,
+  setCell,
+  setView,
+  type CellValue,
+  type PropertyType,
+  type TableRow,
+  type ViewSettings,
 } from "@homelab/notes-access-sync-poc-model";
 import * as Y from "yjs";
 
-export { indexDocName, pageDocName, privateSection, schemaDocName, teamspaceDocName };
-export { DEFAULT_LAYOUT, seedWorkspace, type SeededWorkspace, type SeedLayout } from "./seed.ts";
+export {
+  indexDocName,
+  pageDocName,
+  privateSection,
+  schemaDocName,
+  teamspaceDocName,
+};
+export {
+  DEFAULT_LAYOUT,
+  seedWorkspace,
+  type SeededWorkspace,
+  type SeedLayout,
+} from "./seed.ts";
 
 const serverDir = path.resolve(import.meta.dirname, "..");
 const defaultWebRoot = path.resolve(serverDir, "../web/dist");
@@ -49,8 +108,12 @@ async function freePort(): Promise<number> {
     const probe = createServer();
     probe.once("error", reject);
     probe.listen(0, () => {
-      const { port } = probe.address() as { port: number };
-      probe.close(() => resolve(port));
+      const address = probe.address();
+      if (typeof address !== "object" || address === null) {
+        reject(new Error("probe server has no port"));
+        return;
+      }
+      probe.close(() => resolve(address.port));
     });
   });
 }
@@ -68,6 +131,36 @@ export interface ServerConnection {
   documentName: string;
 }
 
+function listOf<T>(value: unknown, parse: (item: unknown) => T): T[] {
+  if (!Array.isArray(value)) throw new Error("expected a JSON array");
+  return value.map((item: unknown) => parse(item));
+}
+
+function stringProp(value: unknown, key: string): string {
+  const prop: unknown =
+    typeof value === "object" && value !== null
+      ? Object.getOwnPropertyDescriptor(value, key)?.value
+      : undefined;
+  if (typeof prop !== "string")
+    throw new Error(`expected a string "${key}" in ${JSON.stringify(value)}`);
+  return prop;
+}
+
+function parseConnection(value: unknown): ServerConnection {
+  return {
+    personId: stringProp(value, "personId"),
+    documentName: stringProp(value, "documentName"),
+  };
+}
+
+function parseRefusal(value: unknown): ServerRefusal {
+  return {
+    personId: stringProp(value, "personId"),
+    documentName: stringProp(value, "documentName"),
+    reason: stringProp(value, "reason"),
+  };
+}
+
 /**
  * A real server process (`node src/index.ts`) with its own port and data directory.
  * `stop()` and `start()` again keep the data, so a test can restart the server.
@@ -82,8 +175,11 @@ export class TestServer {
   private port = 0;
   private proc: ChildProcess | null = null;
 
-  constructor(opts: { dataDir?: string; webRoot?: string; echo?: boolean } = {}) {
-    this.dataDir = opts.dataDir ?? mkdtempSync(path.join(tmpdir(), "notes-access-"));
+  constructor(
+    opts: { dataDir?: string; webRoot?: string; echo?: boolean } = {},
+  ) {
+    this.dataDir =
+      opts.dataDir ?? mkdtempSync(path.join(tmpdir(), "notes-access-"));
     this.webRoot = opts.webRoot ?? defaultWebRoot;
     this.echo = opts.echo ?? false;
   }
@@ -98,11 +194,20 @@ export class TestServer {
 
   async start(): Promise<void> {
     if (!this.port) this.port = await freePort();
-    this.proc = spawn(process.execPath, ["--no-experimental-webstorage", "src/index.ts"], {
-      cwd: serverDir,
-      env: { ...process.env, PORT: String(this.port), DATA_DIR: this.dataDir, WEB_ROOT: this.webRoot },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    this.proc = spawn(
+      process.execPath,
+      ["--no-experimental-webstorage", "src/index.ts"],
+      {
+        cwd: serverDir,
+        env: {
+          ...process.env,
+          PORT: String(this.port),
+          DATA_DIR: this.dataDir,
+          WEB_ROOT: this.webRoot,
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
     for (const stream of [this.proc.stdout!, this.proc.stderr!]) {
       stream.on("data", (chunk: Buffer) => {
         if (this.echo) process.stdout.write(chunk);
@@ -132,11 +237,16 @@ export class TestServer {
   }
 
   async people(): Promise<Person[]> {
-    return (await fetch(`${this.url}/api/people`)).json();
+    const body: unknown = await (await fetch(`${this.url}/api/people`)).json();
+    return listOf(body, parsePerson);
   }
 
   /** Adds a person, as `actor` (who must be an owner once the workspace has one). */
-  async addPerson(name: string, role: Role = "member", actor?: Person): Promise<Person> {
+  async addPerson(
+    name: string,
+    role: Role = "member",
+    actor?: Person,
+  ): Promise<Person> {
     const res = await fetch(`${this.url}/api/people`, {
       method: "POST",
       headers: {
@@ -145,8 +255,9 @@ export class TestServer {
       },
       body: JSON.stringify({ name, role }),
     });
-    if (!res.ok) throw new Error(`addPerson failed (${res.status}): ${await res.text()}`);
-    return res.json();
+    if (!res.ok)
+      throw new Error(`addPerson failed (${res.status}): ${await res.text()}`);
+    return parsePerson(await res.json());
   }
 
   /** Removes a person from the workspace, as `actor` (who must be an owner). */
@@ -155,22 +266,33 @@ export class TestServer {
       method: "DELETE",
       headers: { Authorization: `Bearer ${actor.id}` },
     });
-    if (!res.ok) throw new Error(`removePerson failed (${res.status}): ${await res.text()}`);
+    if (!res.ok)
+      throw new Error(
+        `removePerson failed (${res.status}): ${await res.text()}`,
+      );
   }
 
   /** Every open document connection, with the person it belongs to. */
   async connections(): Promise<ServerConnection[]> {
-    return (await fetch(`${this.url}/api/connections`)).json();
+    const body: unknown = await (
+      await fetch(`${this.url}/api/connections`)
+    ).json();
+    return listOf(body, parseConnection);
   }
 
   /** Every update the server refused since it started, oldest first. */
   async refusals(): Promise<ServerRefusal[]> {
-    return (await fetch(`${this.url}/api/refusals`)).json();
+    const body: unknown = await (
+      await fetch(`${this.url}/api/refusals`)
+    ).json();
+    return listOf(body, parseRefusal);
   }
 }
 
 /** How the server answered a request to open a document. `scope` is "read-write" or "readonly". */
-export type OpenResult = { status: "synced"; doc: Y.Doc; scope: string } | { status: "denied"; reason: string };
+export type OpenResult =
+  | { status: "synced"; doc: Y.Doc; scope: string }
+  | { status: "denied"; reason: string };
 
 interface Entry {
   /** Settles `result`; a recovered entry passes its successor's result on. */
@@ -200,7 +322,10 @@ export class TestClient {
 
   constructor(person: Pick<Person, "id"> & Partial<Person>, syncUrl: string) {
     this.person = person;
-    this.socket = new HocuspocusProviderWebsocket({ url: syncUrl, maxAttempts: 0 });
+    this.socket = new HocuspocusProviderWebsocket({
+      url: syncUrl,
+      maxAttempts: 0,
+    });
   }
 
   /** Opens a document and waits until the server has synced it or refused it. */
@@ -211,12 +336,18 @@ export class TestClient {
   /** Starts a provider for `name` (once), so a page this device creates can be written before it syncs. */
   private entry(name: string): Entry {
     const existing = this.entries.get(name);
-    if (existing && existing.closedReason === undefined && existing.status !== "lost") return existing;
+    if (
+      existing &&
+      existing.closedReason === undefined &&
+      existing.status !== "lost"
+    )
+      return existing;
     // The server closed this document, or the device lost it. Opening it again asks the server
     // afresh with a new provider: a lost document starts from nothing (the device deleted it), any
     // other keeps its local copy, as a device with storage would.
     if (existing) existing.provider.destroy();
-    const doc = existing && existing.status !== "lost" ? existing.doc : new Y.Doc();
+    const doc =
+      existing && existing.status !== "lost" ? existing.doc : new Y.Doc();
     let settle!: (r: OpenResult) => void;
     const result = new Promise<OpenResult>((resolve) => (settle = resolve));
     const provider = new HocuspocusProvider({
@@ -240,7 +371,8 @@ export class TestClient {
       onClose: ({ event }) => {
         if (event.reason) entry.closedReason = event.reason;
         if (event.reason === "access-revoked") this.lose(entry);
-        else if (isRefusal(event.reason) && this.entries.get(name) === entry) this.recover(name, event.reason);
+        else if (isRefusal(event.reason) && this.entries.get(name) === entry)
+          this.recover(name, event.reason);
       },
       // Each provider gets its own address on the socket, so a document can be reopened right
       // after its old provider is destroyed (explore.md §3: otherwise the server may still be
@@ -277,11 +409,21 @@ export class TestClient {
     if (index.status === "synced") {
       await Promise.all([
         ...readIndex(index.doc).map((id) => this.open(pageDocName(id))),
-        ...[...readTeamspaceIndex(index.doc).keys()].map((id) => this.open(teamspaceDocName(id))),
+        ...[...readTeamspaceIndex(index.doc).keys()].map((id) =>
+          this.open(teamspaceDocName(id)),
+        ),
       ]);
       // A database's properties: for each database received, and each row (which names its database).
-      const databases = this.pages().flatMap((p) => (p.kind === "database" ? [p.id] : p.kind === "row" && p.parentId ? [p.parentId] : []));
-      await Promise.all([...new Set(databases)].map((id) => this.open(schemaDocName(id))));
+      const databases = this.pages().flatMap((p) =>
+        p.kind === "database"
+          ? [p.id]
+          : p.kind === "row" && p.parentId
+            ? [p.parentId]
+            : [],
+      );
+      await Promise.all(
+        [...new Set(databases)].map((id) => this.open(schemaDocName(id))),
+      );
     }
     return this.received();
   }
@@ -324,7 +466,9 @@ export class TestClient {
   pages(): PageMeta[] {
     return this.received().flatMap((name) => {
       const ref = parseDocName(name);
-      return ref?.kind === "page" ? (readMeta(ref.id, this.doc(name)!) ?? []) : [];
+      return ref?.kind === "page"
+        ? (readMeta(ref.id, this.doc(name)!) ?? [])
+        : [];
     });
   }
 
@@ -336,7 +480,8 @@ export class TestClient {
   /** Titles of the live pages, in sidebar order (depth-first). */
   pageTitles(): string[] {
     const titles: string[] = [];
-    const walk = (nodes: TreeNode[]) => nodes.forEach((n) => (titles.push(n.page.title), walk(n.children)));
+    const walk = (nodes: TreeNode[]) =>
+      nodes.forEach((n) => (titles.push(n.page.title), walk(n.children)));
     walk(this.tree().roots);
     return titles;
   }
@@ -358,7 +503,10 @@ export class TestClient {
   /** The top-level titles in each sidebar section. */
   sidebar(): { shared: string[]; private: string[] } {
     const s = this.sections();
-    return { shared: s.shared.map((n) => n.page.title), private: s.private.map((n) => n.page.title) };
+    return {
+      shared: s.shared.map((n) => n.page.title),
+      private: s.private.map((n) => n.page.title),
+    };
   }
 
   /** Everything in every received document as one string, for asserting that no trace of something arrived. */
@@ -366,7 +514,10 @@ export class TestClient {
     return this.received()
       .map((name) => {
         const doc = this.doc(name)!;
-        return JSON.stringify(doc.toJSON()) + doc.getXmlFragment("content").toString();
+        return (
+          JSON.stringify(doc.toJSON()) +
+          doc.getXmlFragment("content").toString()
+        );
       })
       .join("\n");
   }
@@ -390,14 +541,26 @@ export class TestClient {
     opts: { section?: string; access?: Record<string, AccessLevel> } = {},
   ): Promise<string> {
     const draft = new Y.Doc();
-    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => draft };
-    const id = createPage(docs, this.tree(), { title, parentId, section: opts.section ?? privateSection(this.person.id) });
+    const docs: PageDocs = {
+      get: (id) => this.doc(pageDocName(id)),
+      create: () => draft,
+    };
+    const id = createPage(docs, this.tree(), {
+      title,
+      parentId,
+      section: opts.section ?? privateSection(this.person.id),
+    });
     if (body) writeParagraph(draft, body);
-    for (const [personId, level] of Object.entries(opts.access ?? {})) setPersonAccess(draft, personId, level);
-    Y.applyUpdate(this.entry(pageDocName(id)).doc, Y.encodeStateAsUpdate(draft));
+    for (const [personId, level] of Object.entries(opts.access ?? {}))
+      setPersonAccess(draft, personId, level);
+    Y.applyUpdate(
+      this.entry(pageDocName(id)).doc,
+      Y.encodeStateAsUpdate(draft),
+    );
     draft.destroy();
     const page = await this.open(pageDocName(id));
-    if (page.status !== "synced") throw new Error(`page denied: ${page.reason}`);
+    if (page.status !== "synced")
+      throw new Error(`page denied: ${page.reason}`);
     return id;
   }
 
@@ -411,10 +574,26 @@ export class TestClient {
    * page's own). Moving it to a Private section removes everyone else's access (`movesToPrivate`).
    * The server decides whether it sticks.
    */
-  async move(pageId: string, parentId: string | null, opts: { index?: number; section?: string } = {}): Promise<void> {
-    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => new Y.Doc() };
+  async move(
+    pageId: string,
+    parentId: string | null,
+    opts: { index?: number; section?: string } = {},
+  ): Promise<void> {
+    const docs: PageDocs = {
+      get: (id) => this.doc(pageDocName(id)),
+      create: () => new Y.Doc(),
+    };
     this.receivedPage(pageId);
-    if (!movePage(docs, this.tree(), pageId, parentId, opts.index ?? Number.MAX_SAFE_INTEGER, opts.section)) {
+    if (
+      !movePage(
+        docs,
+        this.tree(),
+        pageId,
+        parentId,
+        opts.index ?? Number.MAX_SAFE_INTEGER,
+        opts.section,
+      )
+    ) {
       throw new Error("move: not a valid move on this device's tree");
     }
   }
@@ -425,12 +604,19 @@ export class TestClient {
   }
 
   /** Invites `personId` to a received page at `level` (null: Restore inherited access). The server decides whether it sticks. */
-  async share(pageId: string, personId: string, level: AccessLevel | null): Promise<void> {
+  async share(
+    pageId: string,
+    personId: string,
+    level: AccessLevel | null,
+  ): Promise<void> {
     setPersonAccess(this.receivedPage(pageId), personId, level);
   }
 
   /** Sets a received page's general access for everyone in the workspace (null: inherit it). */
-  async shareWithWorkspace(pageId: string, level: AccessLevel | null): Promise<void> {
+  async shareWithWorkspace(
+    pageId: string,
+    level: AccessLevel | null,
+  ): Promise<void> {
     setWorkspaceAccess(this.receivedPage(pageId), level);
   }
 
@@ -473,16 +659,28 @@ export class TestClient {
     properties: Record<string, PropertyType> = {},
     opts: { parentId?: string | null; section?: string } = {},
   ): Promise<{ id: string; properties: Record<string, string> }> {
-    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: (id) => this.entry(pageDocName(id)).doc };
+    const docs: PageDocs = {
+      get: (id) => this.doc(pageDocName(id)),
+      create: (id) => this.entry(pageDocName(id)).doc,
+    };
     const id = createDatabase(docs, this.tree(), {
-      title, parentId: opts.parentId ?? null, section: opts.section ?? privateSection(this.person.id),
+      title,
+      parentId: opts.parentId ?? null,
+      section: opts.section ?? privateSection(this.person.id),
     });
     const page = await this.open(pageDocName(id));
-    if (page.status !== "synced") throw new Error(`database denied: ${page.reason}`);
+    if (page.status !== "synced")
+      throw new Error(`database denied: ${page.reason}`);
     const schema = this.entry(schemaDocName(id)).doc;
-    const ids = Object.fromEntries(Object.entries(properties).map(([name, type]) => [name, addProperty(schema, name, type)]));
+    const ids = Object.fromEntries(
+      Object.entries(properties).map(([name, type]) => [
+        name,
+        addProperty(schema, name, type),
+      ]),
+    );
     const result = await this.open(schemaDocName(id));
-    if (result.status !== "synced") throw new Error(`database properties denied: ${result.reason}`);
+    if (result.status !== "synced")
+      throw new Error(`database properties denied: ${result.reason}`);
     await this.settled();
     return { id, properties: ids };
   }
@@ -491,34 +689,62 @@ export class TestClient {
    * Adds a row to a received database, with its cells (property id → value) and an optional body,
    * as one update. The server decides whether it sticks. Returns the row's id.
    */
-  async addRow(databaseId: string, title: string, cells: Record<string, CellValue> = {}, body = ""): Promise<string> {
+  async addRow(
+    databaseId: string,
+    title: string,
+    cells: Record<string, CellValue> = {},
+    body = "",
+  ): Promise<string> {
     this.receivedPage(databaseId);
     const draft = new Y.Doc();
-    const id = addRow({ get: (pageId) => this.doc(pageDocName(pageId)), create: () => draft }, this.tree(), databaseId, { title, cells });
+    const id = addRow(
+      { get: (pageId) => this.doc(pageDocName(pageId)), create: () => draft },
+      this.tree(),
+      databaseId,
+      { title, cells },
+    );
     if (body) writeParagraph(draft, body);
-    Y.applyUpdate(this.entry(pageDocName(id)).doc, Y.encodeStateAsUpdate(draft));
+    Y.applyUpdate(
+      this.entry(pageDocName(id)).doc,
+      Y.encodeStateAsUpdate(draft),
+    );
     draft.destroy();
     await this.open(pageDocName(id));
     return id;
   }
 
   /** Sets a cell of a received row (null clears it). */
-  async setCell(rowId: string, propertyId: string, value: CellValue | null): Promise<void> {
+  async setCell(
+    rowId: string,
+    propertyId: string,
+    value: CellValue | null,
+  ): Promise<void> {
     setCell(this.receivedPage(rowId), propertyId, value);
   }
 
   /** Changes a received database's table view (sort, filter). */
-  async setView(databaseId: string, changes: Partial<ViewSettings>): Promise<void> {
+  async setView(
+    databaseId: string,
+    changes: Partial<ViewSettings>,
+  ): Promise<void> {
     setView(this.receivedPage(databaseId), changes);
   }
 
   /** Adds a property to a database whose properties this device received. Returns its id. */
-  async addProperty(databaseId: string, name: string, type: PropertyType): Promise<string> {
+  async addProperty(
+    databaseId: string,
+    name: string,
+    type: PropertyType,
+  ): Promise<string> {
     return addProperty(this.receivedSchema(databaseId), name, type);
   }
 
   /** Renames a property of a database whose properties this device received. */
-  async renameProperty(databaseId: string, propertyId: string, name: string): Promise<void> {
+  async renameProperty(
+    databaseId: string,
+    propertyId: string,
+    name: string,
+  ): Promise<void> {
     renameProperty(this.receivedSchema(databaseId), propertyId, name);
   }
 
@@ -534,8 +760,16 @@ export class TestClient {
 
   /** A received database as its table shows it on this device: each row's title and cells by property name. */
   table(databaseId: string): TableRow[] {
-    const docs: PageDocs = { get: (id) => this.doc(pageDocName(id)), create: () => new Y.Doc() };
-    return databaseTable(docs, this.tree(), databaseId, this.receivedSchema(databaseId));
+    const docs: PageDocs = {
+      get: (id) => this.doc(pageDocName(id)),
+      create: () => new Y.Doc(),
+    };
+    return databaseTable(
+      docs,
+      this.tree(),
+      databaseId,
+      this.receivedSchema(databaseId),
+    );
   }
 
   /** A received row, as its page shows it: its title and its cells by property name. */
@@ -544,13 +778,17 @@ export class TestClient {
     const meta = readMeta(rowId, doc)!;
     const cells = readCells(doc);
     const line: TableRow = { title: meta.title };
-    for (const p of readProperties(this.receivedSchema(meta.parentId ?? ""))) line[p.name] = cells[p.id];
+    for (const p of readProperties(this.receivedSchema(meta.parentId ?? "")))
+      line[p.name] = cells[p.id];
     return line;
   }
 
   private receivedSchema(databaseId: string): Y.Doc {
     const doc = this.doc(schemaDocName(databaseId));
-    if (!doc) throw new Error(`the properties of database ${databaseId} were not received`);
+    if (!doc)
+      throw new Error(
+        `the properties of database ${databaseId} were not received`,
+      );
     return doc;
   }
 
@@ -558,33 +796,56 @@ export class TestClient {
   async createTeamspace(
     name: string,
     kind: TeamspaceKind,
-    opts: { memberLevel?: AccessLevel; workspaceLevel?: AccessLevel; isDefault?: boolean } = {},
+    opts: {
+      memberLevel?: AccessLevel;
+      workspaceLevel?: AccessLevel;
+      isDefault?: boolean;
+    } = {},
   ): Promise<string> {
     const id = crypto.randomUUID();
-    createTeamspace(this.entry(teamspaceDocName(id)).doc, { name, kind, owner: this.person.id, ...opts });
+    createTeamspace(this.entry(teamspaceDocName(id)).doc, {
+      name,
+      kind,
+      owner: this.person.id,
+      ...opts,
+    });
     const result = await this.open(teamspaceDocName(id));
-    if (result.status !== "synced") throw new Error(`teamspace denied: ${result.reason}`);
+    if (result.status !== "synced")
+      throw new Error(`teamspace denied: ${result.reason}`);
     await this.settled();
     return id;
   }
 
   /** Creates a top-level page in a teamspace (opening the teamspace first if needed) and returns its id. */
-  async createTeamspacePage(teamspaceId: string, title: string, body = ""): Promise<string> {
+  async createTeamspacePage(
+    teamspaceId: string,
+    title: string,
+    body = "",
+  ): Promise<string> {
     const docs: PageDocs = {
       get: (id) => this.doc(pageDocName(id)),
       create: (id) => this.entry(pageDocName(id)).doc,
     };
-    const id = createPage(docs, this.tree(), { title, section: teamspaceSection(teamspaceId) });
+    const id = createPage(docs, this.tree(), {
+      title,
+      section: teamspaceSection(teamspaceId),
+    });
     const page = await this.open(pageDocName(id));
-    if (page.status !== "synced") throw new Error(`page denied: ${page.reason}`);
+    if (page.status !== "synced")
+      throw new Error(`page denied: ${page.reason}`);
     if (body) writeParagraph(page.doc, body);
     return id;
   }
 
   /** Adds someone to a teamspace (or changes their role; null removes them). The server decides whether it sticks. */
-  async addToTeamspace(teamspaceId: string, personId: string, role: TeamspaceRole | null = "member"): Promise<void> {
+  async addToTeamspace(
+    teamspaceId: string,
+    personId: string,
+    role: TeamspaceRole | null = "member",
+  ): Promise<void> {
     const result = await this.open(teamspaceDocName(teamspaceId));
-    if (result.status !== "synced") throw new Error(`teamspace denied: ${result.reason}`);
+    if (result.status !== "synced")
+      throw new Error(`teamspace denied: ${result.reason}`);
     setTeamspaceMember(result.doc, personId, role);
   }
 
@@ -599,12 +860,18 @@ export class TestClient {
   }
 
   /** Changes a received teamspace's settings. */
-  async setTeamspace(teamspaceId: string, changes: Parameters<typeof setTeamspaceSettings>[1]): Promise<void> {
+  async setTeamspace(
+    teamspaceId: string,
+    changes: Parameters<typeof setTeamspaceSettings>[1],
+  ): Promise<void> {
     setTeamspaceSettings(this.receivedTeamspace(teamspaceId), changes);
   }
 
   /** In a teamspace, overrides the level its members get on a received page and below (null: the teamspace's default). */
-  async shareWithTeamspace(pageId: string, level: AccessLevel | null): Promise<void> {
+  async shareWithTeamspace(
+    pageId: string,
+    level: AccessLevel | null,
+  ): Promise<void> {
     setTeamspaceAccess(this.receivedPage(pageId), level);
   }
 
@@ -619,16 +886,21 @@ export class TestClient {
     return this.received()
       .flatMap((name) => {
         const ref = parseDocName(name);
-        return ref?.kind === "teamspace" ? (this.teamspace(ref.teamspaceId)?.name ?? []) : [];
+        return ref?.kind === "teamspace"
+          ? (this.teamspace(ref.teamspaceId)?.name ?? [])
+          : [];
       })
-      .sort();
+      .toSorted();
   }
 
   /** The top-level page titles of each teamspace this device holds pages of, by teamspace name. */
   teamspaceSidebar(): Record<string, string[]> {
     const { teamspaces } = this.sections();
     return Object.fromEntries(
-      [...teamspaces].map(([id, nodes]) => [this.teamspace(id)?.name ?? id, nodes.map((n) => n.page.title)]),
+      [...teamspaces].map(([id, nodes]) => [
+        this.teamspace(id)?.name ?? id,
+        nodes.map((n) => n.page.title),
+      ]),
     );
   }
 
@@ -652,7 +924,9 @@ export class TestClient {
   /** Waits until the server has acknowledged every local change. */
   async settled(timeoutMs = 10_000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
-    while ([...this.entries.values()].some((e) => e.provider.hasUnsyncedChanges)) {
+    while (
+      [...this.entries.values()].some((e) => e.provider.hasUnsyncedChanges)
+    ) {
       if (Date.now() > deadline) throw new Error("changes did not sync");
       await new Promise((r) => setTimeout(r, 20));
     }
@@ -661,7 +935,11 @@ export class TestClient {
   /** Goes offline: the socket closes, and local edits wait for `connect()`. */
   async disconnect(timeoutMs = 10_000): Promise<void> {
     this.socket.disconnect();
-    await waitFor(() => String(this.socket.status) === "disconnected", timeoutMs, "socket did not close");
+    await waitFor(
+      () => this.socket.status === WebSocketStatus.Disconnected,
+      timeoutMs,
+      "socket did not close",
+    );
   }
 
   /**
@@ -671,7 +949,11 @@ export class TestClient {
   async connect(timeoutMs = 10_000): Promise<void> {
     void this.socket.connect();
     await waitFor(
-      () => [...this.entries.values()].every((e) => e.status === "denied" || e.status === "lost" || e.provider.synced),
+      () =>
+        [...this.entries.values()].every(
+          (e) =>
+            e.status === "denied" || e.status === "lost" || e.provider.synced,
+        ),
       timeoutMs,
       "documents did not sync again",
     );
@@ -689,7 +971,10 @@ export class TestClient {
   }
 
   private namesWith(status: Entry["status"]): string[] {
-    return [...this.entries].filter(([, e]) => e.status === status).map(([name]) => name).sort();
+    return [...this.entries]
+      .filter(([, e]) => e.status === status)
+      .map(([name]) => name)
+      .toSorted();
   }
 }
 
@@ -702,7 +987,11 @@ export async function connectAs(
 }
 
 /** Waits until `done()` is true, polling; for setup hooks, where `expect.poll` isn't allowed. */
-export async function waitFor(done: () => boolean | Promise<boolean>, timeoutMs = 10_000, message = "timed out"): Promise<void> {
+export async function waitFor(
+  done: () => boolean | Promise<boolean>,
+  timeoutMs = 10_000,
+  message = "timed out",
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!(await done())) {
     if (Date.now() > deadline) throw new Error(message);
@@ -714,7 +1003,8 @@ export async function waitFor(done: () => boolean | Promise<boolean>, timeoutMs 
 function writeParagraph(doc: Y.Doc, text: string): void {
   const fragment = doc.getXmlFragment("content");
   doc.transact(() => {
-    let group = fragment.get(0) as Y.XmlElement | undefined;
+    const first = fragment.get(0);
+    let group = first instanceof Y.XmlElement ? first : undefined;
     if (!group) {
       group = new Y.XmlElement("blockGroup");
       fragment.insert(0, [group]);
@@ -735,8 +1025,10 @@ function writeParagraph(doc: Y.Doc, text: string): void {
 function blockText(node: Y.XmlFragment | Y.XmlElement): string {
   const lines: string[] = [];
   const walk = (n: Y.XmlFragment | Y.XmlElement) => {
-    const texts = n.toArray().filter((c): c is Y.XmlText => c instanceof Y.XmlText);
-    if (texts.length) lines.push(texts.map((t) => t.toString()).join(""));
+    const texts = n
+      .toArray()
+      .filter((c): c is Y.XmlText => c instanceof Y.XmlText);
+    if (texts.length) lines.push(texts.map((t) => t.toJSON()).join(""));
     for (const c of n.toArray()) if (c instanceof Y.XmlElement) walk(c);
   };
   walk(node);

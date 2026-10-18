@@ -1,6 +1,13 @@
 import * as Y from "yjs";
 import {
-  canEdit, canEditContent, canShare, documentAccess, pageById, pageLevels, refuseUpdate, type Workspace,
+  canEdit,
+  canEditContent,
+  canShare,
+  documentAccess,
+  pageById,
+  pageLevels,
+  refuseUpdate,
+  type Workspace,
 } from "./access.ts";
 import type { AccessLevel } from "./levels.ts";
 import type { PageMeta } from "./tree.ts";
@@ -21,14 +28,21 @@ import { parseDocName, readMeta } from "./workspace.ts";
  *   views, or its page's title or place (#20).
  */
 export const REFUSALS = [
-  "read-only", "access-change-refused", "placement-refused", "teamspace-change-refused", "last-owner",
+  "read-only",
+  "access-change-refused",
+  "placement-refused",
+  "teamspace-change-refused",
+  "last-owner",
   "structure-refused",
 ] as const;
 
 export type Refusal = (typeof REFUSALS)[number];
 
 export function isRefusal(reason: unknown): reason is Refusal {
-  return typeof reason === "string" && (REFUSALS as readonly string[]).includes(reason);
+  return (
+    typeof reason === "string" &&
+    (REFUSALS as readonly string[]).includes(reason)
+  );
 }
 
 /**
@@ -38,7 +52,11 @@ export function isRefusal(reason: unknown): reason is Refusal {
  * page in someone else's Private section gets nothing. Its own `access` doesn't count, because
  * that is what is being checked.
  */
-export function placementLevel(workspace: Workspace, personId: string, meta: PageMeta): AccessLevel {
+export function placementLevel(
+  workspace: Workspace,
+  personId: string,
+  meta: PageMeta,
+): AccessLevel {
   const page: PageMeta = { ...meta, access: undefined };
   const pages = [...workspace.pages.filter((p) => p.id !== meta.id), page];
   return pageLevels({ ...workspace, pages }, personId).get(meta.id) ?? "none";
@@ -70,17 +88,25 @@ export function reviewUpdate(
   const ref = parseDocName(documentName);
   const before = ref?.kind === "page" ? pageById(workspace, ref.id) : undefined;
   const isNewPage = ref?.kind === "page" && !before;
-  const level = isNewPage ? null : documentAccess(workspace, personId, documentName, levels);
+  const level = isNewPage
+    ? null
+    : documentAccess(workspace, personId, documentName, levels);
   const mayMove = before !== undefined && writesPlacement(doc, update);
   if (level === "full" && !mayMove) return null;
   const { touched, copy } = previewUpdate(doc, update);
   try {
     if (touched.size === 0) return null;
     if (level !== null) {
-      const refused = refuseUpdate(level, touched, ref?.kind === "schema" ? "schema" : before?.kind);
+      const refused = refuseUpdate(
+        level,
+        touched,
+        ref?.kind === "schema" ? "schema" : before?.kind,
+      );
       if (refused || !mayMove) return refused;
       const after = readMeta(before.id, copy);
-      return after ? reviewMove(workspace, personId, level, before, after) : null;
+      return after
+        ? reviewMove(workspace, personId, level, before, after)
+        : null;
     }
     const meta = ref?.kind === "page" ? readMeta(ref.id, copy) : null;
     const placed = meta ? placementLevel(workspace, personId, meta) : "none";
@@ -113,14 +139,20 @@ export function reviewMove(
   // A page's kind is set when it is created: turning a row into a page (or back) would move it
   // out of its database (#20).
   if (before.kind !== after.kind) return "placement-refused";
-  if (before.parentId === after.parentId && before.section === after.section) return null;
-  if (!mayPlace(workspace, after, placementLevel(workspace, personId, after))) return "placement-refused";
+  if (before.parentId === after.parentId && before.section === after.section)
+    return null;
+  if (!mayPlace(workspace, after, placementLevel(workspace, personId, after)))
+    return "placement-refused";
   if (canShare(level)) return null;
-  const moved: Workspace = { ...workspace, pages: workspace.pages.map((p) => (p.id === after.id ? after : p)) };
+  const moved: Workspace = {
+    ...workspace,
+    pages: workspace.pages.map((p) => (p.id === after.id ? after : p)),
+  };
   for (const person of workspace.people) {
     const was = pageLevels(workspace, person.id);
     const now = pageLevels(moved, person.id);
-    if (was.size !== now.size || [...was].some(([id, l]) => now.get(id) !== l)) return "access-change-refused";
+    if (was.size !== now.size || [...was].some(([id, l]) => now.get(id) !== l))
+      return "access-change-refused";
   }
   return null;
 }
@@ -130,9 +162,16 @@ export function reviewMove(
  * Can edit, or for a row of a database the server holds, Can edit content (#20: Can edit content
  * may add rows).
  */
-function mayPlace(workspace: Workspace, meta: PageMeta, placed: AccessLevel): boolean {
+function mayPlace(
+  workspace: Workspace,
+  meta: PageMeta,
+  placed: AccessLevel,
+): boolean {
   if (canEdit(placed)) return true;
-  const parent = meta.kind === "row" && meta.parentId ? pageById(workspace, meta.parentId) : undefined;
+  const parent =
+    meta.kind === "row" && meta.parentId
+      ? pageById(workspace, meta.parentId)
+      : undefined;
   return parent?.kind === "database" && canEditContent(placed);
 }
 
@@ -145,7 +184,8 @@ function mayPlace(workspace: Workspace, meta: PageMeta, placed: AccessLevel): bo
  * check, as does an XML attribute with the same name.
  */
 function writesPlacement(doc: Y.Doc, update: Uint8Array): boolean {
-  const isPlacementKey = (key: string | null) => key === "parentId" || key === "section" || key === "kind";
+  const isPlacementKey = (key: string | null) =>
+    key === "parentId" || key === "section" || key === "kind";
   return Y.decodeUpdate(update).structs.some((s) => {
     if (!(s instanceof Y.Item)) return false;
     if (s.parentSub !== null) return isPlacementKey(s.parentSub);

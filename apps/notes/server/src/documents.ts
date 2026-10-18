@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { blob, integer } from "./rows.ts";
 
 /** Stores each Yjs document as one merged binary state (ADR-NOTE-005). */
 export class DocumentStore {
@@ -9,10 +10,10 @@ export class DocumentStore {
   }
 
   load(name: string): Uint8Array | null {
-    const row = this.#db.prepare("SELECT state FROM documents WHERE name = ?").get(name) as
-      | { state: Uint8Array }
-      | undefined;
-    return row ? new Uint8Array(row.state) : null;
+    const row = this.#db
+      .prepare("SELECT state FROM documents WHERE name = ?")
+      .get(name);
+    return row ? new Uint8Array(blob(row, "state")) : null;
   }
 
   save(name: string, state: Uint8Array): void {
@@ -25,6 +26,8 @@ export class DocumentStore {
   }
 
   count(): number {
-    return (this.#db.prepare("SELECT COUNT(*) AS n FROM documents").get() as { n: number }).n;
+    const row = this.#db.prepare("SELECT COUNT(*) AS n FROM documents").get();
+    if (!row) throw new Error("COUNT(*) returned no row");
+    return integer(row, "n");
   }
 }

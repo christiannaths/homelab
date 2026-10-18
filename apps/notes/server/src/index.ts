@@ -13,7 +13,9 @@ function required(name: string): string {
 
 const port = Number(process.env.PORT ?? 3000);
 const server = await startServer({
-  dataDir: path.resolve(process.env.DATA_DIR ?? path.join(import.meta.dirname, "../data")),
+  dataDir: path.resolve(
+    process.env.DATA_DIR ?? path.join(import.meta.dirname, "../data"),
+  ),
   port,
   publicUrl: process.env.PUBLIC_URL ?? `http://localhost:${port}`,
   oidc: {
@@ -25,9 +27,8 @@ const server = await startServer({
 console.log(`Notes server listening on port ${server.port}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, async () => {
+  process.once(signal, () => {
     // Writes documents still waiting on Hocuspocus's debounce before exiting.
-    await server.close();
-    process.exit(0);
+    void server.close().then(() => process.exit(0));
   });
 }

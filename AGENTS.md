@@ -23,3 +23,7 @@ Platform ADRs are in `docs/adr/`, and each app keeps its own in `apps/<app>/docs
 ### ADRs
 
 To record or edit an ADR, use this repo's own `adr` skill (`.agents/skills/adr/`, not part of `mattpocock/skills`): it replaces `domain-modeling`'s `ADR-FORMAT.md`. Each topic keeps one ADR, edited in place with a Changelog entry when its decision changes.
+
+### Comments
+
+Before writing or reviewing a code comment, use this repo's own `comments` skill (`.agents/skills/comments/`, not part of `mattpocock/skills`): a comment records why, and the code says what.

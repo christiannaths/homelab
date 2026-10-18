@@ -21,7 +21,7 @@ These came out of the design discussion in the project thread, in this order:
 None of the candidates supports the `<NAME>_FILE` form, so it is about 10 lines of our own code whichever is chosen.
 
 | Option | Version | Packages installed | Lists every problem at once | Prints values in errors | Notes |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | Zod alone | 4.6.7 | 1 (8.2 MB) | Yes | No | Typed result; `z.prettifyError` gives one line per setting |
 | envalid | 8.2.0 | 2 (`tslib`) | Yes | **Yes** | `Invalid url: "nope"`: a malformed secret would reach the log |
 | `@t3-oss/env-core` + Zod | 0.13.11 | 2 | Yes | No | Built to split browser and server settings in frontend frameworks; adds nothing on a server |
@@ -58,6 +58,7 @@ envalid's report for the same kind of input repeats the values:
 dotenvx loads `.env` files, encrypts their values with a key pair, validates them against an `Envfile`, and masks secrets in the process's output.
 
 What fits:
+
 - Pure JavaScript, BSD-3-Clause, with no install scripts or native code.
 - Decryption with `DOTENV_PRIVATE_KEY` works with the network blocked.
 - A value set in the environment overrides the same value in the file.
@@ -65,6 +66,7 @@ What fits:
 - With an `Envfile`, `console.log(secret)` prints `[REDACTED]`.
 
 What does not:
+
 - It is lenient by default. With the key missing, `config()` logs `DECRYPTION_FAILED` and the app starts with the ciphertext as its settings. Without a `.env` file, strict mode fails with `MISSING_ENV_FILE` unless that error is ignored.
 - Integrations with its hosted key service (Armor), 1Password and Bitwarden are on unless switched off with `DOTENVX_NO_*` variables.
 - It depends on `undici@^6`, and the repo overrides `undici` to 7.30.1.
@@ -88,6 +90,7 @@ Settings are read at startup only and never at build time, so no build or test o
 ## Rejected: one config file and one secrets file per app
 
 `NOTES_CONFIG_FILE` pointing at a JSON or YAML file, plus `NOTES_SECRETS_FILE`, was considered and set aside:
+
 - Hosting tools fill in environment variables, not files.
 - A combined secrets file cannot come straight from Docker or Kubernetes secrets, which hold one value per file.
 - File-configured apps such as Authelia, Gitea and Traefik also accept environment overrides, so the design ends with two systems and a precedence rule.

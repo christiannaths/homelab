@@ -8,7 +8,7 @@ import type * as Y from "yjs";
 import type { Identity } from "../identity";
 import type { PageMeta } from "../model/tree";
 import { useLocalReady, useSyncManager } from "../sync/context";
-import type { DocEntry } from "../sync/SyncManager";
+import type { DocEntry } from "../sync/sync-manager";
 import { pageDocName, renamePage, trashPage } from "../sync/workspace";
 
 interface Props {
@@ -44,7 +44,15 @@ export function PageView({ page, workspace, identity }: Props) {
           Delete
         </button>
       </div>
-      {ready ? <Editor key={entry.name} entry={entry} identity={identity} /> : <p className="muted">Loading…</p>}
+      {ready ? (
+        <Editor
+          key={entry.name}
+          entry={entry}
+          identity={identity}
+        />
+      ) : (
+        <p className="muted">Loading…</p>
+      )}
     </article>
   );
 }
@@ -73,7 +81,7 @@ export function Editor({
       collaboration: {
         fragment: entry.doc.getXmlFragment("content"),
         user: { ...identity },
-        provider: entry.provider as unknown as { awareness: NonNullable<DocEntry["provider"]["awareness"]> },
+        provider: { awareness: entry.provider.awareness ?? undefined },
         showCursorLabels: "always",
       },
     }),
@@ -81,7 +89,11 @@ export function Editor({
   );
   return (
     <div data-testid="editor">
-      <BlockNoteView editor={editor} theme="light" onChange={onChange && (() => onChange(editor.document))} />
+      <BlockNoteView
+        editor={editor}
+        theme="light"
+        onChange={onChange && (() => onChange(editor.document))}
+      />
     </div>
   );
 }

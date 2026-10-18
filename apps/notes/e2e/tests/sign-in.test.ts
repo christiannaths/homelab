@@ -2,14 +2,24 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import {
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+} from "@hocuspocus/provider";
 import { startServer, type NotesServer } from "@homelab/notes-server";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { Browser } from "./browser.ts";
 import {
-  ADMIN_PASSWORD, ADMIN_USERNAME, compose, NOTES_CLIENT_SECRET, NOTES_PORT, NOTES_URL, VOIDAUTH_URL, waitForVoidAuth,
+  ADMIN_PASSWORD,
+  ADMIN_USERNAME,
+  compose,
+  NOTES_CLIENT_SECRET,
+  NOTES_PORT,
+  NOTES_URL,
+  VOIDAUTH_URL,
+  waitForVoidAuth,
 } from "./voidauth.ts";
 
 let notes: NotesServer;
@@ -20,7 +30,11 @@ beforeAll(async () => {
     dataDir: mkdtempSync(path.join(tmpdir(), "notes-e2e-")),
     port: NOTES_PORT,
     publicUrl: NOTES_URL,
-    oidc: { issuer: `${VOIDAUTH_URL}/oidc`, clientId: "notes", clientSecret: NOTES_CLIENT_SECRET },
+    oidc: {
+      issuer: `${VOIDAUTH_URL}/oidc`,
+      clientId: "notes",
+      clientSecret: NOTES_CLIENT_SECRET,
+    },
   });
 });
 afterAll(() => notes.close());
@@ -61,8 +75,13 @@ function newAccount(prefix: string) {
 
 describe("the instance admin", () => {
   it("signs in through VoidAuth, becomes the Notes owner, and syncs a page", async () => {
-    expect(await owner.signInToNotes(ADMIN_USERNAME, ADMIN_PASSWORD)).toEqual({ status: 302, body: null });
-    const session = await (await owner.notes("GET", "/api/session")).json();
+    expect(await owner.signInToNotes(ADMIN_USERNAME, ADMIN_PASSWORD)).toEqual({
+      status: 302,
+      body: null,
+    });
+    const session: unknown = await (
+      await owner.notes("GET", "/api/session")
+    ).json();
     expect(session).toMatchObject({ person: { role: "owner" } });
 
     const page = openPage(owner, "pages/welcome");
@@ -80,7 +99,10 @@ describe("the instance admin", () => {
 describe("closed registration", () => {
   it("refuses to create an account on VoidAuth's page without an invite", async () => {
     const stranger = new Browser();
-    await stranger.jar.follow(`${NOTES_URL}/api/sign-in`, (l) => l.origin === VOIDAUTH_URL && l.pathname === "/login");
+    await stranger.jar.follow(
+      `${NOTES_URL}/api/sign-in`,
+      (l) => l.origin === VOIDAUTH_URL && l.pathname === "/login",
+    );
     const response = await stranger.register(newAccount("stranger"));
     expect(response.ok).toBe(false);
   });
@@ -94,7 +116,10 @@ describe("closed registration", () => {
     const account = newAccount("invitee");
     expect((await invitee.acceptInvite(link, account)).status).toBe(200);
     // A VoidAuth account grants nothing in Notes until Notes' own invites exist (issue #42).
-    const result = await invitee.signInToNotes(account.username, account.password);
+    const result = await invitee.signInToNotes(
+      account.username,
+      account.password,
+    );
     expect(result).toEqual({ status: 403, body: { error: "not_a_member" } });
 
     // The link works once.

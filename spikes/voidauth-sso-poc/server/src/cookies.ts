@@ -1,11 +1,17 @@
 // A tiny cookie jar for server-to-server calls and test clients, so code can walk VoidAuth's
 // redirect-and-cookie sign-in without a browser. One jar per person; cookies are kept per host.
 
-export function parseCookieHeader(header: string | undefined): Map<string, string> {
+export function parseCookieHeader(
+  header: string | undefined,
+): Map<string, string> {
   const cookies = new Map<string, string>();
   for (const part of (header ?? "").split(";")) {
     const eq = part.indexOf("=");
-    if (eq > 0) cookies.set(part.slice(0, eq).trim(), decodeURIComponent(part.slice(eq + 1).trim()));
+    if (eq > 0)
+      cookies.set(
+        part.slice(0, eq).trim(),
+        decodeURIComponent(part.slice(eq + 1).trim()),
+      );
   }
   return cookies;
 }
@@ -21,7 +27,11 @@ export class CookieJar {
       const eq = pair.indexOf("=");
       const name = pair.slice(0, eq).trim();
       const value = pair.slice(eq + 1).trim();
-      const expired = attributes.some((a) => /^\s*max-age=0\s*$/i.test(a) || /^\s*expires=thu, 01 jan 1970/i.test(a));
+      const expired = attributes.some(
+        (a) =>
+          /^\s*max-age=0\s*$/i.test(a) ||
+          /^\s*expires=thu, 01 jan 1970/i.test(a),
+      );
       if (expired || value === "") cookies.delete(name);
       else cookies.set(name, value);
     }
@@ -48,12 +58,16 @@ export class CookieJar {
   }
 
   /** GET `url` and follow redirects until `stop` matches the next location or a non-redirect arrives. */
-  async follow(url: string | URL, stop: (location: URL) => boolean = () => false): Promise<{ url: URL; response: Response }> {
+  async follow(
+    url: string | URL,
+    stop: (location: URL) => boolean = () => false,
+  ): Promise<{ url: URL; response: Response }> {
     let current = new URL(url);
     for (let hop = 0; hop < 20; hop++) {
       const response = await this.fetch(current);
       const location = response.headers.get("location");
-      if (response.status < 300 || response.status >= 400 || !location) return { url: current, response };
+      if (response.status < 300 || response.status >= 400 || !location)
+        return { url: current, response };
       const next = new URL(location, current);
       if (stop(next)) return { url: next, response };
       current = next;

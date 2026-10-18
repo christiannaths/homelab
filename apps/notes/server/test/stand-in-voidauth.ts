@@ -2,7 +2,6 @@
 // The end-to-end suite in apps/notes/e2e covers the real VoidAuth.
 import { createHash, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
 import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
 
 export interface Account {
@@ -26,7 +25,8 @@ export class StandInVoidAuth {
   /** Who the next sign-in is for, as if they had typed their password on VoidAuth's page. */
   account: Account | undefined;
   /** Replaces the ID token's claims, to test what Notes refuses. */
-  tamper: ((claims: Record<string, unknown>) => Record<string, unknown>) | undefined;
+  tamper:
+    ((claims: Record<string, unknown>) => Record<string, unknown>) | undefined;
 
   readonly #grants = new Map<string, Grant>();
   readonly #accessTokens = new Map<string, Account>();
@@ -36,16 +36,34 @@ export class StandInVoidAuth {
 
   async start(): Promise<this> {
     const { privateKey, publicKey } = await generateKeyPair("RS256");
-    this.#keys = { privateKey, jwk: { ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" } };
+    this.#keys = {
+      privateKey,
+      jwk: {
+        ...(await exportJWK(publicKey)),
+        kid: "k1",
+        alg: "RS256",
+        use: "sig",
+      },
+    };
     this.#server = createServer((req, res) => {
       this.#handle(req)
         .then(({ status, body, headers }) => {
-          res.writeHead(status, { "content-type": "application/json", ...headers }).end(JSON.stringify(body));
+          res
+            .writeHead(status, {
+              "content-type": "application/json",
+              ...headers,
+            })
+            .end(JSON.stringify(body));
         })
         .catch((error: unknown) => res.writeHead(500).end(String(error)));
     });
-    await new Promise<void>((resolve) => this.#server!.listen(0, "127.0.0.1", resolve));
-    this.issuer = `http://127.0.0.1:${(this.#server.address() as AddressInfo).port}/oidc`;
+    await new Promise<void>((resolve) =>
+      this.#server!.listen(0, "127.0.0.1", resolve),
+    );
+    const address = this.#server.address();
+    if (typeof address !== "object" || address === null)
+      throw new Error("Stand-in VoidAuth is not listening on a TCP port");
+    this.issuer = `http://127.0.0.1:${address.port}/oidc`;
     return this;
   }
 
@@ -54,7 +72,11 @@ export class StandInVoidAuth {
     await new Promise<void>((resolve) => this.#server?.close(() => resolve()));
   }
 
-  async #handle(req: IncomingMessage): Promise<{ status: number; body: unknown; headers?: Record<string, string> }> {
+  async #handle(req: IncomingMessage): Promise<{
+    status: number;
+    body: unknown;
+    headers?: Record<string, string>;
+  }> {
     const url = new URL(req.url ?? "/", this.issuer);
     const route = url.pathname.replace(/^\/oidc/, "");
 
@@ -70,7 +92,8 @@ export class StandInVoidAuth {
         },
       };
     }
-    if (route === "/jwks") return { status: 200, body: { keys: [this.#keys!.jwk] } };
+    if (route === "/jwks")
+      return { status: 200, body: { keys: [this.#keys!.jwk] } };
 
     if (route === "/auth") {
       const q = url.searchParams;
@@ -96,19 +119,26 @@ export class StandInVoidAuth {
       let text = "";
       for await (const chunk of req) text += String(chunk);
       const form = new URLSearchParams(text);
-      const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
-      if (req.headers.authorization !== `Basic ${basic}`) return { status: 401, body: { error: "invalid_client" } };
+      const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString(
+        "base64",
+      );
+      if (req.headers.authorization !== `Basic ${basic}`)
+        return { status: 401, body: { error: "invalid_client" } };
       const grant = this.#grants.get(form.get("code") ?? "");
       this.#grants.delete(form.get("code") ?? "");
       const verifier = form.get("code_verifier") ?? "";
       if (
         !grant ||
         grant.redirectUri !== form.get("redirect_uri") ||
-        createHash("sha256").update(verifier).digest("base64url") !== grant.challenge
+        createHash("sha256").update(verifier).digest("base64url") !==
+          grant.challenge
       ) {
         return { status: 400, body: { error: "invalid_grant" } };
       }
-      let claims: Record<string, unknown> = { sub: grant.account.sub, nonce: grant.nonce };
+      let claims: Record<string, unknown> = {
+        sub: grant.account.sub,
+        nonce: grant.nonce,
+      };
       if (this.tamper) claims = this.tamper(claims);
       const idToken = await new SignJWT(claims)
         .setProtectedHeader({ alg: "RS256", kid: "k1" })
@@ -119,13 +149,29 @@ export class StandInVoidAuth {
         .sign(this.#keys!.privateKey);
       const accessToken = randomBytes(16).toString("base64url");
       this.#accessTokens.set(accessToken, grant.account);
-      return { status: 200, body: { id_token: idToken, access_token: accessToken, token_type: "Bearer" } };
+      return {
+        status: 200,
+        body: {
+          id_token: idToken,
+          access_token: accessToken,
+          token_type: "Bearer",
+        },
+      };
     }
 
     if (route === "/me") {
-      const account = this.#accessTokens.get((req.headers.authorization ?? "").replace(/^Bearer /, ""));
+      const account = this.#accessTokens.get(
+        (req.headers.authorization ?? "").replace(/^Bearer /, ""),
+      );
       if (!account) return { status: 401, body: { error: "invalid_token" } };
-      return { status: 200, body: { sub: account.sub, name: account.name ?? null, groups: account.groups ?? [] } };
+      return {
+        status: 200,
+        body: {
+          sub: account.sub,
+          name: account.name ?? null,
+          groups: account.groups ?? [],
+        },
+      };
     }
 
     return { status: 404, body: { error: "not_found" } };

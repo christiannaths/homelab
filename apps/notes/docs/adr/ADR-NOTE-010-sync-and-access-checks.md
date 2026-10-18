@@ -6,9 +6,11 @@
 - Dependency of: [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md)
 
 ## Context
+
 Hocuspocus relays Yjs updates ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) between devices and the server's storage ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)). Access differs per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)): a device may only open what its person can open ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)), people below Can edit must not change what they read, and Can edit content allows only part of a database. Every page is its own document ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)), so a device syncs thousands of documents over one socket. A device applies its own edits before the server sees them, and a Yjs update cannot be taken back. Hocuspocus authenticates each document a connection opens, and its anti-abuse defaults (at most 100 documents waiting for authentication on one connection) disconnect large workspaces in a loop (PR #1).
 
 ## Decision
+
 - **Hocuspocus 4** is the sync server. Its per-connection pending-document and queue limits are raised (20,000 pending documents, 100,000 queued messages, 256 MB), because they are anti-abuse settings for public servers and the sync endpoint is private and authenticated ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
 - **Identity is checked once per connection:** the session says who the person is, and the result is reused for that connection's other documents.
 - **Access is checked for every document a connection opens** (`onAuthenticate`, which Hocuspocus calls per document) from the access rules: below Can view the document is refused with the reason `no-access`, at Can view and Can comment it opens read-only, and otherwise read-write.
@@ -22,10 +24,12 @@ Hocuspocus relays Yjs updates ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) be
 - The opt-in large-workspace test (`SLOW=1`, `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts`) is the regression gate for this decision until the real app has its own.
 
 ## Alternatives considered
+
 - **A small custom sync server** on the standard Yjs protocol. Hocuspocus's limits are settings, and with them raised it keeps large workspaces connected (Evidence).
 - **Hocuspocus's own read-only handling** for people below Can edit. It drops an update without telling the device.
 
 ## Evidence
+
 - The access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), risks 2 to 4), in `spikes/notes-access-sync-poc/`:
   - `server/testing/rejecting-edits.test.ts`: edits below Can edit, access changes below Full and misplaced pages and moves are refused, never reach another device, and are not stored; the device comes back in step and stops resending; a refusal leaves the person's other documents editable; a raised level takes effect on an open read-only connection.
   - `server/testing/databases.test.ts`: Can edit content adds rows and edits values, and changes to views and properties are refused.
@@ -34,6 +38,7 @@ Hocuspocus relays Yjs updates ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) be
 - `e2e/tests/access-scale.spec.ts`, 2,272 pages, headless Chromium, localhost, median of 9 (in brackets, the gate first set in PR #1 with 2,001 documents in `apps/notes/e2e/tests/sync-scale.spec.ts`): for a workspace owner with 1,973 documents, a new device downloads everything in 5.8 s (9.4 s), reconnecting re-syncs in 1.7 s (1.7–2.0 s), a server restart re-syncs both devices in 4.5 s (7.5 s), and a warm reload re-syncs in 5.9 s (3.9 s, where the first spike's own test takes 6.7 s on the same machine). No connection was dropped and nothing was refused in any phase.
 
 ## Consequences
+
 - **The server is not a plain relay.** It decodes each page's metadata and access, and copies a document for each update it reviews from a connection below Full access.
 - Clients and storage use plain Yjs and do not depend on Hocuspocus's data format. Replacing Hocuspocus means rewriting the server's sync layer, its review hooks and one client component, with no data migration.
 - Refusals and revocations are told apart by their close reason, because Hocuspocus 4.7.1 delivers a per-document close to the device with code 1000 whatever the server sent.
@@ -44,5 +49,6 @@ Hocuspocus relays Yjs updates ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) be
 - Hocuspocus's supported Yjs version constrains Yjs upgrades, which issue [#4](https://github.com/christiannaths/homelab/issues/4) tracks.
 
 ## Changelog
+
 - 2026-10-17: Access is checked on every document a connection opens and every update it sends, instead of letting any authenticated connection write any document after one session check per connection. Once access differed per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)), one session check let people write what they may only read, and because a device applies its edits first, the server has to review each update and tell the device when it refuses one. The gate test moved to the access spike's `access-scale.spec.ts`; its timings against the old gate are in Evidence. Evidence: the access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), PR #23). It was first recorded as a separate ADR, since merged in here.
 - 2026-10-16: Accepted. Hocuspocus 4 was kept over a custom sync server, with its per-connection limits raised and the session checked once per connection. The gate was `apps/notes/e2e/tests/sync-scale.spec.ts` at 2,000 pages. Evidence: PR #1.

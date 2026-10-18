@@ -17,5 +17,9 @@ it("makes the first person the owner, who can then add members and guests", asyn
 
   await expect(server.addPerson("Mia", "member", max)).rejects.toThrow(/403/);
   await expect(server.addPerson("Mia", "member")).rejects.toThrow(/401/);
-  expect((await server.people()).map((p) => p.name)).toEqual(["Olive", "Max", "Gus"]);
+  expect((await server.people()).map((p) => p.name)).toEqual([
+    "Olive",
+    "Max",
+    "Gus",
+  ]);
 });

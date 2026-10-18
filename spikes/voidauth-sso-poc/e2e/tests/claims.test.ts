@@ -1,5 +1,6 @@
 // Questions 2 and 3: spotting the instance admin from the sign-in, and the sign-in basics.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { arrayField, stringField } from "@homelab/voidauth-sso-poc-server/json";
 import { newPerson, startApp } from "./app.ts";
 import { ADMIN_PASSWORD } from "./global-setup.ts";
 import { Person } from "./person.ts";
@@ -17,9 +18,15 @@ afterAll(() => app.close());
 
 async function inviteAndRegister(name: string | undefined) {
   const who = newPerson("clm");
-  const { appLink } = (await (await owner.app("POST", "/api/invites", { email: null })).json()) as { appLink: string };
+  const created: unknown = await (
+    await owner.app("POST", "/api/invites", { email: null })
+  ).json();
+  const appLink = stringField(created, "appLink");
   const person = new Person();
-  const result = await person.registerDuringAppSignIn({ ...who, ...(name ? { name } : {}) }, new URL(appLink).pathname);
+  const result = await person.registerDuringAppSignIn(
+    { ...who, ...(name ? { name } : {}) },
+    new URL(appLink).pathname,
+  );
   expect(result.status).toBe(302);
   const sub = [...app.members.values()].find((m) => m.email === who.email)!.sub;
   return { who, person, sub, signIn: app.lastSignIn.get(sub)! };
@@ -40,12 +47,23 @@ describe("spotting the instance admin", () => {
   });
 
   it("advertises groups as its own scope and claim, separate from profile", async () => {
-    const discovery = (await (await fetch(`${app.lastSignIn.get(ownerSub)!.idToken.iss as string}/.well-known/openid-configuration`)).json()) as {
-      scopes_supported: string[];
-      claims_supported: string[];
-    };
-    expect(discovery.scopes_supported).toEqual(expect.arrayContaining(["openid", "profile", "email", "groups"]));
-    expect(discovery.claims_supported).toEqual(expect.arrayContaining(["sub", "email", "email_verified", "name", "preferred_username", "groups"]));
+    const issuer = stringField(app.lastSignIn.get(ownerSub)!.idToken, "iss");
+    const discovery: unknown = await (
+      await fetch(`${issuer}/.well-known/openid-configuration`)
+    ).json();
+    expect(arrayField(discovery, "scopes_supported")).toEqual(
+      expect.arrayContaining(["openid", "profile", "email", "groups"]),
+    );
+    expect(arrayField(discovery, "claims_supported")).toEqual(
+      expect.arrayContaining([
+        "sub",
+        "email",
+        "email_verified",
+        "name",
+        "preferred_username",
+        "groups",
+      ]),
+    );
   });
 });
 
@@ -78,7 +96,9 @@ describe("sign-in basics", () => {
     const tryPassword = async (password: string) => {
       const person = new Person();
       await person.startAppSignIn();
-      return (await person.register({ username: newPerson("pw").username, password })).status;
+      return (
+        await person.register({ username: newPerson("pw").username, password })
+      ).status;
     };
     // Long but common: refused.
     expect(await tryPassword("Password123!")).toBe(422);

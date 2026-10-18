@@ -1,0 +1,26 @@
+ls:
+  .dir: kebab-case | regex:\.[a-z]+
+  .*: kebab-case
+  # React components follow the PascalCase convention.
+  .tsx: kebab-case | PascalCase
+  # Conventional upper-case names such as README.md, AGENTS.md and FINDINGS.md.
+  .md: kebab-case | SCREAMING_SNAKE_CASE
+  # ADR file names are checked in full by tools/check-adrs.ts.
+  docs/adr:
+    .md: regex:ADR-[A-Z]{3,4}-\d{3}-[a-z0-9-]+ | SCREAMING_SNAKE_CASE
+  apps/*/docs/adr:
+    .md: regex:ADR-[A-Z]{3,4}-\d{3}-[a-z0-9-]+ | SCREAMING_SNAKE_CASE
+
+ignore:
+  - .git
+  - .husky/_
+  # Matches .gitignore, which ls-lint does not read.
+  - "**/node_modules"
+  - "**/dist"
+  - "**/data"
+  - "**/test-results"
+  - "**/playwright-report"
+  - .nx
+  # Vendored: Matt Pocock's skills, managed by `npx skills`.
+  - .agents/skills
+  - .claude/skills

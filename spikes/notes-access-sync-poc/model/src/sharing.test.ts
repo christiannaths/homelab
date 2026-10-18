@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { pageLevels, readOnlyAt, refuseUpdate, type AccessLevel, type Workspace } from "./access.ts";
+import {
+  pageLevels,
+  readOnlyAt,
+  refuseUpdate,
+  type Workspace,
+} from "./access.ts";
 import type { Person } from "./people.ts";
 import {
-  createPage, movePage, privateSection, readIndex, readIndexLevels, readMeta, setPersonAccess,
-  setWorkspaceAccess, writeIndex, type PageDocs,
+  createPage,
+  movePage,
+  privateSection,
+  readIndex,
+  readIndexLevels,
+  readMeta,
+  setPersonAccess,
+  setWorkspaceAccess,
+  writeIndex,
+  type PageDocs,
 } from "./workspace.ts";
 import { buildTree } from "./tree.ts";
 
@@ -35,7 +48,9 @@ class Device implements PageDocs {
   /** Every person's levels, as the server would work them out from this device's documents. */
   levels(): Record<string, Record<string, string>> {
     const ws: Workspace = { people, pages: this.pages() };
-    return Object.fromEntries(people.map((p) => [p.id, Object.fromEntries([...pageLevels(ws, p.id)].sort())]));
+    return Object.fromEntries(
+      people.map((p) => [p.id, Object.fromEntries(pageLevels(ws, p.id))]),
+    );
   }
 }
 
@@ -51,13 +66,19 @@ function sync(x: Device, y: Device) {
 describe("access stored in the page document", () => {
   it("reads back as the page's own access, and Restore inherited access removes an entry", () => {
     const device = new Device();
-    const id = createPage(device, device.tree(), { title: "Trip", section: MAX });
+    const id = createPage(device, device.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
     const doc = device.get(id)!;
     expect(readMeta(id, doc)?.access).toBeUndefined();
 
     setPersonAccess(doc, "nia", "view");
     setWorkspaceAccess(doc, "comment");
-    expect(readMeta(id, doc)?.access).toEqual({ people: { nia: "view" }, workspace: "comment" });
+    expect(readMeta(id, doc)?.access).toEqual({
+      people: { nia: "view" },
+      workspace: "comment",
+    });
 
     setPersonAccess(doc, "nia", null);
     setWorkspaceAccess(doc, null);
@@ -66,7 +87,10 @@ describe("access stored in the page document", () => {
 
   it("ignores entries that aren't access levels, as a buggy or old client might write", () => {
     const device = new Device();
-    const id = createPage(device, device.tree(), { title: "Trip", section: MAX });
+    const id = createPage(device, device.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
     const doc = device.get(id)!;
     doc.getMap("access").set("person:nia", "owner-ish");
     doc.getMap("access").set("something", "view");
@@ -78,34 +102,51 @@ describe("concurrent access changes (two devices, offline, then synced)", () => 
   it("two invites to different people both survive", () => {
     const laptop = new Device();
     const phone = new Device();
-    const id = createPage(laptop, laptop.tree(), { title: "Trip", section: MAX });
+    const id = createPage(laptop, laptop.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
     sync(laptop, phone);
     setPersonAccess(laptop.get(id)!, "nia", "edit");
     setPersonAccess(phone.get(id)!, "olive", "view");
     sync(laptop, phone);
     expect(laptop.levels()).toEqual(phone.levels());
-    expect(laptop.levels()).toMatchObject({ nia: { [id]: "edit" }, olive: { [id]: "view" } });
+    expect(laptop.levels()).toMatchObject({
+      nia: { [id]: "edit" },
+      olive: { [id]: "view" },
+    });
   });
 
   it("two different levels for the same person end up as the same one on every device", () => {
     const laptop = new Device();
     const phone = new Device();
-    const id = createPage(laptop, laptop.tree(), { title: "Trip", section: MAX });
+    const id = createPage(laptop, laptop.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
     sync(laptop, phone);
     setPersonAccess(laptop.get(id)!, "nia", "edit");
     setPersonAccess(phone.get(id)!, "nia", "view");
     setWorkspaceAccess(laptop.get(id)!, "view");
     setWorkspaceAccess(phone.get(id)!, null);
     sync(laptop, phone);
-    expect(readMeta(id, laptop.get(id)!)?.access).toEqual(readMeta(id, phone.get(id)!)?.access);
+    expect(readMeta(id, laptop.get(id)!)?.access).toEqual(
+      readMeta(id, phone.get(id)!)?.access,
+    );
     expect(laptop.levels()).toEqual(phone.levels());
   });
 
   it("a move under a shared page and an unshare of that page agree on who can open what", () => {
     const laptop = new Device();
     const phone = new Device();
-    const trip = createPage(laptop, laptop.tree(), { title: "Trip", section: MAX });
-    const notes = createPage(laptop, laptop.tree(), { title: "Notes", section: MAX });
+    const trip = createPage(laptop, laptop.tree(), {
+      title: "Trip",
+      section: MAX,
+    });
+    const notes = createPage(laptop, laptop.tree(), {
+      title: "Notes",
+      section: MAX,
+    });
     setPersonAccess(laptop.get(trip)!, "nia", "view");
     sync(laptop, phone);
     expect(movePage(laptop, laptop.tree(), notes, trip, 0)).toBe(true);
@@ -119,15 +160,39 @@ describe("concurrent access changes (two devices, offline, then synced)", () => 
 describe("a person's page index", () => {
   it("lists each page they can open with their level, and a rewrite touches only what changed", () => {
     const index = new Y.Doc();
-    writeIndex(index, new Map([["a", "full"], ["b", "view"]]));
+    writeIndex(
+      index,
+      new Map([
+        ["a", "full"],
+        ["b", "view"],
+      ]),
+    );
     expect(readIndex(index)).toEqual(["a", "b"]);
-    expect(readIndexLevels(index)).toEqual(new Map([["a", "full"], ["b", "view"]]));
+    expect(readIndexLevels(index)).toEqual(
+      new Map([
+        ["a", "full"],
+        ["b", "view"],
+      ]),
+    );
 
     const changed: string[] = [];
     index.getMap("pages").observe((e) => changed.push(...e.keysChanged));
-    writeIndex(index, new Map([["a", "full"], ["b", "edit"], ["c", "comment"]]));
-    expect(changed.sort()).toEqual(["b", "c"]);
-    expect(readIndexLevels(index)).toEqual(new Map([["a", "full"], ["b", "edit"], ["c", "comment"]]));
+    writeIndex(
+      index,
+      new Map([
+        ["a", "full"],
+        ["b", "edit"],
+        ["c", "comment"],
+      ]),
+    );
+    expect(changed.toSorted()).toEqual(["b", "c"]);
+    expect(readIndexLevels(index)).toEqual(
+      new Map([
+        ["a", "full"],
+        ["b", "edit"],
+        ["c", "comment"],
+      ]),
+    );
 
     writeIndex(index, new Map([["c", "comment"]]));
     expect(readIndex(index)).toEqual(["c"]);
@@ -146,7 +211,10 @@ describe("which updates a connection may apply", () => {
   });
 
   it("opens Can view and Can comment read-only, and every other level a person can open read-write", () => {
-    expect(["full", "edit", "edit-content", "comment", "view"].filter((l) => readOnlyAt(l as AccessLevel)))
-      .toEqual(["comment", "view"]);
+    expect(
+      (["full", "edit", "edit-content", "comment", "view"] as const).filter(
+        (l) => readOnlyAt(l),
+      ),
+    ).toEqual(["comment", "view"]);
   });
 });

@@ -6,9 +6,11 @@
 - Dependency of: none
 
 ## Context
+
 The server needs a real HTTP API: sign-in, invites, people and roles, sharing, teamspaces and attachments. People sign in through the homelab's VoidAuth ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)), and Notes keeps its own device sessions on top ([ADR-NOTE-009](ADR-NOTE-009-identity.md)). Those sessions must last while a device is offline, be revocable at once, and gate the sync socket. The Notes server stays one Node process with one SQLite file ([ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
 
 ## Decision
+
 - **Hono serves all HTTP**, on `@hono/node-server` with its built-in WebSocket support (`ws`, `WebSocketServer` with `noServer: true`). That covers the API, the built PWA with a fallback to `index.html`, and the sync endpoint. `@hono/node-ws` is deprecated and is not used.
 - **Hocuspocus runs behind Hono** without a server of its own ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)):
   - Hono's `upgradeWebSocket` passes each socket to `hocuspocus.handleConnection()`, with the signed-in person as the connection's context.
@@ -23,12 +25,14 @@ The server needs a real HTTP API: sign-in, invites, people and roles, sharing, t
 - **Revoking a session closes its sockets at once.** The server keeps the open sockets for each session, and signing out, revoking a device or removing a person closes them with code 4401.
 
 ## Alternatives considered
+
 - **A full-stack framework.** Every read is local and the server cannot query Yjs data, so it would add little ([`research/08-framework-options.md`](../research/08-framework-options.md)).
 - **Hocuspocus's `onRequest` hook with a hand-written static file server,** as the first spike did ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
 - **Better Auth for accounts and sessions.** With passwords in VoidAuth, Notes needs only device sessions, and Better Auth would bring its user, account and rate-limit tables and 25 packages for them.
 - **An OIDC client library.** The flow is one redirect and one token request, and `jose` already checks the token.
 
 ## Evidence
+
 - The server stack spike ([`research/09-server-stack-spike-findings.md`](../research/09-server-stack-spike-findings.md)), in `spikes/notes-server-stack-poc/`: 17 Vitest tests against real servers and Hocuspocus providers pass in three runs in a row. Those that do not depend on Better Auth cover:
   - static files and the client-side route fallback
   - co-editing across a server restart, and 300 documents on one socket
@@ -38,11 +42,13 @@ The server needs a real HTTP API: sign-in, invites, people and roles, sharing, t
 - The VoidAuth spike ([`spikes/voidauth-sso-poc/FINDINGS.md`](../../../../spikes/voidauth-sso-poc/FINDINGS.md)): the authorization-code flow with PKCE on `fetch` and `jose`, a device cookie renewed on sync, and a sync socket refused without it.
 
 ## Consequences
+
 - Notes' session table lives beside `documents` in the one SQLite file, so backing up that file still backs up the instance ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
 - Signing in on a new device needs VoidAuth to be running. Signed-in devices keep syncing while it is down.
 - An open socket whose session expires without being revoked stays open until it reconnects. Sessions are extended on every use, so this affects only a device that stays connected for a whole year.
 - Better Auth's organization and team features are not used for anything. Access is decided per document in the sync server, from the access rules ([ADR-NOTE-011](ADR-NOTE-011-access-control.md)).
 
 ## Changelog
+
 - 2026-10-17: Notes signs people in through VoidAuth and keeps only its own device sessions, instead of running Better Auth with its own accounts and rate limiting. Passwords moved to the homelab's shared sign-in ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)).
 - 2026-10-17: Accepted. Hono served HTTP with Hocuspocus behind it, and Better Auth managed username accounts, scrypt passwords, year-long sessions and rate limiting in the same SQLite file.

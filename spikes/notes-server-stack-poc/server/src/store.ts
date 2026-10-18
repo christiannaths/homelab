@@ -19,10 +19,13 @@ export class DocumentStore {
   }
 
   load(name: string): Uint8Array | null {
-    const row = this.db.prepare("SELECT state FROM documents WHERE name = ?").get(name) as
-      | { state: Uint8Array }
-      | undefined;
-    return row ? new Uint8Array(row.state) : null;
+    const row = this.db
+      .prepare("SELECT state FROM documents WHERE name = ?")
+      .get(name);
+    if (!row) return null;
+    if (!(row.state instanceof Uint8Array))
+      throw new Error(`Document ${name} has no binary state`);
+    return new Uint8Array(row.state);
   }
 
   save(name: string, state: Uint8Array): void {
@@ -35,6 +38,8 @@ export class DocumentStore {
   }
 
   count(): number {
-    return (this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as { n: number }).n;
+    const n = this.db.prepare("SELECT COUNT(*) AS n FROM documents").get()?.n;
+    if (typeof n !== "number") throw new Error("COUNT(*) returned no number");
+    return n;
   }
 }

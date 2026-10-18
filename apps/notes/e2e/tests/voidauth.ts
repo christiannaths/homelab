@@ -31,11 +31,18 @@ export function composeEnv(dataDir: string): ComposeEnv {
   };
 }
 
-export async function compose(env: ComposeEnv, ...args: string[]): Promise<string> {
-  const { stdout, stderr } = await run("docker", ["compose", "-f", COMPOSE_FILE, ...args], {
-    env: { ...process.env, ...env },
-    maxBuffer: 16 * 1024 * 1024,
-  });
+export async function compose(
+  env: ComposeEnv,
+  ...args: string[]
+): Promise<string> {
+  const { stdout, stderr } = await run(
+    "docker",
+    ["compose", "-f", COMPOSE_FILE, ...args],
+    {
+      env: { ...process.env, ...env },
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
   return stdout + stderr;
 }
 
@@ -43,7 +50,11 @@ export async function waitForVoidAuth(timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      if ((await fetch(`${VOIDAUTH_URL}/oidc/.well-known/openid-configuration`)).ok) return;
+      if (
+        (await fetch(`${VOIDAUTH_URL}/oidc/.well-known/openid-configuration`))
+          .ok
+      )
+        return;
     } catch {
       // not listening yet
     }
@@ -53,14 +64,26 @@ export async function waitForVoidAuth(timeoutMs = 120_000): Promise<void> {
 }
 
 /** The first-run password link VoidAuth prints: `${APP_URL}/reset_password?id=…&challenge=…`. */
-export function parseResetLink(output: string): { userId: string; challenge: string } | undefined {
-  const link = /https?:\/\/\S+\/reset_password\?id=[\w-]+&challenge=[\w-]+/.exec(output)?.[0];
+export function parseResetLink(
+  output: string,
+): { userId: string; challenge: string } | undefined {
+  const link =
+    /https?:\/\/\S+\/reset_password\?id=[\w-]+&challenge=[\w-]+/.exec(
+      output,
+    )?.[0];
   if (!link) return undefined;
   const url = new URL(link);
-  return { userId: url.searchParams.get("id")!, challenge: url.searchParams.get("challenge")! };
+  return {
+    userId: url.searchParams.get("id")!,
+    challenge: url.searchParams.get("challenge")!,
+  };
 }
 
-export function resetPassword(userId: string, challenge: string, newPassword: string): Promise<Response> {
+export function resetPassword(
+  userId: string,
+  challenge: string,
+  newPassword: string,
+): Promise<Response> {
   return fetch(`${VOIDAUTH_URL}/api/public/reset_password`, {
     method: "POST",
     headers: { "content-type": "application/json" },

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { integer, text } from "./rows.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,7 +15,8 @@ export interface Session {
   personId: string;
 }
 
-const hash = (token: string) => createHash("sha256").update(token).digest("base64url");
+const hash = (token: string) =>
+  createHash("sha256").update(token).digest("base64url");
 
 /** Notes' own device sessions (ADR-NOTE-014). VoidAuth is not involved once one is issued. */
 export class Sessions {
@@ -44,24 +46,32 @@ export class Sessions {
     if (!token) return undefined;
     const tokenHash = hash(token);
     const row = this.#db
-      .prepare("SELECT person_id, renewed_at, expires_at FROM sessions WHERE token_hash = ?")
-      .get(tokenHash) as { person_id: string; renewed_at: number; expires_at: number } | undefined;
+      .prepare(
+        "SELECT person_id, renewed_at, expires_at FROM sessions WHERE token_hash = ?",
+      )
+      .get(tokenHash);
     if (!row) return undefined;
     const now = this.#now();
-    if (row.expires_at <= now) {
-      this.#db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash);
+    if (integer(row, "expires_at") <= now) {
+      this.#db
+        .prepare("DELETE FROM sessions WHERE token_hash = ?")
+        .run(tokenHash);
       return undefined;
     }
-    if (now - row.renewed_at >= RENEW_AFTER_MS) {
+    if (now - integer(row, "renewed_at") >= RENEW_AFTER_MS) {
       this.#db
-        .prepare("UPDATE sessions SET renewed_at = ?, expires_at = ? WHERE token_hash = ?")
+        .prepare(
+          "UPDATE sessions SET renewed_at = ?, expires_at = ? WHERE token_hash = ?",
+        )
         .run(now, now + SESSION_LIFETIME_MS, tokenHash);
     }
-    return { token, personId: row.person_id };
+    return { token, personId: text(row, "person_id") };
   }
 
   revoke(token: string): void {
-    this.#db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(hash(token));
+    this.#db
+      .prepare("DELETE FROM sessions WHERE token_hash = ?")
+      .run(hash(token));
   }
 
   /** The `Set-Cookie` value holding a session token, or clearing it when `token` is empty. */

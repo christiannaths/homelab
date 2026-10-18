@@ -5,9 +5,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
-const pub = path.join(path.dirname(fileURLToPath(import.meta.url)), "../public");
-const sizes = { "icon-192.png": 192, "icon-512.png": 512, "apple-touch-icon.png": 180 };
-if (Object.keys(sizes).every((f) => existsSync(path.join(pub, f)))) process.exit(0);
+const pub = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../public",
+);
+const sizes = {
+  "icon-192.png": 192,
+  "icon-512.png": 512,
+  "apple-touch-icon.png": 180,
+};
+if (Object.keys(sizes).every((f) => existsSync(path.join(pub, f))))
+  process.exit(0);
 
 const svg = readFileSync(path.join(pub, "icon.svg"), "utf8");
 const browser = await chromium.launch();

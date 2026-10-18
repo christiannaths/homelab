@@ -1,9 +1,20 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 import {
-  callback, DAY_MS, device, OTHER_ADMIN, OWNER, signIn, start, STRANGER, tryUpgrade, waitFor,
-  type Device, type TestServer,
+  callback,
+  DAY_MS,
+  device,
+  OTHER_ADMIN,
+  OWNER,
+  signIn,
+  start,
+  STRANGER,
+  tryUpgrade,
+  waitFor,
+  type Device,
+  type TestServer,
 } from "./helpers.ts";
+import { integer, text } from "../src/rows.ts";
 import { StandInVoidAuth } from "./stand-in-voidauth.ts";
 
 const voidauth = new StandInVoidAuth();
@@ -42,8 +53,12 @@ describe("signing in through VoidAuth", () => {
     const result = await signIn(s, voidauth, OWNER);
     expect(result.status).toBe(302);
     expect(result.body).toBe("/");
-    const session = await fetch(`${s.url}/api/session`, { headers: { cookie: result.cookie! } });
-    expect(await session.json()).toEqual({ person: { id: OWNER.sub, role: "owner", name: "Alex" } });
+    const session = await fetch(`${s.url}/api/session`, {
+      headers: { cookie: result.cookie! },
+    });
+    expect(await session.json()).toEqual({
+      person: { id: OWNER.sub, role: "owner", name: "Alex" },
+    });
   });
 
   test("someone who is not a VoidAuth admin cannot become the first owner", async () => {
@@ -64,16 +79,27 @@ describe("signing in through VoidAuth", () => {
     const { s } = await withOwner();
     const laptop = await signIn(s, voidauth, { ...OWNER, name: "Alex K" });
     expect(laptop.status).toBe(302);
-    const session = await fetch(`${s.url}/api/session`, { headers: { cookie: laptop.cookie! } });
-    expect(await session.json()).toEqual({ person: { id: OWNER.sub, role: "owner", name: "Alex K" } });
+    const session = await fetch(`${s.url}/api/session`, {
+      headers: { cookie: laptop.cookie! },
+    });
+    expect(await session.json()).toEqual({
+      person: { id: OWNER.sub, role: "owner", name: "Alex K" },
+    });
   });
 
   test("a callback that does not match the sign-in it started is refused", async () => {
     const s = await server();
     voidauth.account = OWNER;
     const started = await fetch(`${s.url}/api/sign-in`, { redirect: "manual" });
-    const pending = started.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
-    const location = new URL((await fetch(started.headers.get("location")!, { redirect: "manual" })).headers.get("location")!);
+    const pending = started.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+    const location = new URL(
+      (
+        await fetch(started.headers.get("location")!, { redirect: "manual" })
+      ).headers.get("location")!,
+    );
 
     const forgedState = new URL(location);
     forgedState.searchParams.set("state", "forged");
@@ -112,9 +138,12 @@ describe("device sessions", () => {
   test("the session token is not stored as is", async () => {
     const { s, cookie } = await withOwner();
     const token = cookie.split("=")[1];
-    const rows = s.db.prepare("SELECT token_hash FROM sessions").all() as { token_hash: string }[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.token_hash).not.toBe(token);
+    const hashes = s.db
+      .prepare("SELECT token_hash FROM sessions")
+      .all()
+      .map((row) => text(row, "token_hash"));
+    expect(hashes).toHaveLength(1);
+    expect(hashes[0]).not.toBe(token);
   });
 
   test("a device unused for 200 days still syncs, and using it extends the session a year again", async () => {
@@ -129,14 +158,18 @@ describe("device sessions", () => {
     const { s, cookie } = await withOwner();
     s.advance(366 * DAY_MS);
     expect(await tryUpgrade(s, cookie)).toBe(401);
-    expect((await fetch(`${s.url}/api/session`, { headers: { cookie } })).status).toBe(401);
+    expect(
+      (await fetch(`${s.url}/api/session`, { headers: { cookie } })).status,
+    ).toBe(401);
   });
 
   test("the session check renews the cookie for another year", async () => {
     const { s, cookie } = await withOwner();
     const res = await fetch(`${s.url}/api/session`, { headers: { cookie } });
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toBe(`${cookie}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=31536000`);
+    expect(res.headers.get("set-cookie")).toBe(
+      `${cookie}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=31536000`,
+    );
   });
 
   test("devices keep syncing while VoidAuth is down", async () => {
@@ -145,7 +178,9 @@ describe("device sessions", () => {
     try {
       const d = track(device(s, cookie));
       await d.open("pages/plan").synced;
-      expect((await fetch(`${s.url}/api/session`, { headers: { cookie } })).status).toBe(200);
+      expect(
+        (await fetch(`${s.url}/api/session`, { headers: { cookie } })).status,
+      ).toBe(200);
     } finally {
       await voidauth.start();
     }
@@ -178,7 +213,9 @@ describe("sync", () => {
     const b = track(device(s, laptop)).open("pages/plan");
     await Promise.all([a.synced, b.synced]);
     a.doc.getText("body").insert(0, "hello from the phone");
-    await waitFor(() => b.doc.getText("body").toString() === "hello from the phone");
+    await waitFor(
+      () => b.doc.getText("body").toString() === "hello from the phone",
+    );
 
     for (const d of devices.splice(0)) d.destroy();
     const { dataDir } = s;
@@ -193,7 +230,9 @@ describe("sync", () => {
   test("one socket carries many documents", async () => {
     const { s, cookie } = await withOwner();
     const d = track(device(s, cookie));
-    await Promise.all(Array.from({ length: 300 }, (_, i) => d.open(`pages/page-${i}`).synced));
+    await Promise.all(
+      Array.from({ length: 300 }, (_, i) => d.open(`pages/page-${i}`).synced),
+    );
   });
 
   test("edits made offline sync after reconnecting with the same session", async () => {
@@ -211,7 +250,11 @@ describe("sync", () => {
     const after = track(device(s, cookie)).open("pages/plan");
     Y.applyUpdate(after.doc, Y.encodeStateAsUpdate(local));
     await after.synced;
-    await waitFor(() => s.hocuspocus.documents.get("pages/plan")?.getText("body").toString() === "written offline");
+    await waitFor(
+      () =>
+        s.hocuspocus.documents.get("pages/plan")?.getText("body").toString() ===
+        "written offline",
+    );
   });
 });
 
@@ -224,9 +267,14 @@ describe("signing out", () => {
     await phone.open("pages/plan").synced;
     await other.open("pages/plan").synced;
 
-    const res = await fetch(`${s.url}/api/sign-out`, { method: "POST", headers: { cookie } });
+    const res = await fetch(`${s.url}/api/sign-out`, {
+      method: "POST",
+      headers: { cookie },
+    });
     expect(res.status).toBe(204);
-    expect(res.headers.get("set-cookie")).toMatch(/^notes_session=; .*Max-Age=0/);
+    expect(res.headers.get("set-cookie")).toMatch(
+      /^notes_session=; .*Max-Age=0/,
+    );
     expect(await phone.closed).toBe(4401);
     expect(await tryUpgrade(s, cookie)).toBe(401);
     expect(await tryUpgrade(s, laptop)).toBe("open");
@@ -236,9 +284,11 @@ describe("signing out", () => {
 describe("storage", () => {
   test("health answers, and the schema is created once and reopened", async () => {
     const { s } = await withOwner();
-    expect(await (await fetch(`${s.url}/api/health`)).json()).toEqual({ ok: true });
-    const { user_version } = s.db.prepare("PRAGMA user_version").get() as { user_version: number };
-    expect(user_version).toBe(1);
+    expect(await (await fetch(`${s.url}/api/health`)).json()).toEqual({
+      ok: true,
+    });
+    const versionRow = s.db.prepare("PRAGMA user_version").get() ?? {};
+    expect(integer(versionRow, "user_version")).toBe(1);
 
     const { dataDir } = s;
     await servers.pop()!.close();

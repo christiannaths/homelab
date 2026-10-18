@@ -1,0 +1,16 @@
+{
+  "config": {
+    "default": true,
+    "extends": "markdownlint/style/prettier",
+    // Prettier owns table formatting.
+    "table-column-style": false,
+  },
+  "gitignore": true,
+  // Vendored: Matt Pocock's skills, managed by `npx skills` (adr and comments are this repo's own).
+  // CLAUDE.md is a single import of AGENTS.md.
+  "ignores": [
+    ".agents/skills/!(adr|comments)/**",
+    ".claude/skills/**",
+    "CLAUDE.md",
+  ],
+}

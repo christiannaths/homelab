@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { stringField } from "./fields.ts";
 import { isAccessLevel, type AccessLevel } from "./levels.ts";
 import type { Person } from "./people.ts";
 
@@ -38,11 +39,20 @@ export const settingsMap = (doc: Y.Doc) => doc.getMap<unknown>("settings");
 export const membersMap = (doc: Y.Doc) => doc.getMap<unknown>("members");
 
 const KINDS: readonly TeamspaceKind[] = ["open", "closed", "private"];
+const isTeamspaceKind = (value: unknown): value is TeamspaceKind =>
+  KINDS.some((kind) => kind === value);
 
 /** Writes a new teamspace, owned by `owner`, in one transaction (ADR-NOTE-006 rule 2). */
 export function createTeamspace(
   doc: Y.Doc,
-  opts: { name: string; kind: TeamspaceKind; owner: string; memberLevel?: AccessLevel; workspaceLevel?: AccessLevel; isDefault?: boolean },
+  opts: {
+    name: string;
+    kind: TeamspaceKind;
+    owner: string;
+    memberLevel?: AccessLevel;
+    workspaceLevel?: AccessLevel;
+    isDefault?: boolean;
+  },
 ): void {
   doc.transact(() => {
     const s = settingsMap(doc);
@@ -57,7 +67,11 @@ export function createTeamspace(
 }
 
 /** Adds, changes or (with null) removes one member. Joining and leaving are this. */
-export function setTeamspaceMember(doc: Y.Doc, personId: string, role: TeamspaceRole | null): void {
+export function setTeamspaceMember(
+  doc: Y.Doc,
+  personId: string,
+  role: TeamspaceRole | null,
+): void {
   if (role === null) membersMap(doc).delete(personId);
   else membersMap(doc).set(personId, role);
 }
@@ -65,10 +79,16 @@ export function setTeamspaceMember(doc: Y.Doc, personId: string, role: Teamspace
 /** Changes some of a teamspace's settings, one key each. */
 export function setTeamspaceSettings(
   doc: Y.Doc,
-  changes: Partial<Pick<Teamspace, "name" | "kind" | "isDefault" | "memberLevel" | "workspaceLevel">>,
+  changes: Partial<
+    Pick<
+      Teamspace,
+      "name" | "kind" | "isDefault" | "memberLevel" | "workspaceLevel"
+    >
+  >,
 ): void {
   doc.transact(() => {
-    for (const [key, value] of Object.entries(changes)) settingsMap(doc).set(key, value);
+    for (const [key, value] of Object.entries(changes))
+      settingsMap(doc).set(key, value);
   });
 }
 
@@ -76,7 +96,7 @@ export function setTeamspaceSettings(
 export function readTeamspace(id: string, doc: Y.Doc): Teamspace | null {
   const s = settingsMap(doc);
   if (!s.has("createdAt")) return null;
-  const kind = s.get("kind") as TeamspaceKind;
+  const kind = s.get("kind");
   const memberLevel = s.get("memberLevel");
   const workspaceLevel = s.get("workspaceLevel");
   const members: Record<string, TeamspaceRole> = {};
@@ -85,12 +105,15 @@ export function readTeamspace(id: string, doc: Y.Doc): Teamspace | null {
   }
   return {
     id,
-    name: typeof s.get("name") === "string" ? (s.get("name") as string) : "",
-    kind: KINDS.includes(kind) ? kind : "private",
+    name: stringField(s, "name", ""),
+    kind: isTeamspaceKind(kind) ? kind : "private",
     isDefault: s.get("isDefault") === true,
     memberLevel: isAccessLevel(memberLevel) ? memberLevel : "view",
     // Open teamspaces have no "None" for non-members.
-    workspaceLevel: isAccessLevel(workspaceLevel) && workspaceLevel !== "none" ? workspaceLevel : "view",
+    workspaceLevel:
+      isAccessLevel(workspaceLevel) && workspaceLevel !== "none"
+        ? workspaceLevel
+        : "view",
     members,
   };
 }
@@ -100,25 +123,36 @@ export function readTeamspace(id: string, doc: Y.Doc): Teamspace | null {
  * → their level on its document. Devices follow it to open teamspace documents, so a private
  * teamspace's id (and so its name) only reaches people who may see it. Server-written only.
  */
-export const teamspaceIndexMap = (doc: Y.Doc) => doc.getMap<unknown>("teamspaces");
+export const teamspaceIndexMap = (doc: Y.Doc) =>
+  doc.getMap<unknown>("teamspaces");
 
 export function readTeamspaceIndex(doc: Y.Doc): Map<string, AccessLevel> {
   const levels = new Map<string, AccessLevel>();
-  for (const [id, value] of teamspaceIndexMap(doc)) levels.set(id, isAccessLevel(value) ? value : "view");
+  for (const [id, value] of teamspaceIndexMap(doc))
+    levels.set(id, isAccessLevel(value) ? value : "view");
   return levels;
 }
 
 /** Makes an index list exactly `levels` as its teamspaces, touching only the entries that change. Server only. */
-export function writeTeamspaceIndex(doc: Y.Doc, levels: ReadonlyMap<string, AccessLevel>): void {
+export function writeTeamspaceIndex(
+  doc: Y.Doc,
+  levels: ReadonlyMap<string, AccessLevel>,
+): void {
   const map = teamspaceIndexMap(doc);
   doc.transact(() => {
-    for (const id of [...map.keys()]) if (!levels.has(id)) map.delete(id);
-    for (const [id, level] of levels) if (map.get(id) !== level) map.set(id, level);
+    for (const id of Array.from(map.keys()))
+      if (!levels.has(id)) map.delete(id);
+    for (const [id, level] of levels)
+      if (map.get(id) !== level) map.set(id, level);
   });
 }
 
 /** The teamspace `doc` would hold if `update` were applied, read from a scratch copy (`doc` is left alone). */
-export function teamspaceAfterUpdate(id: string, doc: Y.Doc, update: Uint8Array): Teamspace | null {
+export function teamspaceAfterUpdate(
+  id: string,
+  doc: Y.Doc,
+  update: Uint8Array,
+): Teamspace | null {
   const scratch = new Y.Doc();
   Y.applyUpdate(scratch, Y.encodeStateAsUpdate(doc));
   Y.applyUpdate(scratch, update);
@@ -147,8 +181,13 @@ export function refuseTeamspaceChange(
   actor: Person,
 ): string | null {
   if (!Object.values(after.members).includes("owner")) return "last-owner";
-  if (actor.role === "guest" || addsGuest(people, before, after)) return REFUSED;
-  if (after.isDefault !== (before?.isDefault ?? false) && actor.role !== "owner") return REFUSED;
+  if (actor.role === "guest" || addsGuest(people, before, after))
+    return REFUSED;
+  if (
+    after.isDefault !== (before?.isDefault ?? false) &&
+    actor.role !== "owner"
+  )
+    return REFUSED;
   if (!before) return after.members[actor.id] === "owner" ? null : REFUSED;
   if (before.members[actor.id] === "owner") return null;
 
@@ -159,7 +198,10 @@ export function refuseTeamspaceChange(
     before.workspaceLevel !== after.workspaceLevel;
   if (settingsChanged) return REFUSED;
   const member = actor.id in before.members;
-  for (const id of new Set([...Object.keys(before.members), ...Object.keys(after.members)])) {
+  for (const id of new Set([
+    ...Object.keys(before.members),
+    ...Object.keys(after.members),
+  ])) {
     const was = before.members[id];
     const is = after.members[id];
     if (was === is) continue;
@@ -173,8 +215,14 @@ export function refuseTeamspaceChange(
 }
 
 /** True if `after` adds a guest: guests only get the pages shared with them, never a teamspace. */
-function addsGuest(people: readonly Person[], before: Teamspace | null, after: Teamspace): boolean {
+function addsGuest(
+  people: readonly Person[],
+  before: Teamspace | null,
+  after: Teamspace,
+): boolean {
   return Object.keys(after.members).some(
-    (id) => !(before && id in before.members) && people.find((p) => p.id === id)?.role === "guest",
+    (id) =>
+      !(before && id in before.members) &&
+      people.find((p) => p.id === id)?.role === "guest",
   );
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { documentAccess, sidebarSections, visiblePageIds, type Workspace } from "./access.ts";
+import {
+  documentAccess,
+  sidebarSections,
+  visiblePageIds,
+  type Workspace,
+} from "./access.ts";
 import { buildTree, type PageMeta } from "./tree.ts";
 import { indexDocName, pageDocName, privateSection } from "./workspace.ts";
 
@@ -10,8 +15,20 @@ const people: Workspace["people"] = [
   { id: "g", name: "Gus", role: "guest" },
 ];
 
-const page = (id: string, parentId: string | null, section: string, extra: Partial<PageMeta> = {}): PageMeta => ({
-  id, title: id, kind: "page", parentId, section, order: "a0", createdAt: 0, ...extra,
+const page = (
+  id: string,
+  parentId: string | null,
+  section: string,
+  extra: Partial<PageMeta> = {},
+): PageMeta => ({
+  id,
+  title: id,
+  kind: "page",
+  parentId,
+  section,
+  order: "a0",
+  createdAt: 0,
+  ...extra,
 });
 
 // Max's Private section: diary > secret > deeper. Olive's: plans.
@@ -27,25 +44,34 @@ const workspace: Workspace = {
 
 describe("Private pages", () => {
   it("give the member whose Private section holds them full access, subpages included", () => {
-    for (const id of ["diary", "secret", "deeper"]) expect(documentAccess(workspace, "m", pageDocName(id))).toBe("full");
+    for (const id of ["diary", "secret", "deeper"])
+      expect(documentAccess(workspace, "m", pageDocName(id))).toBe("full");
   });
 
   it("give everyone else no access, the workspace owner and guests included", () => {
     for (const person of ["o", "n", "g"]) {
-      for (const id of ["diary", "secret", "deeper"]) expect(documentAccess(workspace, person, pageDocName(id))).toBe("none");
+      for (const id of ["diary", "secret", "deeper"])
+        expect(documentAccess(workspace, person, pageDocName(id))).toBe("none");
     }
     expect(documentAccess(workspace, "m", pageDocName("plans"))).toBe("none");
   });
 
   it("list each person's visible pages, and only those", () => {
-    expect([...visiblePageIds(workspace, "m")].sort()).toEqual(["deeper", "diary", "secret"]);
+    expect([...visiblePageIds(workspace, "m")].toSorted()).toEqual([
+      "deeper",
+      "diary",
+      "secret",
+    ]);
     expect([...visiblePageIds(workspace, "o")]).toEqual(["plans"]);
     expect([...visiblePageIds(workspace, "n")]).toEqual([]);
   });
 
   it("follow the effective tree: a subpage takes its section from its top-level ancestor, not its own field", () => {
     // `moved` still says Olive's section (stale), but it now sits under Max's diary.
-    const ws: Workspace = { people, pages: [...workspace.pages, page("moved", "diary", privateSection("o"))] };
+    const ws: Workspace = {
+      people,
+      pages: [...workspace.pages, page("moved", "diary", privateSection("o"))],
+    };
     expect(documentAccess(ws, "m", pageDocName("moved"))).toBe("full");
     expect(documentAccess(ws, "o", pageDocName("moved"))).toBe("none");
   });
@@ -67,7 +93,10 @@ describe("Private pages", () => {
   });
 
   it("stay readable to their member while in the trash", () => {
-    const ws: Workspace = { people, pages: [page("old", null, privateSection("m"), { deletedAt: 1 })] };
+    const ws: Workspace = {
+      people,
+      pages: [page("old", null, privateSection("m"), { deletedAt: 1 })],
+    };
     expect(documentAccess(ws, "m", pageDocName("old"))).toBe("full");
     expect(documentAccess(ws, "o", pageDocName("old"))).toBe("none");
   });
@@ -87,9 +116,14 @@ describe("sharing a page", () => {
 
   it("gives an invited person the invite's level on the page and its subpages, and nothing else", () => {
     const ws = shared({ people: { n: "view" } });
-    for (const id of ["trip", "packing", "shoes"]) expect(documentAccess(ws, "n", pageDocName(id))).toBe("view");
+    for (const id of ["trip", "packing", "shoes"])
+      expect(documentAccess(ws, "n", pageDocName(id))).toBe("view");
     expect(documentAccess(ws, "n", pageDocName("journal"))).toBe("none");
-    expect([...visiblePageIds(ws, "n")].sort()).toEqual(["packing", "shoes", "trip"]);
+    expect([...visiblePageIds(ws, "n")].toSorted()).toEqual([
+      "packing",
+      "shoes",
+      "trip",
+    ]);
     expect(documentAccess(ws, "o", pageDocName("trip"))).toBe("none");
   });
 
@@ -108,7 +142,11 @@ describe("sharing a page", () => {
   it("with Everyone in the workspace, gives every member and owner that level, but no guest", () => {
     const ws = shared({ workspace: "comment" });
     for (const person of ["o", "n"]) {
-      expect([...visiblePageIds(ws, person)].sort()).toEqual(["packing", "shoes", "trip"]);
+      expect([...visiblePageIds(ws, person)].toSorted()).toEqual([
+        "packing",
+        "shoes",
+        "trip",
+      ]);
       expect(documentAccess(ws, person, pageDocName("shoes"))).toBe("comment");
     }
     expect(visiblePageIds(ws, "g").size).toBe(0);
@@ -125,23 +163,34 @@ describe("sharing a page", () => {
     const ws: Workspace = {
       people,
       pages: [
-        page("trip", null, privateSection("m"), { access: { people: { n: "view" } } }),
-        page("packing", "trip", privateSection("m"), { access: { people: { n: "edit", g: "view" } } }),
+        page("trip", null, privateSection("m"), {
+          access: { people: { n: "view" } },
+        }),
+        page("packing", "trip", privateSection("m"), {
+          access: { people: { n: "edit", g: "view" } },
+        }),
         page("shoes", "packing", privateSection("m")),
       ],
     };
     expect(documentAccess(ws, "n", pageDocName("trip"))).toBe("view");
     expect(documentAccess(ws, "n", pageDocName("shoes"))).toBe("edit");
     expect(documentAccess(ws, "g", pageDocName("trip"))).toBe("none");
-    expect([...visiblePageIds(ws, "g")].sort()).toEqual(["packing", "shoes"]);
+    expect([...visiblePageIds(ws, "g")].toSorted()).toEqual([
+      "packing",
+      "shoes",
+    ]);
   });
 
   it("lets a subpage restrict an inherited level, down to No access for it and everything below", () => {
     const ws: Workspace = {
       people,
       pages: [
-        page("trip", null, privateSection("m"), { access: { people: { n: "edit" }, workspace: "none" } }),
-        page("packing", "trip", privateSection("m"), { access: { people: { n: "none" } } }),
+        page("trip", null, privateSection("m"), {
+          access: { people: { n: "edit" }, workspace: "none" },
+        }),
+        page("packing", "trip", privateSection("m"), {
+          access: { people: { n: "none" } },
+        }),
         page("shoes", "packing", privateSection("m")),
       ],
     };
@@ -152,14 +201,18 @@ describe("sharing a page", () => {
     const ws = { ...shared({ people: { n: "view" } }) };
     const moved: Workspace = {
       people,
-      pages: ws.pages.map((p) => (p.id === "journal" ? { ...p, parentId: "shoes" } : p)),
+      pages: ws.pages.map((p) =>
+        p.id === "journal" ? { ...p, parentId: "shoes" } : p,
+      ),
     };
     expect(documentAccess(moved, "n", pageDocName("journal"))).toBe("view");
   });
 });
 
 describe("sidebar sections with sharing", () => {
-  const trip = page("trip", null, privateSection("m"), { access: { people: { n: "view" } } });
+  const trip = page("trip", null, privateSection("m"), {
+    access: { people: { n: "view" } },
+  });
   const packing = page("packing", "trip", privateSection("m"));
   const journal = page("journal", null, privateSection("m"));
 
@@ -172,22 +225,41 @@ describe("sidebar sections with sharing", () => {
 
   it("count Everyone in the workspace as shared, but not an entry that only names the member, or No access", () => {
     const general = { ...trip, access: { workspace: "view" as const } };
-    const self = { ...trip, access: { people: { m: "full" as const, n: "none" as const }, workspace: "none" as const } };
-    expect(sidebarSections(buildTree([general]), "m").shared.map((n) => n.page.id)).toEqual(["trip"]);
-    expect(sidebarSections(buildTree([self]), "m").private.map((n) => n.page.id)).toEqual(["trip"]);
+    const self = {
+      ...trip,
+      access: {
+        people: { m: "full" as const, n: "none" as const },
+        workspace: "none" as const,
+      },
+    };
+    expect(
+      sidebarSections(buildTree([general]), "m").shared.map((n) => n.page.id),
+    ).toEqual(["trip"]);
+    expect(
+      sidebarSections(buildTree([self]), "m").private.map((n) => n.page.id),
+    ).toEqual(["trip"]);
   });
 
   it("put a page shared with me from someone else's Private section in my Shared section", () => {
     const s = sidebarSections(buildTree([trip, packing]), "n");
-    expect(s).toMatchObject({ private: [], shared: [{ page: { id: "trip" } }] });
+    expect(s).toMatchObject({
+      private: [],
+      shared: [{ page: { id: "trip" } }],
+    });
   });
 });
 
 describe("documents that are not existing pages", () => {
   it("let members and owners create a page the server has never seen; guests open it at Can edit until placed (#19)", () => {
-    expect(documentAccess(workspace, "m", pageDocName("brand-new"))).toBe("full");
-    expect(documentAccess(workspace, "o", pageDocName("brand-new"))).toBe("full");
-    expect(documentAccess(workspace, "g", pageDocName("brand-new"))).toBe("edit");
+    expect(documentAccess(workspace, "m", pageDocName("brand-new"))).toBe(
+      "full",
+    );
+    expect(documentAccess(workspace, "o", pageDocName("brand-new"))).toBe(
+      "full",
+    );
+    expect(documentAccess(workspace, "g", pageDocName("brand-new"))).toBe(
+      "edit",
+    );
   });
 
   it("let a person read only their own page index", () => {
@@ -196,8 +268,12 @@ describe("documents that are not existing pages", () => {
   });
 
   it("refuse anyone outside the workspace, and any other document name", () => {
-    expect(documentAccess(workspace, "stranger", pageDocName("brand-new"))).toBe("none");
-    expect(documentAccess(workspace, "stranger", indexDocName("stranger"))).toBe("none");
+    expect(
+      documentAccess(workspace, "stranger", pageDocName("brand-new")),
+    ).toBe("none");
+    expect(
+      documentAccess(workspace, "stranger", indexDocName("stranger")),
+    ).toBe("none");
     expect(documentAccess(workspace, "o", "workspace:default")).toBe("none");
   });
 });

@@ -4,7 +4,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { TestProject } from "vitest/node";
-import { ADMIN_PASSWORD, compose, composeEnv, parseResetLink, resetPassword, waitForVoidAuth } from "./voidauth.ts";
+import {
+  ADMIN_PASSWORD,
+  compose,
+  composeEnv,
+  parseResetLink,
+  resetPassword,
+  waitForVoidAuth,
+} from "./voidauth.ts";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -27,12 +34,18 @@ export default async function setup(project: TestProject) {
     let log = "";
     for (let i = 0; i < 60 && !parseResetLink(log); i++) {
       log = await compose(env, "logs", "voidauth");
-      if (!parseResetLink(log)) await new Promise((resolve) => setTimeout(resolve, 500));
+      if (!parseResetLink(log))
+        await new Promise((resolve) => setTimeout(resolve, 500));
     }
     const reset = parseResetLink(log);
     if (!reset) throw new Error(`No first-run link in VoidAuth's log:\n${log}`);
-    const response = await resetPassword(reset.userId, reset.challenge, ADMIN_PASSWORD);
-    if (!response.ok) throw new Error(`Setting the admin password failed: ${response.status}`);
+    const response = await resetPassword(
+      reset.userId,
+      reset.challenge,
+      ADMIN_PASSWORD,
+    );
+    if (!response.ok)
+      throw new Error(`Setting the admin password failed: ${response.status}`);
     project.provide("composeEnv", env);
   } catch (error) {
     await stop();
