@@ -59,5 +59,5 @@ export async function migrateAuth(auth: Auth): Promise<void> {
  * Better Auth requires an email on every user, but ADR-NOTE-009 accounts only have a username.
  * Each account gets a placeholder address on a reserved domain that can never receive mail.
  */
-export const placeholderEmail = (username: string) =>
-  `${username.toLowerCase()}@users.invalid`;
+export const placeholderEmail = (name: string) =>
+  `${name.toLowerCase()}@users.invalid`;

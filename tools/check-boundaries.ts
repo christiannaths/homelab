@@ -20,6 +20,77 @@ interface ProjectGraph {
   >;
 }
 
+function parseGraph(output: unknown): ProjectGraph {
+  if (
+    typeof output === "object" &&
+    output !== null &&
+    "graph" in output &&
+    typeof output.graph === "object" &&
+    output.graph !== null &&
+    "nodes" in output.graph &&
+    "dependencies" in output.graph
+  ) {
+    const { nodes, dependencies } = output.graph;
+    return {
+      nodes: parseNodes(nodes),
+      dependencies: parseDependencies(dependencies),
+    };
+  }
+  throw new Error("nx graph output has no graph");
+}
+
+function entries(value: unknown, what: string): [string, unknown][] {
+  if (typeof value !== "object" || value === null)
+    throw new Error(`nx graph ${what} is not an object`);
+  return Object.entries(value);
+}
+
+function parseNodes(value: unknown): ProjectGraph["nodes"] {
+  return Object.fromEntries(
+    entries(value, "nodes").map(([name, node]) => {
+      const tags =
+        typeof node === "object" &&
+        node !== null &&
+        "data" in node &&
+        typeof node.data === "object" &&
+        node.data !== null &&
+        "tags" in node.data
+          ? node.data.tags
+          : [];
+      if (!Array.isArray(tags) || !tags.every((t) => typeof t === "string"))
+        throw new Error(`nx graph node ${name} has bad tags`);
+      return [name, { data: { tags } }];
+    }),
+  );
+}
+
+const DEPENDENCY_TYPES = ["static", "dynamic", "implicit"] as const;
+
+function parseDependencies(value: unknown): ProjectGraph["dependencies"] {
+  return Object.fromEntries(
+    entries(value, "dependencies").map(([name, list]) => {
+      if (!Array.isArray(list))
+        throw new Error(`nx graph dependencies of ${name} are not a list`);
+      return [
+        name,
+        list.map((dep: unknown) => {
+          if (
+            typeof dep === "object" &&
+            dep !== null &&
+            "target" in dep &&
+            typeof dep.target === "string" &&
+            "type" in dep
+          ) {
+            const type = DEPENDENCY_TYPES.find((t) => t === dep.type);
+            if (type) return { target: dep.target, type };
+          }
+          throw new Error(`nx graph has a bad dependency of ${name}`);
+        }),
+      ];
+    }),
+  );
+}
+
 const dir = mkdtempSync(path.join(tmpdir(), "nx-graph-"));
 const file = path.join(dir, "graph.json");
 const nx = spawnSync("npx", ["nx", "graph", `--file=${file}`], {
@@ -34,8 +105,7 @@ const failed =
   );
 const graph: ProjectGraph | undefined = failed
   ? undefined
-  : // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the file is Nx's own graph output.
-    (JSON.parse(readFileSync(file, "utf8")) as { graph: ProjectGraph }).graph;
+  : parseGraph(JSON.parse(readFileSync(file, "utf8")));
 rmSync(dir, { recursive: true, force: true });
 if (failed) {
   console.error(

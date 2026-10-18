@@ -164,18 +164,27 @@ describe("Can edit content", () => {
   it("may add rows and edit their values", () => {
     const { ws, docs, store, tree, chores, points, dishes, review } =
       serverDocs();
-    const row = docs.get(dishes)!;
+    const dishesDoc = docs.get(dishes)!;
     expect(
-      review("nia", pageDocName(dishes), row, (d) => setCell(d, points, 4)),
+      review("nia", pageDocName(dishes), dishesDoc, (d) =>
+        setCell(d, points, 4),
+      ),
     ).toBeNull();
     expect(
-      review("nia", pageDocName(dishes), row, (d) => renamePage(d, "Wash up")),
+      review("nia", pageDocName(dishes), dishesDoc, (d) =>
+        renamePage(d, "Wash up"),
+      ),
     ).toBeNull();
     const draft = new Y.Doc();
-    const id = addRow({ get: store.get, create: () => draft }, tree(), chores, {
-      title: "Laundry",
-      cells: { [points]: 2 },
-    });
+    const id = addRow(
+      { get: (pageId) => store.get(pageId), create: () => draft },
+      tree(),
+      chores,
+      {
+        title: "Laundry",
+        cells: { [points]: 2 },
+      },
+    );
     expect(
       reviewUpdate(
         ws,

@@ -49,10 +49,7 @@ class Device implements PageDocs {
       pages: [...this.docs].flatMap(([id, d]) => readMeta(id, d) ?? []),
     };
     return Object.fromEntries(
-      people.map((p) => [
-        p.id,
-        Object.fromEntries([...pageLevels(ws, p.id)].sort()),
-      ]),
+      people.map((p) => [p.id, Object.fromEntries(pageLevels(ws, p.id))]),
     );
   }
 }
@@ -88,7 +85,7 @@ function setup() {
 }
 
 const visibleTo = (device: Device, personId: string) =>
-  Object.keys(device.levels()[personId]).sort();
+  Object.keys(device.levels()[personId]).toSorted();
 
 describe("concurrent overrides of the same page", () => {
   it("a restriction and an expansion of the same person agree on one of them on every device", () => {
@@ -138,7 +135,7 @@ describe("a move that changes who can see a page", () => {
     setPersonAccess(phone.doc(packing), "nia", "none");
     sync(laptop, phone);
     expect(laptop.levels()).toEqual(phone.levels());
-    expect(visibleTo(laptop, "nia")).toEqual([shoes, trip].sort());
+    expect(visibleTo(laptop, "nia")).toEqual([shoes, trip].toSorted());
   });
 
   it("moving a page into a subtree another device restricts puts it under the restriction on both", () => {

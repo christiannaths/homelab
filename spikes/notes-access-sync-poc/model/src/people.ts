@@ -1,11 +1,26 @@
 /** Workspace roles, as in Notion. Enterprise-only roles are out of scope. */
 export type Role = "owner" | "member" | "guest";
+const ROLES: readonly Role[] = ["owner", "member", "guest"];
+export const isRole = (value: unknown): value is Role =>
+  ROLES.some((role) => role === value);
 
 /** A person in the workspace. Identity is faked: the id doubles as the connection token. */
 export interface Person {
   id: string;
   name: string;
   role: Role;
+}
+
+/** Reads a person sent as JSON (the people API), throwing on anything else. */
+export function parsePerson(value: unknown): Person {
+  if (typeof value !== "object" || value === null)
+    throw new Error("a person must be an object");
+  const id = "id" in value ? value.id : undefined;
+  const name = "name" in value ? value.name : undefined;
+  const role = "role" in value ? value.role : undefined;
+  if (typeof id !== "string" || typeof name !== "string" || !isRole(role))
+    throw new Error(`not a person: ${JSON.stringify(value)}`);
+  return { id, name, role };
 }
 
 export type AddPersonResult =

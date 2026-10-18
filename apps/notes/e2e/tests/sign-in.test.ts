@@ -79,7 +79,9 @@ describe("the instance admin", () => {
       status: 302,
       body: null,
     });
-    const session = await (await owner.notes("GET", "/api/session")).json();
+    const session: unknown = await (
+      await owner.notes("GET", "/api/session")
+    ).json();
     expect(session).toMatchObject({ person: { role: "owner" } });
 
     const page = openPage(owner, "pages/welcome");

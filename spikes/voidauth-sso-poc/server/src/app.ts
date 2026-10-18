@@ -8,7 +8,7 @@ import {
   type Server,
   type ServerResponse,
 } from "node:http";
-import { WebSocketServer } from "ws";
+import { type RawData, WebSocketServer } from "ws";
 import {
   decideAccess,
   type Identity,
@@ -17,6 +17,7 @@ import {
 } from "./access.ts";
 import { parseCookieHeader } from "./cookies.ts";
 import { DEVICE_COOKIE, Devices } from "./devices.ts";
+import { jsonObject, type JsonObject, stringField } from "./json.ts";
 import { OidcClient, type OidcConfig, type PendingSignIn } from "./oidc.ts";
 import { ADMIN_GROUP, type VoidAuthAdmin } from "./voidauth-admin.ts";
 
@@ -60,12 +61,27 @@ function send(
     .end(JSON.stringify(body));
 }
 
-async function readJson(
-  req: IncomingMessage,
-): Promise<Record<string, unknown>> {
+async function readJson(req: IncomingMessage): Promise<JsonObject> {
   let text = "";
   for await (const chunk of req) text += String(chunk);
-  return text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  if (!text) return {};
+  const body: unknown = JSON.parse(text);
+  return jsonObject(body);
+}
+
+function parsePendingSignIn(cookie: string): PendingSignIn {
+  const pending: unknown = JSON.parse(cookie);
+  return {
+    state: stringField(pending, "state"),
+    nonce: stringField(pending, "nonce"),
+    verifier: stringField(pending, "verifier"),
+  };
+}
+
+function messageText(data: RawData): string {
+  if (Buffer.isBuffer(data)) return data.toString("utf8");
+  if (Array.isArray(data)) return Buffer.concat(data).toString("utf8");
+  return Buffer.from(data).toString("utf8");
 }
 
 export function createApp(config: AppConfig): App {
@@ -79,7 +95,7 @@ export function createApp(config: AppConfig): App {
     const token = parseCookieHeader(req.headers.cookie).get(DEVICE_COOKIE);
     const device = devices.check(token);
     const member = device && members.get(device.sub);
-    return member ? { token: token as string, member } : undefined;
+    return token && member ? { token, member } : undefined;
   };
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
@@ -114,10 +130,7 @@ export function createApp(config: AppConfig): App {
       const pendingCookie = cookies.get(SIGNIN_COOKIE);
       if (!pendingCookie)
         return send(res, 400, { error: "no_signin_in_progress" });
-      const signIn = await oidc.finish(
-        url,
-        JSON.parse(pendingCookie) as PendingSignIn,
-      );
+      const signIn = await oidc.finish(url, parsePendingSignIn(pendingCookie));
       const claims = { ...signIn.userinfo, ...signIn.idToken };
       const groups = Array.isArray(claims.groups) ? claims.groups : [];
       const who: Identity = {
@@ -231,7 +244,7 @@ export function createApp(config: AppConfig): App {
       ws.on("message", (data) => {
         if (!devices.renew(signedIn.token))
           return ws.close(4401, "session ended");
-        ws.send(JSON.stringify({ type: "synced", echo: String(data) }));
+        ws.send(JSON.stringify({ type: "synced", echo: messageText(data) }));
       });
     });
   });

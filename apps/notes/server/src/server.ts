@@ -1,10 +1,9 @@
-import type { AddressInfo } from "node:net";
-import { Hocuspocus, type WebSocketLike } from "@hocuspocus/server";
+import { Hocuspocus } from "@hocuspocus/server";
 import { serve, upgradeWebSocket } from "@hono/node-server";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { WSContext } from "hono/ws";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
@@ -29,6 +28,11 @@ export interface ServerOptions {
 interface SyncContext {
   person: Person;
   session: Session;
+}
+
+/** What the /sync middleware hands to the WebSocket upgrade. */
+interface SyncEnv {
+  Variables: { sync: SyncContext };
 }
 
 const PENDING_SIGN_IN_COOKIE = "notes_sign_in";
@@ -90,7 +94,7 @@ export async function startServer({
     return session && person ? { session, person } : undefined;
   };
 
-  const app = new Hono();
+  const app = new Hono<SyncEnv>();
 
   app.get("/api/health", (c) => c.json({ ok: true }));
 
@@ -119,7 +123,7 @@ export async function startServer({
     try {
       identity = await oidc.finish(
         new URL(c.req.url),
-        JSON.parse(saved) as PendingSignIn,
+        parsePendingSignIn(saved),
       );
     } catch (error) {
       if (error instanceof SignInError || error instanceof SyntaxError) {
@@ -156,11 +160,11 @@ export async function startServer({
     async (c, next) => {
       const current = signedIn(getCookie(c, SESSION_COOKIE));
       if (!current) return c.text("Unauthorized", 401);
-      c.set("sync" as never, current satisfies SyncContext as never);
-      await next();
+      c.set("sync", current);
+      return next();
     },
-    upgradeWebSocket((c) => {
-      const context = c.get("sync" as never) as SyncContext;
+    upgradeWebSocket((c: Context<SyncEnv>) => {
+      const context = c.get("sync");
       const token = context.session.token;
       let connection:
         ReturnType<typeof hocuspocus.handleConnection> | undefined;
@@ -169,14 +173,15 @@ export async function startServer({
           const sockets = socketsBySession.get(token) ?? new Set();
           sockets.add(ws);
           socketsBySession.set(token, sockets);
-          connection = hocuspocus.handleConnection(
-            ws.raw as WebSocketLike,
-            c.req.raw,
-            context,
-          );
+          // The socket is created by this module's WebSocketServer, so it is a ws WebSocket.
+          if (!(ws.raw instanceof WebSocket))
+            throw new Error("Sync socket is not a ws WebSocket");
+          connection = hocuspocus.handleConnection(ws.raw, c.req.raw, context);
         },
         onMessage(event) {
-          connection?.handleMessage(new Uint8Array(event.data as ArrayBuffer));
+          // Binary frames arrive as ArrayBuffers; the sync protocol sends no text frames.
+          if (event.data instanceof ArrayBuffer)
+            connection?.handleMessage(new Uint8Array(event.data));
         },
         onClose(event, ws) {
           const sockets = socketsBySession.get(token);
@@ -191,8 +196,11 @@ export async function startServer({
   const wss = new WebSocketServer({ noServer: true });
   const server = serve({ fetch: app.fetch, port, websocket: { server: wss } });
   await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  if (typeof address !== "object" || address === null)
+    throw new Error("Server is not listening on a TCP port");
   return {
-    port: (server.address() as AddressInfo).port,
+    port: address.port,
     db,
     hocuspocus,
     async close() {
@@ -202,6 +210,23 @@ export async function startServer({
       db.close();
     },
   };
+}
+
+/** The pending sign-in cookie, which a browser could have altered. Bad JSON throws a SyntaxError. */
+function parsePendingSignIn(saved: string): PendingSignIn {
+  const value: unknown = JSON.parse(saved);
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("state" in value) ||
+    !("nonce" in value) ||
+    !("verifier" in value) ||
+    typeof value.state !== "string" ||
+    typeof value.nonce !== "string" ||
+    typeof value.verifier !== "string"
+  )
+    throw new SignInError("Malformed pending sign-in cookie");
+  return { state: value.state, nonce: value.nonce, verifier: value.verifier };
 }
 
 export type NotesServer = Awaited<ReturnType<typeof startServer>>;

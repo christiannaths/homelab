@@ -16,6 +16,13 @@ export const APP_URL = `http://localhost:${APP_PORT}`;
 export const NOTES_CLIENT_SECRET = "notes-e2e-secret";
 export const PROJECT = "voidauth-sso-poc-e2e";
 
+/** A query parameter a VoidAuth link always carries. */
+export function searchParam(url: URL, name: string): string {
+  const value = url.searchParams.get(name);
+  if (value === null) throw new Error(`${url.href} has no ${name} parameter`);
+  return value;
+}
+
 export type ComposeEnv = Record<string, string>;
 
 export function composeEnv(
@@ -88,8 +95,8 @@ export function parseResetLink(
   const url = new URL(link);
   return {
     link,
-    userId: url.searchParams.get("id") as string,
-    challenge: url.searchParams.get("challenge") as string,
+    userId: searchParam(url, "id"),
+    challenge: searchParam(url, "challenge"),
   };
 }
 

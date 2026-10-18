@@ -2,6 +2,7 @@
 // accepts the session cookie of a user in `auth_admins`, so this signs in the way its web UI does
 // and keeps the cookies. Whoever holds these credentials can do anything an admin can.
 import { CookieJar } from "./cookies.ts";
+import { nullableStringField, stringField } from "./json.ts";
 
 export const ADMIN_GROUP = "auth_admins";
 
@@ -53,11 +54,8 @@ export async function submitLogin(
   });
   if (!response.ok)
     throw new Error(`VoidAuth login failed for ${input}: ${response.status}`);
-  const body = (await response.json()) as {
-    success: boolean;
-    location: string;
-  };
-  return body.location;
+  const body: unknown = await response.json();
+  return stringField(body, "location");
 }
 
 export class VoidAuthAdmin {
@@ -122,14 +120,14 @@ export class VoidAuthAdmin {
       throw new Error(
         `Creating an invitation failed: ${response.status} ${await response.text()}`,
       );
-    const invitation = (await response.json()) as {
-      id: string;
-      challenge: string;
-      email: string | null;
-    };
+    const body: unknown = await response.json();
+    const id = stringField(body, "id");
+    const challenge = stringField(body, "challenge");
     return {
-      ...invitation,
-      link: `${this.#voidauthUrl}/invite?invite=${invitation.id}&challenge=${invitation.challenge}`,
+      id,
+      challenge,
+      email: nullableStringField(body, "email"),
+      link: `${this.#voidauthUrl}/invite?invite=${id}&challenge=${challenge}`,
     };
   }
 }

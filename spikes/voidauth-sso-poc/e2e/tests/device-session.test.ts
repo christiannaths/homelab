@@ -1,5 +1,6 @@
 // Question 5: the app's own device session on top of VoidAuth, and VoidAuth going down after sign-in.
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { stringField } from "@homelab/voidauth-sso-poc-server/json";
 import { newPerson, startApp } from "./app.ts";
 import { ADMIN_PASSWORD } from "./global-setup.ts";
 import { Person, syncOnce } from "./person.ts";
@@ -14,9 +15,10 @@ const who = newPerson("dev");
 beforeAll(async () => {
   app = await startApp();
   await owner.signInToApp("auth_admin", ADMIN_PASSWORD);
-  const { appLink } = (await (
+  const created: unknown = await (
     await owner.app("POST", "/api/invites", { email: null })
-  ).json()) as { appLink: string };
+  ).json();
+  const appLink = stringField(created, "appLink");
   expect(
     (
       await member.registerDuringAppSignIn(

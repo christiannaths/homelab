@@ -70,7 +70,7 @@ describe("overriding inherited access", () => {
       const phone = await connect(nia);
       await expect
         .poll(() => phone.syncAll())
-        .toEqual([indexDocName(nia.id), pageDocName(trip)].sort());
+        .toEqual([indexDocName(nia.id), pageDocName(trip)].toSorted());
       const everything = phone.receivedContent();
       for (const trace of ["Packing list", "Hiking shoes", "Socks", "Boots"])
         expect(everything).not.toContain(trace);
@@ -114,7 +114,7 @@ describe("overriding inherited access", () => {
             pageDocName(trip),
             pageDocName(packing),
             pageDocName(shoes),
-          ].sort(),
+          ].toSorted(),
         );
     });
 
@@ -131,7 +131,7 @@ describe("overriding inherited access", () => {
             pageDocName(trip),
             pageDocName(packing),
             pageDocName(shoes),
-          ].sort(),
+          ].toSorted(),
         );
       expect(tablet.pageTitles()).toEqual([
         "Trip",

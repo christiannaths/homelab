@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import {
   addProperty,
@@ -72,11 +72,12 @@ function Table({ entry, dbId }: { entry: DocEntry; dbId: string }) {
   const [filter, setFilter] = useState("");
   const { rows, ms } = useMemo(() => {
     const started = performance.now();
-    const rows = computeView(db.rows, db.schema, db.view, filter);
-    return { rows, ms: performance.now() - started };
+    const viewRows = computeView(db.rows, db.schema, db.view, filter);
+    return { rows: viewRows, ms: performance.now() - started };
   }, [db, filter]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual returns mutable state by design; this component is not memoised by the React Compiler.
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -258,6 +259,9 @@ function AddProperty({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<PropType>("text");
+  const focusOnMount = useCallback((el: HTMLInputElement | null) => {
+    el?.focus();
+  }, []);
   if (!open)
     return (
       <button
@@ -280,7 +284,7 @@ function AddProperty({
       }}
     >
       <input
-        autoFocus
+        ref={focusOnMount}
         placeholder="Name"
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -288,7 +292,10 @@ function AddProperty({
       />
       <select
         value={type}
-        onChange={(e) => setType(e.target.value as PropType)}
+        onChange={(e) => {
+          const next = PROP_TYPES.find((t) => t === e.currentTarget.value);
+          if (next) setType(next);
+        }}
         data-testid="property-type"
       >
         {PROP_TYPES.map((t) => (

@@ -27,9 +27,8 @@ const server = await startServer({
 console.log(`Notes server listening on port ${server.port}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, async () => {
+  process.once(signal, () => {
     // Writes documents still waiting on Hocuspocus's debounce before exiting.
-    await server.close();
-    process.exit(0);
+    void server.close().then(() => process.exit(0));
   });
 }

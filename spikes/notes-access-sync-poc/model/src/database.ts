@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { stringField } from "./fields.ts";
 import { compareOrder, keyBetween } from "./order.ts";
 import { comparePages, type PageMeta, type Tree } from "./tree.ts";
 import { createPage, type PageDocs } from "./workspace.ts";
@@ -34,6 +35,9 @@ export interface Property {
   type: PropertyType;
   order: string;
 }
+
+const isPropertyType = (value: unknown): value is PropertyType =>
+  PROPERTY_TYPES.some((type) => type === value);
 
 export type CellValue = string | number | boolean;
 
@@ -117,15 +121,15 @@ export function renameProperty(
 export function readProperties(schema: Y.Doc): Property[] {
   const out: Property[] = [];
   propertiesMap(schema).forEach((m, id) => {
-    const type = m.get("type") as PropertyType;
+    const type = m.get("type");
     out.push({
       id,
-      name: (m.get("name") as string) ?? "",
-      type: PROPERTY_TYPES.includes(type) ? type : "text",
-      order: (m.get("order") as string) ?? "",
+      name: stringField(m, "name", ""),
+      type: isPropertyType(type) ? type : "text",
+      order: stringField(m, "order", ""),
     });
   });
-  return out.sort(
+  return out.toSorted(
     (a, b) => compareOrder(a.order, b.order) || (a.id < b.id ? -1 : 1),
   );
 }
@@ -146,9 +150,19 @@ export function setView(
 export function readView(database: Y.Doc, viewId = DEFAULT_VIEW): ViewSettings {
   const view = viewsMap(database).get(viewId);
   return {
-    sort: (view?.get("sort") as ViewSettings["sort"]) ?? null,
-    filter: (view?.get("filter") as string) ?? "",
+    sort: parseSort(view?.get("sort")),
+    filter: stringField(view, "filter", ""),
   };
+}
+
+/** A view's stored sort, or null when it is unset or not a sort. */
+function parseSort(value: unknown): ViewSettings["sort"] {
+  if (typeof value !== "object" || value === null) return null;
+  if (!("propertyId" in value) || !("direction" in value)) return null;
+  const { propertyId, direction } = value;
+  if (typeof propertyId !== "string") return null;
+  if (direction !== "asc" && direction !== "desc") return null;
+  return { propertyId, direction };
 }
 
 /**
@@ -218,7 +232,7 @@ export function databaseTable(
     );
   const sortBy =
     view.sort && properties.find((p) => p.id === view.sort!.propertyId);
-  const shown = rows.filter(matches).sort((a, b) => {
+  const shown = rows.filter(matches).toSorted((a, b) => {
     const x = sortBy ? a.cells[sortBy.id] : undefined;
     const y = sortBy ? b.cells[sortBy.id] : undefined;
     // Empty cells go last in both directions, as in Notion.

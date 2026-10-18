@@ -53,7 +53,7 @@ describe("sync boundary", () => {
             indexDocName(max.id),
             pageDocName(diary),
             pageDocName(secret),
-          ].sort(),
+          ].toSorted(),
         );
       expect(phone.pageTitles()).toEqual(["Max's diary", "Secret plans"]);
       expect(phone.sidebar()).toEqual({ shared: [], private: ["Max's diary"] });
@@ -92,7 +92,11 @@ describe("sync boundary", () => {
         scope: "readonly",
       });
       expect(device.denied()).toEqual(
-        [indexDocName(max.id), pageDocName(diary), pageDocName(secret)].sort(),
+        [
+          indexDocName(max.id),
+          pageDocName(diary),
+          pageDocName(secret),
+        ].toSorted(),
       );
       expect(device.receivedContent()).not.toContain("Dear diary");
     });
@@ -129,7 +133,7 @@ describe("sync boundary", () => {
             pageDocName(trip),
             pageDocName(packing),
             pageDocName(shoes),
-          ].sort(),
+          ].toSorted(),
         );
       expect(phone.pageTitles()).toEqual(["Trip", "Packing", "Shoes"]);
       expect(phone.pageText(shoes)).toBe("Boots");
@@ -161,7 +165,7 @@ describe("sync boundary", () => {
         .poll(async () => (await maxPhone.syncAll(), maxPhone.sidebar().shared))
         .toEqual(["Trip"]);
       // His unshared pages (the journal, and the diary from earlier) stay in Private.
-      expect(maxPhone.sidebar().private.sort()).toEqual([
+      expect(maxPhone.sidebar().private.toSorted()).toEqual([
         "Max's diary",
         "Max's journal",
       ]);

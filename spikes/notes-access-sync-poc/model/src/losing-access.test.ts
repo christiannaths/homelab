@@ -43,7 +43,7 @@ class Device implements PageDocs {
   /** One person's levels, as the server would work them out from this device's documents. */
   levels(personId: string): Record<string, string> {
     const ws: Workspace = { people, pages: this.pages() };
-    return Object.fromEntries([...pageLevels(ws, personId)].sort());
+    return Object.fromEntries(pageLevels(ws, personId));
   }
 }
 

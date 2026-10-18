@@ -156,7 +156,7 @@ describe("concurrent edits to a database", () => {
       laptop
         .table(chores)
         .map((r) => r.title)
-        .sort(),
+        .toSorted(),
     ).toEqual(["Bins", "Dishes", "Laundry", "Plants"]);
     expect(readProperties(laptop.schema(chores))).toEqual(
       readProperties(phone.schema(chores)),

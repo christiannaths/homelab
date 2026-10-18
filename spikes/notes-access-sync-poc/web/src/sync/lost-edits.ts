@@ -23,6 +23,24 @@ interface Stored {
   update: string;
 }
 
+function parseStoredList(value: unknown): Stored[] {
+  if (!Array.isArray(value)) throw new Error("expected a list of lost edits");
+  return value.map((item: unknown) => {
+    if (typeof item !== "object" || item === null)
+      throw new Error("a lost edit must be an object");
+    const pageId = "pageId" in item ? item.pageId : undefined;
+    const title = "title" in item ? item.title : undefined;
+    const update = "update" in item ? item.update : undefined;
+    if (
+      typeof pageId !== "string" ||
+      typeof title !== "string" ||
+      typeof update !== "string"
+    )
+      throw new Error("a lost edit has missing fields");
+    return { pageId, title, update };
+  });
+}
+
 /**
  * The lost edits this device is offering back, until the person keeps or discards each one. The
  * page itself is already deleted; only this copy is left, kept in localStorage so the offer
@@ -34,7 +52,7 @@ export class LostEdits {
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly key: string) {
-    this.items = (readJson<Stored[]>(key) ?? []).map((s) => ({
+    this.items = (readJson(key, parseStoredList) ?? []).map((s) => ({
       ...s,
       update: fromBase64(s.update),
     }));

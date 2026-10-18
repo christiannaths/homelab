@@ -14,6 +14,7 @@ import {
   type Device,
   type TestServer,
 } from "./helpers.ts";
+import { integer, text } from "../src/rows.ts";
 import { StandInVoidAuth } from "./stand-in-voidauth.ts";
 
 const voidauth = new StandInVoidAuth();
@@ -137,11 +138,12 @@ describe("device sessions", () => {
   test("the session token is not stored as is", async () => {
     const { s, cookie } = await withOwner();
     const token = cookie.split("=")[1];
-    const rows = s.db.prepare("SELECT token_hash FROM sessions").all() as {
-      token_hash: string;
-    }[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.token_hash).not.toBe(token);
+    const hashes = s.db
+      .prepare("SELECT token_hash FROM sessions")
+      .all()
+      .map((row) => text(row, "token_hash"));
+    expect(hashes).toHaveLength(1);
+    expect(hashes[0]).not.toBe(token);
   });
 
   test("a device unused for 200 days still syncs, and using it extends the session a year again", async () => {
@@ -285,10 +287,8 @@ describe("storage", () => {
     expect(await (await fetch(`${s.url}/api/health`)).json()).toEqual({
       ok: true,
     });
-    const { user_version } = s.db.prepare("PRAGMA user_version").get() as {
-      user_version: number;
-    };
-    expect(user_version).toBe(1);
+    const versionRow = s.db.prepare("PRAGMA user_version").get() ?? {};
+    expect(integer(versionRow, "user_version")).toBe(1);
 
     const { dataDir } = s;
     await servers.pop()!.close();

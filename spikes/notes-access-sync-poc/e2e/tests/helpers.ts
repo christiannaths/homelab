@@ -127,7 +127,9 @@ export function editor(page: Page) {
 /** Editor text without other people's cursor labels, which are rendered inline. */
 export function editorText(page: Page): Promise<string> {
   return editor(page).evaluate((el) => {
-    const clone = el.cloneNode(true) as HTMLElement;
+    const clone = el.cloneNode(true);
+    if (!(clone instanceof HTMLElement))
+      throw new Error("the editor is not an HTML element");
     clone
       .querySelectorAll(".bn-collaboration-cursor__base")
       .forEach((c) => c.remove());
@@ -137,4 +139,46 @@ export function editorText(page: Page): Promise<string> {
 
 export function treeRow(page: Page, title: string) {
   return page.getByTestId("tree-row").filter({ hasText: title });
+}
+
+/**
+ * The parts of the web app's sync manager that tests reach into through `window.__notesSync`
+ * (exposed by the app's `main.tsx`). The e2e package doesn't build against the web app, so this
+ * restates them; a test that uses one checks first that the manager is there.
+ */
+export interface PageSync {
+  readonly socket: { on(event: "close", listener: () => void): unknown };
+  readonly entries: ReadonlyMap<string, PageSyncEntry>;
+  readonly startedAt: number;
+  get(name: string): PageSyncEntry | undefined;
+  getSnapshot(): {
+    connection: string;
+    total: number;
+    synced: number;
+    pendingChanges: number;
+  };
+  subscribe(listener: () => void): () => void;
+}
+
+export interface PageSyncEntry {
+  name: string;
+  doc: {
+    getMap(name: string): {
+      get(key: string): unknown;
+      set(key: string, value: unknown): void;
+    };
+  };
+  provider?: { isAuthenticated: boolean };
+  localLoadedAt?: number;
+  syncedAt?: number;
+  synced: boolean;
+  unsyncedChanges: number;
+}
+
+declare global {
+  interface Window {
+    __notesSync?: PageSync;
+    /** How many times the sync socket closed, counted by the access-scale test. */
+    __closes?: number;
+  }
 }

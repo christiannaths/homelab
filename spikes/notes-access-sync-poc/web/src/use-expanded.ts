@@ -4,7 +4,12 @@ const KEY = "notes-access.expanded";
 
 function load(): Set<string> {
   try {
-    return new Set(JSON.parse(localStorage.getItem(KEY) ?? "[]") as string[]);
+    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    return new Set(
+      Array.isArray(saved)
+        ? saved.filter((id): id is string => typeof id === "string")
+        : [],
+    );
   } catch {
     return new Set();
   }

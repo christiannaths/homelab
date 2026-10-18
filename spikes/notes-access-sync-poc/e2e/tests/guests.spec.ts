@@ -67,7 +67,7 @@ test("a guest sees only what was shared with them, teamspace pages included, and
     .poll(async () =>
       (await sharedRows.allTextContents())
         .map((t) => t.replace(/[^\w ]/g, "").trim())
-        .sort(),
+        .toSorted(),
     )
     .toEqual(["Chores", "Trip"]);
   await expect(section(guest, "private")).toHaveCount(0);

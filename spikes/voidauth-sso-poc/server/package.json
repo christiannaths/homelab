@@ -13,6 +13,7 @@
   "exports": {
     ".": "./src/app.ts",
     "./cookies": "./src/cookies.ts",
+    "./json": "./src/json.ts",
     "./voidauth-admin": "./src/voidauth-admin.ts"
   },
   "scripts": {

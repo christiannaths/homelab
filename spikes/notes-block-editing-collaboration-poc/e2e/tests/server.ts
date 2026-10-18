@@ -61,7 +61,24 @@ export class TestServer {
     this.proc = null;
   }
 
-  async health(): Promise<{ ok: boolean; documents: number }> {
-    return (await fetch(`${this.url}/api/health`)).json();
+  async health(): Promise<Health> {
+    const body: unknown = await (await fetch(`${this.url}/api/health`)).json();
+    return parseHealth(body);
   }
+}
+
+type Health = { ok: boolean; documents: number };
+
+function parseHealth(value: unknown): Health {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "ok" in value &&
+    typeof value.ok === "boolean" &&
+    "documents" in value &&
+    typeof value.documents === "number"
+  ) {
+    return { ok: value.ok, documents: value.documents };
+  }
+  throw new Error(`unexpected /api/health response: ${JSON.stringify(value)}`);
 }

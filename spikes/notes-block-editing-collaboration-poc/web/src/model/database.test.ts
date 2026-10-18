@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
+import { stringField } from "./fields";
 import {
   addProperty,
   addRow,
@@ -102,10 +103,11 @@ describe("database views", () => {
           { [TITLE]: `Row ${i}`, [num]: (i * 7919) % 1000 },
           last,
         );
-        last = doc
-          .getMap<Y.Map<unknown>>("rows")
-          .get(id)!
-          .get("_order") as string;
+        last = stringField(
+          doc.getMap<Y.Map<unknown>>("rows").get(id)!,
+          "_order",
+          "",
+        );
       }
     });
     setSort(doc, { propId: num, dir: "desc" });

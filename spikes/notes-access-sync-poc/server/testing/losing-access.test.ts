@@ -49,14 +49,18 @@ describe("losing and regaining access", () => {
     await expect
       .poll(() => laptop.syncAll())
       .toEqual(
-        [indexDocName(nia.id), pageDocName(packing), pageDocName(trip)].sort(),
+        [
+          indexDocName(nia.id),
+          pageDocName(packing),
+          pageDocName(trip),
+        ].toSorted(),
       );
 
     await maxDevice.share(trip, nia.id, null);
     await maxDevice.settled();
     await expect
       .poll(() => laptop.lost())
-      .toEqual([pageDocName(packing), pageDocName(trip)].sort());
+      .toEqual([pageDocName(packing), pageDocName(trip)].toSorted());
     expect(laptop.received()).toEqual([indexDocName(nia.id)]);
     expect(laptop.receivedContent()).not.toMatch(
       /Trip|Packing list|Socks|Flights/,
@@ -70,7 +74,11 @@ describe("losing and regaining access", () => {
     await expect
       .poll(() => laptop.syncAll())
       .toEqual(
-        [indexDocName(nia.id), pageDocName(packing), pageDocName(trip)].sort(),
+        [
+          indexDocName(nia.id),
+          pageDocName(packing),
+          pageDocName(trip),
+        ].toSorted(),
       );
     expect(laptop.pageText(trip)).toBe("Flights booked\nHotel booked");
     expect(laptop.level(packing)).toBe("view");
@@ -255,7 +263,7 @@ describe("losing and regaining access", () => {
       );
     await expect
       .poll(() => piasDevice.lost())
-      .toEqual([pageDocName(bins), schemaDocName(db.id)].sort());
+      .toEqual([pageDocName(bins), schemaDocName(db.id)].toSorted());
     expect(
       piasDevice.received().filter((n) => !n.startsWith("teamspace:")),
     ).toEqual([indexDocName(pia.id)]);

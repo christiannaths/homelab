@@ -70,9 +70,8 @@ export function Sidebar({ workspace, tree, currentId }: Props) {
     const target = tree.byId.get(String(over.id));
     if (!target || isInSubtree(tree, target.page.id, String(active.id)))
       return null;
-    const start = e.activatorEvent as PointerEvent | TouchEvent;
-    const startY =
-      "touches" in start ? start.touches[0].clientY : start.clientY;
+    const startY = clientYOf(e.activatorEvent);
+    if (startY === null) return null;
     const y = startY + e.delta.y;
     const { top, height } = over.rect;
     const rel = (y - top) / height;
@@ -190,16 +189,18 @@ function TreeRow({
   onAddChild,
 }: RowProps) {
   const id = node.page.id;
-  const drag = useDraggable({ id });
-  const dropZone = useDroppable({ id });
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id,
+  });
+  const { setNodeRef: setDropRef } = useDroppable({ id });
   const isDb = node.page.kind === "database";
   return (
     <li
-      ref={dropZone.setNodeRef}
+      ref={setDropRef}
       className={[
         "tree-row",
         active && "active",
-        drag.isDragging && "dragging",
+        isDragging && "dragging",
         drop && `drop-${drop}`,
       ]
         .filter(Boolean)
@@ -219,9 +220,9 @@ function TreeRow({
         {expanded ? "▾" : "▸"}
       </button>
       <a
-        ref={drag.setNodeRef}
-        {...drag.listeners}
-        {...drag.attributes}
+        ref={setNodeRef}
+        {...listeners}
+        {...attributes}
         href={`#/page/${id}`}
         className="tree-link"
       >
@@ -240,4 +241,13 @@ function TreeRow({
       )}
     </li>
   );
+}
+
+/** Where a drag started; only the pointer and touch sensors are enabled. */
+function clientYOf(event: Event): number | null {
+  if (event instanceof MouseEvent) return event.clientY;
+  // Desktop Firefox and Safari have no TouchEvent constructor.
+  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent)
+    return event.touches[0].clientY;
+  return null;
 }

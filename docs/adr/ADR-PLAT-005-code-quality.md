@@ -12,7 +12,7 @@ The repo holds TypeScript and TSX, Markdown docs and ADRs, CSS, JSON, YAML, HTML
 ## Decision
 
 - **Prettier** formats every file it supports: TypeScript, JavaScript, JSON, YAML, CSS, HTML and Markdown. It keeps its defaults, plus options that keep diffs small: `proseWrap: "never"` (a paragraph is one line, and tables too wide to align stay compact), `singleAttributePerLine` and `quoteProps: "consistent"`.
-- **Oxlint** lints TypeScript and TSX with its `correctness` and `suspicious` categories, its React (including Hooks), jsx-a11y, import and TypeScript plugins, and type-aware rules from `oxlint-tsgolint` (floating and misused promises, unsafe `any`), all as errors. Rules that do not fit the repo are switched off in `.oxlintrc.json`, each for a stated reason.
+- **Oxlint** lints TypeScript and TSX with its `correctness` and `suspicious` categories, its React (including Hooks), jsx-a11y, import and TypeScript plugins, and type-aware rules from `oxlint-tsgolint` (floating and misused promises, unsafe `any`, and unchecked `as` casts), all as errors. Rules that do not fit the repo are switched off in `.oxlintrc.json`, each for a stated reason.
 - **markdownlint-cli2** lints Markdown, with the rules Prettier owns switched off.
 - **Stylelint** lints CSS with `stylelint-config-standard`.
 - **ls-lint** checks names: folders and files are kebab-case, `.tsx` files may be PascalCase for React components, Markdown files may use conventional upper-case names such as `README.md`, and ADR files follow their own pattern, which `npm run adrs` checks in full.
@@ -44,6 +44,7 @@ The repo holds TypeScript and TSX, Markdown docs and ADRs, CSS, JSON, YAML, HTML
 ## Consequences
 
 - Every commit is formatted and linted, so review sees only meaningful changes.
-- Spikes keep per-folder overrides in `.oxlintrc.json` and `stylelint.config.mjs` for rules whose fixes would change frozen code by hand.
+- No rule is relaxed for spikes. Their lint findings were fixed by hand in PR #44, which changed frozen code, and their tests were rerun to show the behaviour held.
+- A value whose type the compiler cannot prove, such as a JSON body, a database row or a Yjs map entry, needs a runtime check before it is used, because unchecked `as` casts are banned.
 - Files in a package without its own `tsconfig.json` get weaker type-aware results, because Oxlint cannot resolve their types.
 - CI is not part of this decision. Until it runs `npm run check`, `git commit --no-verify` skips the hook.

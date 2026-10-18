@@ -55,10 +55,7 @@ const teamspace = (id: string, extra: Partial<Teamspace> = {}): Teamspace => ({
 /** Each person's level on each page, for asserting a whole workspace at once. */
 const levels = (ws: Workspace) =>
   Object.fromEntries(
-    people.map((p) => [
-      p.id,
-      Object.fromEntries([...pageLevels(ws, p.id)].sort()),
-    ]),
+    people.map((p) => [p.id, Object.fromEntries(pageLevels(ws, p.id))]),
   );
 
 describe("teamspace pages", () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type * as Y from "yjs";
 import {
   addSelectOption,
@@ -33,29 +33,23 @@ function DraftInput({
   className?: string;
   testId?: string;
 }) {
-  const [draft, setDraft] = useState(value);
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setDraft(value);
-  }, [value, focused]);
+  // While editing, the draft is shown; otherwise the synced value is.
+  const [draft, setDraft] = useState<string | null>(null);
   return (
     <input
       className={className}
       data-testid={testId}
       type={type}
-      value={draft}
-      onFocus={() => setFocused(true)}
+      value={draft ?? value}
+      onFocus={() => setDraft(value)}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
-        setFocused(false);
-        if (draft !== value) commit(draft);
+        if (draft !== null && draft !== value) commit(draft);
+        setDraft(null);
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        if (e.key === "Escape") {
-          setDraft(value);
-          setFocused(false);
-        }
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") setDraft(null);
       }}
     />
   );

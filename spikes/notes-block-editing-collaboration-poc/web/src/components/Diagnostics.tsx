@@ -53,7 +53,9 @@ export function Diagnostics({
   const [seeding, setSeeding] = useState<string | null>(null);
 
   useEffect(() => {
-    const refresh = () => readEnv().then(setEnv);
+    const refresh = () => {
+      void readEnv().then(setEnv);
+    };
     refresh();
     const t = setInterval(refresh, 3000);
     return () => clearInterval(t);
@@ -204,7 +206,8 @@ export function Diagnostics({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          const value = new FormData(e.currentTarget).get("token") as string;
+          const token = new FormData(e.currentTarget).get("token");
+          const value = typeof token === "string" ? token : "";
           try {
             localStorage.setItem("localnotion.token", value);
           } catch {
@@ -223,14 +226,18 @@ export function Diagnostics({
       <h2>Load test</h2>
       <p>
         <button
-          onClick={() => seed(100)}
+          onClick={() => {
+            void seed(100);
+          }}
           disabled={seeding?.endsWith("…")}
           data-testid="seed-100"
         >
           Create 100 test pages
         </button>{" "}
         <button
-          onClick={() => seed(500)}
+          onClick={() => {
+            void seed(500);
+          }}
           disabled={seeding?.endsWith("…")}
         >
           Create 500 test pages

@@ -25,8 +25,9 @@ export function previewUpdate(
   const touched = new Set<Y.AbstractType<any>>();
   copy.on("afterTransaction", (transaction: Y.Transaction) => {
     for (const type of transaction.changed.keys()) {
-      let root = type;
-      while (root._item) root = root._item.parent as typeof root;
+      let root: Y.AbstractType<any> = type;
+      while (root._item?.parent instanceof Y.AbstractType)
+        root = root._item.parent;
       touched.add(root);
     }
   });

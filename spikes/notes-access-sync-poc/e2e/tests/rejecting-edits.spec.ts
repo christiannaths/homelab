@@ -72,14 +72,9 @@ test("a forged edit from a Can view device is refused, and the device drops it f
 
   // A modified client writes anyway, straight into the page's Yjs document.
   await bob.evaluate((pageId) => {
-    const sync = (
-      window as unknown as {
-        __notesSync: {
-          get(n: string): { doc: { getMap(n: string): Map<string, unknown> } };
-        };
-      }
-    ).__notesSync;
-    sync.get(`page:${pageId}`).doc.getMap("meta").set("title", "Hacked");
+    const entry = window.__notesSync?.get(`page:${pageId}`);
+    if (!entry) throw new Error(`page:${pageId} is not open on this device`);
+    entry.doc.getMap("meta").set("title", "Hacked");
   }, id);
 
   await expect

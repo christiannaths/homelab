@@ -4,7 +4,6 @@ import {
   pageLevels,
   readOnlyAt,
   refuseUpdate,
-  type AccessLevel,
   type Workspace,
 } from "./access.ts";
 import type { Person } from "./people.ts";
@@ -50,10 +49,7 @@ class Device implements PageDocs {
   levels(): Record<string, Record<string, string>> {
     const ws: Workspace = { people, pages: this.pages() };
     return Object.fromEntries(
-      people.map((p) => [
-        p.id,
-        Object.fromEntries([...pageLevels(ws, p.id)].sort()),
-      ]),
+      people.map((p) => [p.id, Object.fromEntries(pageLevels(ws, p.id))]),
     );
   }
 }
@@ -189,7 +185,7 @@ describe("a person's page index", () => {
         ["c", "comment"],
       ]),
     );
-    expect(changed.sort()).toEqual(["b", "c"]);
+    expect(changed.toSorted()).toEqual(["b", "c"]);
     expect(readIndexLevels(index)).toEqual(
       new Map([
         ["a", "full"],
@@ -216,8 +212,8 @@ describe("which updates a connection may apply", () => {
 
   it("opens Can view and Can comment read-only, and every other level a person can open read-write", () => {
     expect(
-      ["full", "edit", "edit-content", "comment", "view"].filter((l) =>
-        readOnlyAt(l as AccessLevel),
+      (["full", "edit", "edit-content", "comment", "view"] as const).filter(
+        (l) => readOnlyAt(l),
       ),
     ).toEqual(["comment", "view"]);
   });

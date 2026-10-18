@@ -166,14 +166,14 @@ body {
   font-size: 12px;
 }
 
-.toggle:hover,
-.add-child:hover {
-  background: var(--border);
-}
-
 .add-child {
   opacity: 0;
   font-size: 16px;
+}
+
+.toggle:hover,
+.add-child:hover {
+  background: var(--border);
 }
 
 .tree-row:hover .add-child,

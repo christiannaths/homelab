@@ -1,6 +1,7 @@
 import {
   HocuspocusProvider,
   HocuspocusProviderWebsocket,
+  WebSocketStatus,
 } from "@hocuspocus/provider";
 import { isRefusal } from "@homelab/notes-access-sync-poc-model";
 import { clearDocument, IndexeddbPersistence } from "y-indexeddb";
@@ -82,7 +83,7 @@ export class SyncManager {
     url: string,
     private personId: string,
   ) {
-    this.unsynced = new Set(readJson<string[]>(this.unsyncedKey) ?? []);
+    this.unsynced = new Set(readJson(this.unsyncedKey, parseStringList) ?? []);
     this.socket = new HocuspocusProviderWebsocket({
       url,
       // Keep retrying forever: offline is a normal state, not an error.
@@ -93,7 +94,7 @@ export class SyncManager {
         // Whatever was synced before is unconfirmed until each doc re-syncs after
         // reconnecting (the provider emits onSynced again). Without this, the badge
         // would say "Synced" right after reconnecting, before anything was exchanged.
-        if (status !== "connected")
+        if (status !== WebSocketStatus.Connected)
           for (const e of this.entries.values()) e.synced = false;
         this.notify();
       },
@@ -101,7 +102,9 @@ export class SyncManager {
     // React to the OS's network state right away. Otherwise a dead socket is only
     // noticed after the provider's message timeout (~30s).
     addEventListener("offline", () => this.goOffline());
-    addEventListener("online", () => this.socket.connect());
+    addEventListener("online", () => {
+      void this.socket.connect();
+    });
   }
 
   /**
@@ -386,14 +389,25 @@ export class SyncManager {
   }
 }
 
-/** localStorage helpers: storage may be unavailable, and then nothing is kept. */
-export function readJson<T>(key: string): T | null {
+/**
+ * localStorage helpers: storage may be unavailable, and then nothing is kept. A stored value
+ * `parse` rejects (by throwing) reads as nothing too.
+ */
+export function readJson<T>(
+  key: string,
+  parse: (value: unknown) => T,
+): T | null {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
+    return raw ? parse(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
+}
+
+function parseStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) throw new Error("expected a list");
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 export function writeJson(key: string, value: unknown): void {

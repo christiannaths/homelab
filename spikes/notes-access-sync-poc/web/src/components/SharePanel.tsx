@@ -2,6 +2,7 @@ import {
   setPersonAccess,
   setWorkspaceAccess,
   shareEntries,
+  isAccessLevel,
   type AccessLevel,
   type PageMeta,
   type Person,
@@ -88,7 +89,10 @@ export function SharePanel({ page, doc, me, pages }: Props) {
         <select
           data-testid="share-level"
           value={level}
-          onChange={(e) => setLevel(e.target.value as AccessLevel)}
+          onChange={(e) => {
+            const value = e.currentTarget.value;
+            if (isAccessLevel(value)) setLevel(value);
+          }}
         >
           {LEVELS.filter((l) => l.level !== "none").map((l) => (
             <option
@@ -136,13 +140,11 @@ export function SharePanel({ page, doc, me, pages }: Props) {
               <select
                 data-testid="share-entry-level"
                 value={entry.level}
-                onChange={(e) =>
-                  setPersonAccess(
-                    doc,
-                    entry.personId,
-                    e.target.value as AccessLevel,
-                  )
-                }
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  if (isAccessLevel(value))
+                    setPersonAccess(doc, entry.personId, value);
+                }}
               >
                 {LEVELS.map((l) => (
                   <option
@@ -180,14 +182,11 @@ export function SharePanel({ page, doc, me, pages }: Props) {
         <select
           data-testid="share-general"
           value={general.from === page.id ? general.level : "inherit"}
-          onChange={(e) =>
-            setWorkspaceAccess(
-              doc,
-              e.target.value === "inherit"
-                ? null
-                : (e.target.value as AccessLevel),
-            )
-          }
+          onChange={(e) => {
+            const value = e.currentTarget.value;
+            if (value === "inherit") setWorkspaceAccess(doc, null);
+            else if (isAccessLevel(value)) setWorkspaceAccess(doc, value);
+          }}
         >
           <option value="inherit">
             {topLevel ? "Only people invited" : "Same as the parent page"}

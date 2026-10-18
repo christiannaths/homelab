@@ -29,10 +29,10 @@ export async function createPage(
 ): Promise<string> {
   await page.getByTestId("new-page").click();
   await page.getByTestId("page-title").fill(title);
-  const editor = page.locator(".bn-editor");
-  await editor.click();
+  const bodyEditor = editor(page);
+  await bodyEditor.click();
   await page.keyboard.type(body);
-  await expect(editor).toContainText(body);
+  await expect(bodyEditor).toContainText(body);
   return new URL(page.url()).hash;
 }
 
@@ -43,7 +43,9 @@ export function editor(page: Page) {
 /** Editor text without other users' cursor labels, which are rendered inline. */
 export function editorText(page: Page): Promise<string> {
   return editor(page).evaluate((el) => {
-    const clone = el.cloneNode(true) as HTMLElement;
+    const clone = el.cloneNode(true);
+    if (!(clone instanceof Element))
+      throw new Error("editor clone is not an element");
     clone
       .querySelectorAll(".bn-collaboration-cursor__base")
       .forEach((c) => c.remove());
@@ -57,14 +59,12 @@ export function treeRow(page: Page, title: string) {
 
 /** The sidebar as "depth:title" lines, in display order. */
 export async function treeShape(page: Page): Promise<string[]> {
-  return page
-    .getByTestId("tree-row")
-    .evaluateAll((rows) =>
-      rows.map(
-        (r) =>
-          `${(r as HTMLElement).dataset.depth}:${r.querySelector(".tree-link")?.lastChild?.textContent ?? ""}`,
-      ),
-    );
+  return page.getByTestId("tree-row").evaluateAll((rows) =>
+    rows.map((r) => {
+      const depth = r instanceof HTMLElement ? r.dataset.depth : undefined;
+      return `${depth}:${r.querySelector(".tree-link")?.lastChild?.textContent ?? ""}`;
+    }),
+  );
 }
 
 /** Drags a sidebar item onto another: into it, or just before/after it. */

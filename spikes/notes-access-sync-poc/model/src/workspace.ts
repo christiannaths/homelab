@@ -1,8 +1,10 @@
 import * as Y from "yjs";
 import { isAccessLevel, type AccessLevel, type PageAccess } from "./levels.ts";
+import { numberField, stringField } from "./fields.ts";
 import { freshKeys, keyBetween, keysAreUsable } from "./order.ts";
 import {
   isInSubtree,
+  isPageKind,
   type PageKind,
   type PageMeta,
   type Tree,
@@ -144,15 +146,17 @@ export const indexMap = (doc: Y.Doc) => doc.getMap<unknown>("pages");
 export function readMeta(id: string, doc: Y.Doc): PageMeta | null {
   const m = metaMap(doc);
   if (!m.has("createdAt")) return null;
+  const kind = m.get("kind");
+  const parentId = m.get("parentId");
   return {
     id,
-    title: (m.get("title") as string) ?? "",
-    kind: (m.get("kind") as PageKind) ?? "page",
-    parentId: (m.get("parentId") as string | null) ?? null,
-    section: (m.get("section") as string) ?? "",
-    order: (m.get("order") as string) ?? "",
-    createdAt: (m.get("createdAt") as number) ?? 0,
-    deletedAt: (m.get("deletedAt") as number | undefined) ?? undefined,
+    title: stringField(m, "title", ""),
+    kind: isPageKind(kind) ? kind : "page",
+    parentId: typeof parentId === "string" ? parentId : null,
+    section: stringField(m, "section", ""),
+    order: stringField(m, "order", ""),
+    createdAt: numberField(m, "createdAt", 0),
+    deletedAt: numberField(m, "deletedAt", undefined),
     access: readAccess(doc),
   };
 }
@@ -181,7 +185,8 @@ export function writeIndex(
 ): void {
   const map = indexMap(doc);
   doc.transact(() => {
-    for (const id of [...map.keys()]) if (!levels.has(id)) map.delete(id);
+    for (const id of Array.from(map.keys()))
+      if (!levels.has(id)) map.delete(id);
     for (const [id, level] of levels)
       if (map.get(id) !== level) map.set(id, level);
   });
@@ -343,7 +348,8 @@ export function movePage(
     m.set("section", to);
     m.set("order", order);
     if (toPrivate)
-      for (const key of [...accessMap(doc).keys()]) accessMap(doc).delete(key);
+      for (const key of Array.from(accessMap(doc).keys()))
+        accessMap(doc).delete(key);
   });
   return true;
 }
@@ -384,8 +390,13 @@ export function restorePage(docs: PageDocs, tree: Tree, id: string): void {
     // If the old parent is still in the trash, restore to the top level of its section. A parent
     // this device doesn't hold may be one this person can't open: leave that link alone, since
     // writing it would move the page for everyone.
-    const parentId = m.get("parentId") as string | null;
-    if (parentId && docs.get(parentId) && !tree.byId.has(parentId))
+    const parentId = m.get("parentId");
+    if (
+      typeof parentId === "string" &&
+      parentId &&
+      docs.get(parentId) &&
+      !tree.byId.has(parentId)
+    )
       m.set("parentId", null);
   });
 }

@@ -1,7 +1,11 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import type { Person, Role } from "@homelab/notes-access-sync-poc-model";
+import { DatabaseSync, type SQLOutputValue } from "node:sqlite";
+import {
+  isRole,
+  type Person,
+  type Role,
+} from "@homelab/notes-access-sync-poc-model";
 
 /**
  * SQLite storage. Each Yjs document is one merged binary state: the server doesn't need to
@@ -33,8 +37,12 @@ export class Store {
   load(name: string): Uint8Array | null {
     const row = this.db
       .prepare("SELECT state FROM documents WHERE name = ?")
-      .get(name) as { state: Uint8Array } | undefined;
-    return row ? new Uint8Array(row.state) : null;
+      .get(name);
+    if (!row) return null;
+    const { state } = row;
+    if (!(state instanceof Uint8Array))
+      throw new Error(`document ${name} has no binary state`);
+    return new Uint8Array(state);
   }
 
   save(name: string, state: Uint8Array): void {
@@ -48,34 +56,29 @@ export class Store {
 
   /** Names of the stored documents that start with `prefix`. */
   names(prefix: string): string[] {
-    return (
-      this.db
-        .prepare("SELECT name FROM documents WHERE substr(name, 1, ?) = ?")
-        .all(prefix.length, prefix) as {
-        name: string;
-      }[]
-    ).map((r) => r.name);
+    return this.db
+      .prepare("SELECT name FROM documents WHERE substr(name, 1, ?) = ?")
+      .all(prefix.length, prefix)
+      .map((r) => stringColumn(r, "name"));
   }
 
   count(): number {
-    return (
-      this.db.prepare("SELECT COUNT(*) AS n FROM documents").get() as {
-        n: number;
-      }
-    ).n;
+    const row = this.db.prepare("SELECT COUNT(*) AS n FROM documents").get();
+    const n = row?.n;
+    if (typeof n !== "number") throw new Error("COUNT(*) returned no number");
+    return n;
   }
 
   /** Everyone in the workspace, in the order they were added. */
   people(): Person[] {
-    return (
-      this.db
-        .prepare("SELECT id, name, role FROM people ORDER BY created_at, rowid")
-        .all() as {
-        id: string;
-        name: string;
-        role: string;
-      }[]
-    ).map((r) => ({ id: r.id, name: r.name, role: r.role as Role }));
+    return this.db
+      .prepare("SELECT id, name, role FROM people ORDER BY created_at, rowid")
+      .all()
+      .map((r) => ({
+        id: stringColumn(r, "id"),
+        name: stringColumn(r, "name"),
+        role: roleColumn(r),
+      }));
   }
 
   addPerson(person: Person): void {
@@ -93,4 +96,19 @@ export class Store {
   close(): void {
     this.db.close();
   }
+}
+
+type Row = Record<string, SQLOutputValue>;
+
+function stringColumn(row: Row, column: string): string {
+  const value = row[column];
+  if (typeof value !== "string")
+    throw new Error(`column ${column} is not text`);
+  return value;
+}
+
+function roleColumn(row: Row): Role {
+  const role = row.role;
+  if (!isRole(role)) throw new Error(`unknown role ${String(role)}`);
+  return role;
 }

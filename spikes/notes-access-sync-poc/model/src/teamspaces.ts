@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { stringField } from "./fields.ts";
 import { isAccessLevel, type AccessLevel } from "./levels.ts";
 import type { Person } from "./people.ts";
 
@@ -38,6 +39,8 @@ export const settingsMap = (doc: Y.Doc) => doc.getMap<unknown>("settings");
 export const membersMap = (doc: Y.Doc) => doc.getMap<unknown>("members");
 
 const KINDS: readonly TeamspaceKind[] = ["open", "closed", "private"];
+const isTeamspaceKind = (value: unknown): value is TeamspaceKind =>
+  KINDS.some((kind) => kind === value);
 
 /** Writes a new teamspace, owned by `owner`, in one transaction (ADR-NOTE-006 rule 2). */
 export function createTeamspace(
@@ -93,7 +96,7 @@ export function setTeamspaceSettings(
 export function readTeamspace(id: string, doc: Y.Doc): Teamspace | null {
   const s = settingsMap(doc);
   if (!s.has("createdAt")) return null;
-  const kind = s.get("kind") as TeamspaceKind;
+  const kind = s.get("kind");
   const memberLevel = s.get("memberLevel");
   const workspaceLevel = s.get("workspaceLevel");
   const members: Record<string, TeamspaceRole> = {};
@@ -102,8 +105,8 @@ export function readTeamspace(id: string, doc: Y.Doc): Teamspace | null {
   }
   return {
     id,
-    name: typeof s.get("name") === "string" ? (s.get("name") as string) : "",
-    kind: KINDS.includes(kind) ? kind : "private",
+    name: stringField(s, "name", ""),
+    kind: isTeamspaceKind(kind) ? kind : "private",
     isDefault: s.get("isDefault") === true,
     memberLevel: isAccessLevel(memberLevel) ? memberLevel : "view",
     // Open teamspaces have no "None" for non-members.
@@ -137,7 +140,8 @@ export function writeTeamspaceIndex(
 ): void {
   const map = teamspaceIndexMap(doc);
   doc.transact(() => {
-    for (const id of [...map.keys()]) if (!levels.has(id)) map.delete(id);
+    for (const id of Array.from(map.keys()))
+      if (!levels.has(id)) map.delete(id);
     for (const [id, level] of levels)
       if (map.get(id) !== level) map.set(id, level);
   });

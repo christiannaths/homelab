@@ -28,12 +28,18 @@ test.setTimeout(60 * 60_000);
 
 const REPEATS = Number(process.env.SCALE_REPEATS ?? 3);
 const FACTOR = Number(process.env.SCALE ?? 1);
-const layout = Object.fromEntries(
-  Object.entries(DEFAULT_LAYOUT).map(([k, v]) => [
-    k,
-    Math.max(1, Math.round(v * FACTOR)),
-  ]),
-) as unknown as SeedLayout;
+const scaled = (count: number) => Math.max(1, Math.round(count * FACTOR));
+const layout: SeedLayout = {
+  olivePrivate: scaled(DEFAULT_LAYOUT.olivePrivate),
+  maxPrivate: scaled(DEFAULT_LAYOUT.maxPrivate),
+  sharedWithMax: scaled(DEFAULT_LAYOUT.sharedWithMax),
+  tripForGus: scaled(DEFAULT_LAYOUT.tripForGus),
+  engineering: scaled(DEFAULT_LAYOUT.engineering),
+  leadership: scaled(DEFAULT_LAYOUT.leadership),
+  tasksRows: scaled(DEFAULT_LAYOUT.tasksRows),
+  readingRows: scaled(DEFAULT_LAYOUT.readingRows),
+  rowsForGus: scaled(DEFAULT_LAYOUT.rowsForGus),
+};
 const SYNC_TIMEOUT = Number(process.env.SCALE_SYNC_TIMEOUT ?? 10 * 60_000);
 
 type Who = "olive" | "max" | "gus";
@@ -59,7 +65,7 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
 
     // What each person can open, as a Node device with no storage receives it (also their teamspaces
     // and databases' properties, which the web app doesn't open yet).
-    const expected = {} as Record<Who, number>;
+    const expected: Record<Who, number> = { olive: 0, max: 0, gus: 0 };
     for (const who of ["olive", "max", "gus"] as const) {
       const client = await connectAs(server, seeded.people[who]);
       const names = await timed(
@@ -80,7 +86,12 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
 
     // A new device per run: a fresh browser context with the person already picked, timed from
     // navigation until every document it can open has synced. The last one is kept.
-    const devices = {} as Record<Who, Device>;
+    const devices = new Map<Who, Device>();
+    const deviceOf = (who: Who): Device => {
+      const device = devices.get(who);
+      if (!device) throw new Error(`${who} has no device open`);
+      return device;
+    };
     for (const who of ["olive", "max", "gus"] as const) {
       for (let i = 0; i < REPEATS; i++) {
         const device = await openDevice(
@@ -92,13 +103,13 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
         record("new device: download everything it can open", who, t.syncedMs);
         expect(device.closes(), "socket closed while syncing").toBe(0);
         if (i < REPEATS - 1) await device.context.close();
-        else devices[who] = device;
+        else devices.set(who, device);
       }
       facts[`JS heap, ${who}'s device with every document open (MB)`] =
-        Math.round((await devices[who].heap()) / 1e6);
+        Math.round((await deviceOf(who).heap()) / 1e6);
       await expectEveryDocConnected(server, seeded.people[who], expected[who]);
     }
-    await devices.gus.context.close();
+    await deviceOf("gus").context.close();
     const big = ["olive", "max"] as const;
 
     // Hocuspocus 4.7.1 can leave a device on a dead copy of a document unloaded while the device
@@ -125,14 +136,11 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
         await expect
           .poll(
             () =>
-              devices[who].page.evaluate(
-                (id) =>
-                  (window as any).__notesSync
-                    .get(`page:${id}`)
-                    ?.doc.getMap("meta")
-                    .get("title"),
-                seeded.engineeringPageId,
-              ),
+              deviceOf(who).page.evaluate((id) => {
+                const sync = window.__notesSync;
+                if (!sync) throw new Error("the sync manager is not exposed");
+                return sync.get(`page:${id}`)?.doc.getMap("meta").get("title");
+              }, seeded.engineeringPageId),
             {
               message: `${who}'s device stopped receiving updates`,
             },
@@ -143,7 +151,7 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
     await expectStillLive();
 
     for (const who of big) {
-      const d = devices[who];
+      const d = deviceOf(who);
       for (let i = 0; i < REPEATS; i++) {
         await d.context.setOffline(true);
         // At once: before the fix in `SyncManager.goOffline`, about 1 switch in 3 left the socket
@@ -172,7 +180,7 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
       );
       const done = await Promise.all(
         big.map(async (who) => {
-          await devices[who].waitSynced(expected[who]);
+          await deviceOf(who).waitSynced(expected[who]);
           return Date.now() - started;
         }),
       );
@@ -188,7 +196,7 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
     }
 
     for (const who of big) {
-      const d = devices[who];
+      const d = deviceOf(who);
       for (let i = 0; i < REPEATS; i++) {
         const cdp =
           process.env.SCALE_PROFILE && who === "olive" && i === 0
@@ -223,7 +231,7 @@ test(`per-person sync of a seeded workspace: new device, reconnect, server resta
   } finally {
     const report = format(results, facts);
     console.log(report);
-    test
+    await test
       .info()
       .attach("scale-results", { body: report, contentType: "text/plain" });
     if (process.env.SCALE_RESULTS)
@@ -277,44 +285,38 @@ async function openDevice(
     context,
     page,
     async waitSynced(total) {
-      await page.waitForFunction(
-        () => (window as unknown as { __notesSync?: unknown }).__notesSync,
-      );
+      await page.waitForFunction(() => window.__notesSync);
       const t = await page.evaluate(
-        ({ total, timeout }) =>
+        ({ count, timeout }) =>
           new Promise<{ localMs: number; syncedMs: number; closes: number }>(
             (resolve, reject) => {
-              const w = window as unknown as {
-                __notesSync: any;
-                __closes?: number;
-              };
-              const m = w.__notesSync;
-              if (w.__closes === undefined) {
-                w.__closes = 0;
-                m.socket.on("close", () => w.__closes!++);
+              const m = window.__notesSync;
+              if (!m) throw new Error("the sync manager is not exposed");
+              if (window.__closes === undefined) {
+                window.__closes = 0;
+                m.socket.on("close", () => {
+                  window.__closes = (window.__closes ?? 0) + 1;
+                });
               }
               const check = () => {
                 const s = m.getSnapshot();
                 if (
                   s.connection === "connected" &&
-                  s.total === total &&
-                  s.synced === total &&
+                  s.total === count &&
+                  s.synced === count &&
                   s.pendingChanges === 0
                 ) {
                   off();
                   clearTimeout(timer);
                   // Each document stamps when it first loaded from IndexedDB and first synced (ms since
                   // the sync manager started), so the times are exact even if this check ran late.
-                  const entries = [...m.entries.values()] as {
-                    localLoadedAt?: number;
-                    syncedAt?: number;
-                  }[];
+                  const entries = [...m.entries.values()];
                   const last = (key: "localLoadedAt" | "syncedAt") =>
                     m.startedAt + Math.max(...entries.map((e) => e[key] ?? 0));
                   resolve({
                     localMs: last("localLoadedAt"),
                     syncedMs: last("syncedAt"),
-                    closes: w.__closes!,
+                    closes: window.__closes ?? 0,
                   });
                 }
               };
@@ -322,9 +324,9 @@ async function openDevice(
               const timer = setTimeout(() => {
                 off();
                 const pending = [...m.entries.values()]
-                  .filter((e: any) => e.unsyncedChanges > 0 || !e.synced)
+                  .filter((e) => e.unsyncedChanges > 0 || !e.synced)
                   .slice(0, 5)
-                  .map((e: any) => ({
+                  .map((e) => ({
                     name: e.name,
                     unsynced: e.unsyncedChanges,
                     synced: e.synced,
@@ -340,18 +342,23 @@ async function openDevice(
               check();
             },
           ),
-        { total, timeout: SYNC_TIMEOUT },
+        { count: total, timeout: SYNC_TIMEOUT },
       );
       closeCount = t.closes;
       return t;
     },
     closes: () => closeCount,
     heap: () =>
-      page.evaluate(
-        () =>
-          (performance as unknown as { memory?: { usedJSHeapSize: number } })
-            .memory?.usedJSHeapSize ?? 0,
-      ),
+      page.evaluate(() => {
+        // performance.memory is Chromium-only and not in the DOM types.
+        const memory = "memory" in performance ? performance.memory : undefined;
+        return typeof memory === "object" &&
+          memory !== null &&
+          "usedJSHeapSize" in memory &&
+          typeof memory.usedJSHeapSize === "number"
+          ? memory.usedJSHeapSize
+          : 0;
+      }),
   };
   return device;
 }
@@ -372,7 +379,7 @@ async function expectEveryDocConnected(
 }
 
 const median = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b);
+  const s = [...xs].toSorted((a, b) => a - b);
   return s.length % 2
     ? s[(s.length - 1) / 2]
     : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;

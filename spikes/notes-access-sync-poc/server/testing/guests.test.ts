@@ -84,7 +84,7 @@ describe("guests", () => {
     const expected = [
       indexDocName(gus.id),
       ...[trip, packing, recipes, budget, chores, bins].map(pageDocName),
-    ].sort();
+    ].toSorted();
     await expect.poll(() => device.syncAll()).toEqual(expected);
     expect(device.teamspaceNames()).toEqual([]);
     for (const id of [notice, diary, garden]) {
@@ -107,7 +107,7 @@ describe("guests", () => {
     // Everything they hold is shared with them, and they have no Private section.
     const sidebar = device.sidebar();
     expect(sidebar.private).toEqual([]);
-    expect(sidebar.shared.sort()).toEqual([
+    expect(sidebar.shared.toSorted()).toEqual([
       "Budget",
       "Chores",
       "Recipes",

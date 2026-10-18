@@ -1,5 +1,5 @@
 import { mkdtempSync } from "node:fs";
-import { createServer, type AddressInfo } from "node:net";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -44,9 +44,11 @@ export interface TestServer extends NotesServer {
 async function freePort(): Promise<number> {
   const probe = createServer();
   await new Promise<void>((resolve) => probe.listen(0, resolve));
-  const { port } = probe.address() as AddressInfo;
+  const address = probe.address();
+  if (typeof address !== "object" || address === null)
+    throw new Error("Probe is not listening on a TCP port");
   await new Promise<void>((resolve) => probe.close(() => resolve()));
-  return port;
+  return address.port;
 }
 
 export function tempDataDir(): string {
@@ -90,14 +92,14 @@ export async function signIn(
   account: Account | undefined,
 ) {
   voidauth.account = account;
-  const start = await fetch(`${server.url}/api/sign-in`, {
+  const started = await fetch(`${server.url}/api/sign-in`, {
     redirect: "manual",
   });
-  const pending = start.headers
+  const pending = started.headers
     .getSetCookie()
     .map((c) => c.split(";")[0])
     .join("; ");
-  const atVoidAuth = await fetch(start.headers.get("location")!, {
+  const atVoidAuth = await fetch(started.headers.get("location")!, {
     redirect: "manual",
   });
   return callback(server, atVoidAuth.headers.get("location")!, pending);

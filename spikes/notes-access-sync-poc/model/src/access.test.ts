@@ -57,7 +57,7 @@ describe("Private pages", () => {
   });
 
   it("list each person's visible pages, and only those", () => {
-    expect([...visiblePageIds(workspace, "m")].sort()).toEqual([
+    expect([...visiblePageIds(workspace, "m")].toSorted()).toEqual([
       "deeper",
       "diary",
       "secret",
@@ -119,7 +119,7 @@ describe("sharing a page", () => {
     for (const id of ["trip", "packing", "shoes"])
       expect(documentAccess(ws, "n", pageDocName(id))).toBe("view");
     expect(documentAccess(ws, "n", pageDocName("journal"))).toBe("none");
-    expect([...visiblePageIds(ws, "n")].sort()).toEqual([
+    expect([...visiblePageIds(ws, "n")].toSorted()).toEqual([
       "packing",
       "shoes",
       "trip",
@@ -142,7 +142,7 @@ describe("sharing a page", () => {
   it("with Everyone in the workspace, gives every member and owner that level, but no guest", () => {
     const ws = shared({ workspace: "comment" });
     for (const person of ["o", "n"]) {
-      expect([...visiblePageIds(ws, person)].sort()).toEqual([
+      expect([...visiblePageIds(ws, person)].toSorted()).toEqual([
         "packing",
         "shoes",
         "trip",
@@ -175,7 +175,10 @@ describe("sharing a page", () => {
     expect(documentAccess(ws, "n", pageDocName("trip"))).toBe("view");
     expect(documentAccess(ws, "n", pageDocName("shoes"))).toBe("edit");
     expect(documentAccess(ws, "g", pageDocName("trip"))).toBe("none");
-    expect([...visiblePageIds(ws, "g")].sort()).toEqual(["packing", "shoes"]);
+    expect([...visiblePageIds(ws, "g")].toSorted()).toEqual([
+      "packing",
+      "shoes",
+    ]);
   });
 
   it("lets a subpage restrict an inherited level, down to No access for it and everything below", () => {

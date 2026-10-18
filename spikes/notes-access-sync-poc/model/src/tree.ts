@@ -6,6 +6,9 @@ import { compareOrder } from "./order.ts";
  * database's access like any subpage, but it isn't a sidebar page: it is shown inside its database.
  */
 export type PageKind = "page" | "database" | "row";
+const PAGE_KINDS: readonly PageKind[] = ["page", "database", "row"];
+export const isPageKind = (value: unknown): value is PageKind =>
+  PAGE_KINDS.some((kind) => kind === value);
 
 export interface PageMeta {
   id: string;
@@ -151,7 +154,7 @@ export function buildTree(list: PageMeta[]): Tree {
     .filter(
       (p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)),
     )
-    .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
+    .toSorted((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 
   return { roots, byId, trash };
 }

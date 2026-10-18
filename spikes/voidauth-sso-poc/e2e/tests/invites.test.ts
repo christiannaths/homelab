@@ -1,5 +1,6 @@
 // Question 1: can an app's server create one-time invite links, with nobody using VoidAuth's admin screens?
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { arrayField, stringField } from "@homelab/voidauth-sso-poc-server/json";
 import { newPerson, startApp } from "./app.ts";
 import { ADMIN_PASSWORD } from "./global-setup.ts";
 import { Person } from "./person.ts";
@@ -24,7 +25,7 @@ describe("through VoidAuth's admin API, for someone with no account yet", () => 
       createAccount: true,
     });
     expect(created.status).toBe(201);
-    const { accountLink } = (await created.json()) as { accountLink: string };
+    const accountLink = stringField(await created.json(), "accountLink");
     expect(accountLink).toMatch(/\/invite\?invite=[\w-]+&challenge=[\w-]+$/);
 
     const person = new Person();
@@ -37,11 +38,7 @@ describe("through VoidAuth's admin API, for someone with no account yet", () => 
 
     // Accepting the invite signed them in to VoidAuth, so the app's sign-in needs no password.
     expect((await person.startAppSignIn()).pathname).toBe("/");
-    const me = (await (await person.app("GET", "/api/me")).json()) as {
-      role: string;
-      email: string;
-      name: string;
-    };
+    const me: unknown = await (await person.app("GET", "/api/me")).json();
     expect(me).toMatchObject({
       role: "member",
       email: invitee.email,
@@ -55,12 +52,15 @@ describe("through VoidAuth's admin API, for someone with no account yet", () => 
 
   it("uses each VoidAuth invite link once", async () => {
     const invitee = newPerson("once");
-    const { accountLink } = (await (
-      await owner.app("POST", "/api/invites", {
-        email: invitee.email,
-        createAccount: true,
-      })
-    ).json()) as { accountLink: string };
+    const accountLink = stringField(
+      await (
+        await owner.app("POST", "/api/invites", {
+          email: invitee.email,
+          createAccount: true,
+        })
+      ).json(),
+      "accountLink",
+    );
     const details = accountLink.replace(
       /\/invite\?invite=([\w-]+)&challenge=([\w-]+)$/,
       "/api/auth/invitation/$1/$2",
@@ -122,15 +122,18 @@ describe("VoidAuth's admin API cannot be limited to invites", () => {
     await person.registerDuringAppSignIn({ ...victim });
     const admin = new Person();
     await admin.signInToVoidAuth("auth_admin", ADMIN_PASSWORD);
-    const { users } = (await (
+    const page: unknown = await (
       await admin.voidauth(
         "GET",
         `/admin/users?page=0&pageSize=10&searchTerm=${victim.username}`,
       )
-    ).json()) as {
-      users: { id: string; username: string }[];
-    };
-    const id = users.find((u) => u.username === victim.username)!.id;
+    ).json();
+    const id = stringField(
+      arrayField(page, "users").find(
+        (u) => stringField(u, "username") === victim.username,
+      ),
+      "id",
+    );
     expect((await admin.voidauth("DELETE", `/admin/user/${id}`)).status).toBe(
       200,
     );
@@ -140,9 +143,12 @@ describe("VoidAuth's admin API cannot be limited to invites", () => {
 describe("the app's own one-time links, with VoidAuth's open sign-up (no admin credentials anywhere)", () => {
   it("lets a newcomer create an account during sign-in and join through the app's link", async () => {
     const newcomer = newPerson("new");
-    const { appLink } = (await (
-      await owner.app("POST", "/api/invites", { email: newcomer.email })
-    ).json()) as { appLink: string };
+    const appLink = stringField(
+      await (
+        await owner.app("POST", "/api/invites", { email: newcomer.email })
+      ).json(),
+      "appLink",
+    );
 
     const person = new Person();
     const result = await person.registerDuringAppSignIn(
@@ -150,10 +156,7 @@ describe("the app's own one-time links, with VoidAuth's open sign-up (no admin c
       new URL(appLink).pathname,
     );
     expect(result.status).toBe(302);
-    const me = (await (await person.app("GET", "/api/me")).json()) as {
-      role: string;
-      name: string;
-    };
+    const me: unknown = await (await person.app("GET", "/api/me")).json();
     expect(me).toMatchObject({ role: "member", name: "Newcomer" });
     // The link is used up.
     expect(
@@ -167,9 +170,10 @@ describe("the app's own one-time links, with VoidAuth's open sign-up (no admin c
     expect((await person.registerDuringAppSignIn({ ...existing })).status).toBe(
       403,
     ); // has an account, not let in yet
-    const { appLink } = (await (
-      await owner.app("POST", "/api/invites", { email: null })
-    ).json()) as { appLink: string };
+    const appLink = stringField(
+      await (await owner.app("POST", "/api/invites", { email: null })).json(),
+      "appLink",
+    );
     expect(
       (await person.startAppSignIn(new URL(appLink).pathname)).pathname,
     ).toBe("/"); // signed in to VoidAuth already
@@ -190,12 +194,15 @@ describe("the app's own one-time links, with VoidAuth's open sign-up (no admin c
       ...newPerson("sqx"),
       email: target.email,
     });
-    const { accountLink } = (await (
-      await owner.app("POST", "/api/invites", {
-        email: target.email,
-        createAccount: true,
-      })
-    ).json()) as { accountLink: string };
+    const accountLink = stringField(
+      await (
+        await owner.app("POST", "/api/invites", {
+          email: target.email,
+          createAccount: true,
+        })
+      ).json(),
+      "accountLink",
+    );
     const accepted = await new Person().acceptInvite(accountLink, {
       username: target.username,
       password: target.password,
@@ -206,9 +213,10 @@ describe("the app's own one-time links, with VoidAuth's open sign-up (no admin c
 
   it("only lets owners create invites", async () => {
     const member = newPerson("mem");
-    const { appLink } = (await (
-      await owner.app("POST", "/api/invites", { email: null })
-    ).json()) as { appLink: string };
+    const appLink = stringField(
+      await (await owner.app("POST", "/api/invites", { email: null })).json(),
+      "appLink",
+    );
     const person = new Person();
     await person.registerDuringAppSignIn(
       { ...member },

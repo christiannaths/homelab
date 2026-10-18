@@ -20,9 +20,11 @@ export type TestServer = Awaited<ReturnType<typeof startServer>> & {
 async function freePort(): Promise<number> {
   const probe = createServer();
   await new Promise<void>((resolve) => probe.listen(0, resolve));
-  const { port } = probe.address() as { port: number };
+  const address = probe.address();
+  if (typeof address !== "object" || address === null)
+    throw new Error("probe is not listening on a TCP port");
   await new Promise<void>((resolve) => probe.close(() => resolve()));
-  return port;
+  return address.port;
 }
 
 export function tempDataDir(): string {
@@ -62,6 +64,26 @@ export async function post(
   });
 }
 
+interface SignInBody {
+  user: { id: string; role: string };
+}
+
+function parseSignInBody(value: unknown): SignInBody {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "user" in value &&
+    typeof value.user === "object" &&
+    value.user !== null &&
+    "id" in value.user &&
+    typeof value.user.id === "string" &&
+    "role" in value.user &&
+    typeof value.user.role === "string"
+  )
+    return { user: { id: value.user.id, role: value.user.role } };
+  throw new Error(`unexpected sign-in body: ${JSON.stringify(value)}`);
+}
+
 /** Signs in and returns the session cookie, as a browser would store it. */
 export async function signIn(
   server: TestServer,
@@ -75,7 +97,12 @@ export async function signIn(
   if (!res.ok)
     throw new Error(`sign-in failed: ${res.status} ${await res.text()}`);
   const setCookie = res.headers.get("set-cookie")!;
-  return { cookie: setCookie.split(";")[0], setCookie, body: await res.json() };
+  const body: unknown = await res.json();
+  return {
+    cookie: setCookie.split(";")[0],
+    setCookie,
+    body: parseSignInBody(body),
+  };
 }
 
 export async function setUpAdmin(server: TestServer, username = "admin") {

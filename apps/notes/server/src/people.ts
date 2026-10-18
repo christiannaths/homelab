@@ -1,6 +1,11 @@
 import type { DatabaseSync } from "node:sqlite";
+import { nullableText, text } from "./rows.ts";
 
-export type Role = "owner" | "member" | "guest";
+const ROLES = ["owner", "member", "guest"] as const;
+export type Role = (typeof ROLES)[number];
+
+const isRole = (value: string): value is Role =>
+  ROLES.some((role) => role === value);
 
 export interface Person {
   id: string;
@@ -25,9 +30,13 @@ export class People {
   }
 
   get(id: string): Person | undefined {
-    return this.#db
+    const row = this.#db
       .prepare("SELECT id, role, name FROM people WHERE id = ?")
-      .get(id) as Person | undefined;
+      .get(id);
+    if (!row) return undefined;
+    const role = text(row, "role");
+    if (!isRole(role)) throw new Error(`Unknown role ${role}`);
+    return { id: text(row, "id"), role, name: nullableText(row, "name") };
   }
 
   /**

@@ -87,7 +87,7 @@ describe("databases", () => {
           indexDocName(nia.id),
           ...[chores, rows.dishes, rows.bins, rows.laundry].map(pageDocName),
           schemaDocName(chores),
-        ].sort(),
+        ].toSorted(),
       );
     expect(device.table(chores)).toEqual([
       { title: "Laundry", Points: 5, Done: undefined },
@@ -109,7 +109,7 @@ describe("databases", () => {
           indexDocName(pia.id),
           pageDocName(rows.bins),
           schemaDocName(chores),
-        ].sort(),
+        ].toSorted(),
       );
     expect(device.row(rows.bins)).toEqual({
       title: "Bins",

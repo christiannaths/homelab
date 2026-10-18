@@ -81,9 +81,7 @@ export function Editor({
       collaboration: {
         fragment: entry.doc.getXmlFragment("content"),
         user: { ...identity },
-        provider: entry.provider as unknown as {
-          awareness: NonNullable<DocEntry["provider"]["awareness"]>;
-        },
+        provider: { awareness: entry.provider.awareness ?? undefined },
         showCursorLabels: "always",
       },
     }),

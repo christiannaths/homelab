@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import type { Workspace } from "./access.ts";
+import type { AccessLevel } from "./levels.ts";
 import type { Person } from "./people.ts";
 import { placementLevel, reviewUpdate } from "./review.ts";
 import type { PageMeta } from "./tree.ts";
@@ -38,7 +39,7 @@ const workspace: Workspace = {
 /** A page document as a device would create it, as one update. */
 function newPage(
   meta: PageMeta,
-  access?: Record<string, "full" | "edit">,
+  access?: Readonly<Record<string, AccessLevel>>,
 ): Uint8Array {
   const doc = new Y.Doc();
   doc.transact(() => {
@@ -162,10 +163,7 @@ describe("moving a page", () => {
   function move(personId: string, id: string, to: Partial<PageMeta>) {
     const before = ws.pages.find((p) => p.id === id)!;
     const server = new Y.Doc();
-    Y.applyUpdate(
-      server,
-      newPage(before, before.access?.people as Record<string, "full" | "edit">),
-    );
+    Y.applyUpdate(server, newPage(before, before.access?.people));
     const device = new Y.Doc();
     Y.applyUpdate(device, Y.encodeStateAsUpdate(server));
     const sv = Y.encodeStateVector(device);

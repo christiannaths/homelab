@@ -146,11 +146,7 @@ function Editor({
         fragment: entry.doc.getXmlFragment("content"),
         user: { ...identity },
         // The editor only mounts once the local copy has loaded, so the provider exists.
-        provider: entry.provider as unknown as {
-          awareness: NonNullable<
-            NonNullable<DocEntry["provider"]>["awareness"]
-          >;
-        },
+        provider: { awareness: entry.provider?.awareness ?? undefined },
         showCursorLabels: "always",
       },
     }),

@@ -1,6 +1,6 @@
 import type { Person } from "@homelab/notes-access-sync-poc-model";
 import { useEffect, useState } from "react";
-import { fetchPeople, requestAddPerson } from "../identity";
+import { errorMessage, fetchPeople, requestAddPerson } from "../identity";
 
 /**
  * "Who are you?": the device picks a person from the workspace's list. On a new workspace it
@@ -31,13 +31,15 @@ export function PersonPicker({
     return (
       <form
         className="picker"
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
-          try {
-            onPick(await requestAddPerson(name, "owner", null));
-          } catch (err) {
-            setError((err as Error).message);
-          }
+          void (async () => {
+            try {
+              onPick(await requestAddPerson(name, "owner", null));
+            } catch (err) {
+              setError(errorMessage(err));
+            }
+          })();
         }}
       >
         <h1>Set up the workspace</h1>

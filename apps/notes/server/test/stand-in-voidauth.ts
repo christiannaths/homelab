@@ -2,7 +2,6 @@
 // The end-to-end suite in apps/notes/e2e covers the real VoidAuth.
 import { createHash, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
 import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
 
 export interface Account {
@@ -61,7 +60,10 @@ export class StandInVoidAuth {
     await new Promise<void>((resolve) =>
       this.#server!.listen(0, "127.0.0.1", resolve),
     );
-    this.issuer = `http://127.0.0.1:${(this.#server.address() as AddressInfo).port}/oidc`;
+    const address = this.#server.address();
+    if (typeof address !== "object" || address === null)
+      throw new Error("Stand-in VoidAuth is not listening on a TCP port");
+    this.issuer = `http://127.0.0.1:${address.port}/oidc`;
     return this;
   }
 
@@ -70,9 +72,7 @@ export class StandInVoidAuth {
     await new Promise<void>((resolve) => this.#server?.close(() => resolve()));
   }
 
-  async #handle(
-    req: IncomingMessage,
-  ): Promise<{
+  async #handle(req: IncomingMessage): Promise<{
     status: number;
     body: unknown;
     headers?: Record<string, string>;

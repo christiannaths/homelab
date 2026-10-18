@@ -25,12 +25,14 @@ import path from "node:path";
 import {
   HocuspocusProvider,
   HocuspocusProviderWebsocket,
+  WebSocketStatus,
 } from "@hocuspocus/provider";
 import {
   buildTree,
   createPage,
   isRefusal,
   indexDocName,
+  parsePerson,
   indexMap,
   pageDocName,
   parseDocName,
@@ -106,8 +108,12 @@ async function freePort(): Promise<number> {
     const probe = createServer();
     probe.once("error", reject);
     probe.listen(0, () => {
-      const { port } = probe.address() as { port: number };
-      probe.close(() => resolve(port));
+      const address = probe.address();
+      if (typeof address !== "object" || address === null) {
+        reject(new Error("probe server has no port"));
+        return;
+      }
+      probe.close(() => resolve(address.port));
     });
   });
 }
@@ -123,6 +129,36 @@ export interface ServerRefusal {
 export interface ServerConnection {
   personId: string;
   documentName: string;
+}
+
+function listOf<T>(value: unknown, parse: (item: unknown) => T): T[] {
+  if (!Array.isArray(value)) throw new Error("expected a JSON array");
+  return value.map((item: unknown) => parse(item));
+}
+
+function stringProp(value: unknown, key: string): string {
+  const prop: unknown =
+    typeof value === "object" && value !== null
+      ? Object.getOwnPropertyDescriptor(value, key)?.value
+      : undefined;
+  if (typeof prop !== "string")
+    throw new Error(`expected a string "${key}" in ${JSON.stringify(value)}`);
+  return prop;
+}
+
+function parseConnection(value: unknown): ServerConnection {
+  return {
+    personId: stringProp(value, "personId"),
+    documentName: stringProp(value, "documentName"),
+  };
+}
+
+function parseRefusal(value: unknown): ServerRefusal {
+  return {
+    personId: stringProp(value, "personId"),
+    documentName: stringProp(value, "documentName"),
+    reason: stringProp(value, "reason"),
+  };
 }
 
 /**
@@ -201,7 +237,8 @@ export class TestServer {
   }
 
   async people(): Promise<Person[]> {
-    return (await fetch(`${this.url}/api/people`)).json();
+    const body: unknown = await (await fetch(`${this.url}/api/people`)).json();
+    return listOf(body, parsePerson);
   }
 
   /** Adds a person, as `actor` (who must be an owner once the workspace has one). */
@@ -220,7 +257,7 @@ export class TestServer {
     });
     if (!res.ok)
       throw new Error(`addPerson failed (${res.status}): ${await res.text()}`);
-    return res.json();
+    return parsePerson(await res.json());
   }
 
   /** Removes a person from the workspace, as `actor` (who must be an owner). */
@@ -237,12 +274,18 @@ export class TestServer {
 
   /** Every open document connection, with the person it belongs to. */
   async connections(): Promise<ServerConnection[]> {
-    return (await fetch(`${this.url}/api/connections`)).json();
+    const body: unknown = await (
+      await fetch(`${this.url}/api/connections`)
+    ).json();
+    return listOf(body, parseConnection);
   }
 
   /** Every update the server refused since it started, oldest first. */
   async refusals(): Promise<ServerRefusal[]> {
-    return (await fetch(`${this.url}/api/refusals`)).json();
+    const body: unknown = await (
+      await fetch(`${this.url}/api/refusals`)
+    ).json();
+    return listOf(body, parseRefusal);
   }
 }
 
@@ -847,7 +890,7 @@ export class TestClient {
           ? (this.teamspace(ref.teamspaceId)?.name ?? [])
           : [];
       })
-      .sort();
+      .toSorted();
   }
 
   /** The top-level page titles of each teamspace this device holds pages of, by teamspace name. */
@@ -893,7 +936,7 @@ export class TestClient {
   async disconnect(timeoutMs = 10_000): Promise<void> {
     this.socket.disconnect();
     await waitFor(
-      () => String(this.socket.status) === "disconnected",
+      () => this.socket.status === WebSocketStatus.Disconnected,
       timeoutMs,
       "socket did not close",
     );
@@ -931,7 +974,7 @@ export class TestClient {
     return [...this.entries]
       .filter(([, e]) => e.status === status)
       .map(([name]) => name)
-      .sort();
+      .toSorted();
   }
 }
 
@@ -960,7 +1003,8 @@ export async function waitFor(
 function writeParagraph(doc: Y.Doc, text: string): void {
   const fragment = doc.getXmlFragment("content");
   doc.transact(() => {
-    let group = fragment.get(0) as Y.XmlElement | undefined;
+    const first = fragment.get(0);
+    let group = first instanceof Y.XmlElement ? first : undefined;
     if (!group) {
       group = new Y.XmlElement("blockGroup");
       fragment.insert(0, [group]);
@@ -984,7 +1028,7 @@ function blockText(node: Y.XmlFragment | Y.XmlElement): string {
     const texts = n
       .toArray()
       .filter((c): c is Y.XmlText => c instanceof Y.XmlText);
-    if (texts.length) lines.push(texts.map((t) => t.toString()).join(""));
+    if (texts.length) lines.push(texts.map((t) => t.toJSON()).join(""));
     for (const c of n.toArray()) if (c instanceof Y.XmlElement) walk(c);
   };
   walk(node);

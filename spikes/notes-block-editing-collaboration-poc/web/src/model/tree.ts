@@ -125,7 +125,7 @@ export function buildTree(list: PageMeta[]): Tree {
     .filter(
       (p) => p.deletedAt && !(parent.get(p.id) && isTrashed(parent.get(p.id)!)),
     )
-    .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
+    .toSorted((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 
   return { roots, byId, trash };
 }

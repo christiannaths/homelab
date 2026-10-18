@@ -138,7 +138,7 @@ function invite(
 
 describe("guests", () => {
   it("receive only the pages shared with them and their subpages", () => {
-    expect([...visiblePageIds(workspace, "g")].sort()).toEqual([
+    expect([...visiblePageIds(workspace, "g")].toSorted()).toEqual([
       "bins",
       "budget",
       "chores",
@@ -259,7 +259,7 @@ describe("guests", () => {
         visiblePageIds(workspace, "g").has(p.id),
       );
       const s = sidebarSections(buildTree(pages), "g", new Set());
-      expect(s.shared.map((n) => n.page.id).sort()).toEqual([
+      expect(s.shared.map((n) => n.page.id).toSorted()).toEqual([
         "budget",
         "chores",
         "notes",

@@ -1,5 +1,11 @@
 import * as Y from "yjs";
 import { ensureDatabase } from "../model/database";
+import {
+  nullableStringField,
+  numberField,
+  optionalNumberField,
+  stringField,
+} from "../model/fields";
 import { freshKeys, keyBetween, keysAreUsable } from "../model/order";
 import {
   isInSubtree,
@@ -23,12 +29,12 @@ export function readPages(doc: Y.Doc): PageMeta[] {
   pagesMap(doc).forEach((m, id) => {
     pages.push({
       id,
-      title: (m.get("title") as string) ?? "",
-      kind: (m.get("kind") as PageKind) ?? "page",
-      parentId: (m.get("parentId") as string | null) ?? null,
-      order: (m.get("order") as string) ?? "",
-      createdAt: (m.get("createdAt") as number) ?? 0,
-      deletedAt: (m.get("deletedAt") as number | undefined) ?? undefined,
+      title: stringField(m, "title", ""),
+      kind: m.get("kind") === "database" ? "database" : "page",
+      parentId: nullableStringField(m, "parentId"),
+      order: stringField(m, "order", ""),
+      createdAt: numberField(m, "createdAt", 0),
+      deletedAt: optionalNumberField(m, "deletedAt"),
     });
   });
   return pages;
@@ -140,7 +146,7 @@ export function restorePage(doc: Y.Doc, tree: Tree, id: string): void {
   doc.transact(() => {
     m.delete("deletedAt");
     // If the old parent is gone or still in the trash, restore to the top level.
-    const parentId = m.get("parentId") as string | null;
+    const parentId = nullableStringField(m, "parentId");
     if (parentId && !tree.byId.has(parentId)) m.set("parentId", null);
   });
 }

@@ -1,11 +1,10 @@
 import { mkdirSync } from "node:fs";
-import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Hocuspocus, type WebSocketLike } from "@hocuspocus/server";
+import { Hocuspocus } from "@hocuspocus/server";
 import { serve, upgradeWebSocket } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import type { WSContext } from "hono/ws";
 import { WebSocketServer } from "ws";
 import * as Y from "yjs";
@@ -27,6 +26,10 @@ interface SyncContext {
   userId: string;
   role: string;
   sessionToken: string;
+}
+
+interface SyncEnv {
+  Variables: { sync: SyncContext };
 }
 
 export async function startServer({
@@ -86,20 +89,17 @@ export async function startServer({
     },
   });
 
-  const app = new Hono();
+  const app = new Hono<SyncEnv>();
 
   app.get("/api/health", (c) => c.json({ ok: true, documents: store.count() }));
 
   // First run: create the admin account (ADR-NOTE-009). Refused once any account exists.
   app.post("/api/setup", async (c) => {
-    const { n } = db.prepare(`SELECT COUNT(*) AS n FROM "user"`).get() as {
-      n: number;
-    };
+    const n = db.prepare(`SELECT COUNT(*) AS n FROM "user"`).get()?.n;
+    if (typeof n !== "number") throw new Error("COUNT(*) returned no number");
     if (n > 0) return c.json({ error: "Already set up" }, 409);
-    const { username, password } = await c.req.json<{
-      username: string;
-      password: string;
-    }>();
+    const body: unknown = await c.req.json();
+    const { username, password } = parseSetupBody(body);
     const { user } = await auth.api.createUser({
       body: {
         email: placeholderEmail(username),
@@ -120,18 +120,16 @@ export async function startServer({
     async (c, next) => {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session) return c.text("Unauthorized", 401);
-      c.set(
-        "sync" as never,
-        {
-          userId: session.user.id,
-          role: session.user.role ?? "user",
-          sessionToken: session.session.token,
-        } satisfies SyncContext as never,
-      );
+      c.set("sync", {
+        userId: session.user.id,
+        role: session.user.role ?? "user",
+        sessionToken: session.session.token,
+      });
       await next();
+      return undefined;
     },
-    upgradeWebSocket((c) => {
-      const context = c.get("sync" as never) as SyncContext;
+    upgradeWebSocket((c: Context<SyncEnv>) => {
+      const context = c.get("sync");
       let connection:
         ReturnType<typeof hocuspocus.handleConnection> | undefined;
       return {
@@ -140,14 +138,13 @@ export async function startServer({
             socketsBySession.get(context.sessionToken) ?? new Set();
           sockets.add(ws);
           socketsBySession.set(context.sessionToken, sockets);
-          connection = hocuspocus.handleConnection(
-            ws.raw as WebSocketLike,
-            c.req.raw,
-            context,
-          );
+          if (!ws.raw) throw new Error("Upgraded socket has no raw WebSocket");
+          connection = hocuspocus.handleConnection(ws.raw, c.req.raw, context);
         },
         onMessage(event) {
-          connection?.handleMessage(new Uint8Array(event.data as ArrayBuffer));
+          // The adapter hands binary frames over as ArrayBuffer; the sync protocol has no text frames.
+          if (event.data instanceof ArrayBuffer)
+            connection?.handleMessage(new Uint8Array(event.data));
         },
         onClose(event, ws) {
           socketsBySession.get(context.sessionToken)?.delete(ws);
@@ -169,8 +166,11 @@ export async function startServer({
   const wss = new WebSocketServer({ noServer: true });
   const server = serve({ fetch: app.fetch, port, websocket: { server: wss } });
   await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  if (typeof address !== "object" || address === null)
+    throw new Error("Server is not listening on a TCP port");
   return {
-    port: (server.address() as AddressInfo).port,
+    port: address.port,
     auth,
     db,
     hocuspocus,
@@ -181,4 +181,17 @@ export async function startServer({
       db.close();
     },
   };
+}
+
+function parseSetupBody(body: unknown): { username: string; password: string } {
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "username" in body &&
+    typeof body.username === "string" &&
+    "password" in body &&
+    typeof body.password === "string"
+  )
+    return { username: body.username, password: body.password };
+  throw new Error("setup body needs a username and password");
 }

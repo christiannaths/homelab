@@ -9,6 +9,12 @@ import { SyncContext } from "./sync/context";
 import { SyncManager } from "./sync/sync-manager";
 import "./styles.css";
 
+declare global {
+  interface Window {
+    __notesSync?: SyncManager;
+  }
+}
+
 registerSW({ immediate: true });
 // Ask the browser not to evict our IndexedDB data under storage pressure.
 navigator.storage?.persist?.().catch(() => {});
@@ -17,12 +23,12 @@ const wsUrl = `${location.protocol === "https:" ? "wss" : "ws"}://${location.hos
 
 // One sync manager for the page's lifetime, created once a person is picked (outside React, so
 // StrictMode's double render doesn't open two sockets). Switching person reloads the page.
-let manager: SyncManager | null = null;
+let pageManager: SyncManager | null = null;
 function managerFor(person: Person): SyncManager {
-  manager ??= new SyncManager(wsUrl, person.id);
+  pageManager ??= new SyncManager(wsUrl, person.id);
   // Exposed for diagnostics and end-to-end tests.
-  (window as unknown as { __notesSync: SyncManager }).__notesSync = manager;
-  return manager;
+  window.__notesSync = pageManager;
+  return pageManager;
 }
 
 const NOTICE_KEY = "notes-access.notice";

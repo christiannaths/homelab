@@ -6,13 +6,23 @@ import {
   startVoidAuthInteraction,
   submitLogin,
 } from "@homelab/voidauth-sso-poc-server/voidauth-admin";
-import WebSocket from "ws";
-import { APP_URL, VOIDAUTH_URL } from "./voidauth.ts";
+import { stringField } from "@homelab/voidauth-sso-poc-server/json";
+import { type RawData, WebSocket } from "ws";
+import { APP_URL, searchParam, VOIDAUTH_URL } from "./voidauth.ts";
 
 const onVoidAuthLogin = (location: URL) =>
   location.origin === VOIDAUTH_URL && location.pathname === "/login";
 const backAtApp = (location: URL) =>
   location.origin === APP_URL && location.pathname === "/";
+
+function messageJson(data: RawData): unknown {
+  const text = Buffer.isBuffer(data)
+    ? data.toString("utf8")
+    : Array.isArray(data)
+      ? Buffer.concat(data).toString("utf8")
+      : Buffer.from(data).toString("utf8");
+  return JSON.parse(text);
+}
 
 export type Registration = {
   username: string;
@@ -64,8 +74,8 @@ export class Person {
     const response = await this.register(registration);
     if (!response.ok)
       return { status: response.status, body: await response.text() };
-    const { location } = (await response.json()) as { location: string };
-    return this.finishAppSignIn(location);
+    const body: unknown = await response.json();
+    return this.finishAppSignIn(stringField(body, "location"));
   }
 
   /** Accept a VoidAuth invite link on its own, as someone clicking it in a message would. */
@@ -78,12 +88,15 @@ export class Person {
     await startVoidAuthInteraction(this.jar, VOIDAUTH_URL);
     const response = await this.register({
       ...registration,
-      inviteId: url.searchParams.get("invite") as string,
-      challenge: url.searchParams.get("challenge") as string,
+      inviteId: searchParam(url, "invite"),
+      challenge: searchParam(url, "challenge"),
     });
     if (response.ok) {
-      const { location } = (await response.json()) as { location: string };
-      await this.jar.follow(location, (l) => l.pathname === "/api/cb");
+      const body: unknown = await response.json();
+      await this.jar.follow(
+        stringField(body, "location"),
+        (l) => l.pathname === "/api/cb",
+      );
     }
     return response;
   }
@@ -132,7 +145,7 @@ export class Person {
         headers: { cookie: this.jar.header(APP_URL) },
       });
       ws.once("message", (data) =>
-        resolve({ ws, hello: JSON.parse(String(data)) as { sub: string } }),
+        resolve({ ws, hello: { sub: stringField(messageJson(data), "sub") } }),
       );
       ws.once("unexpected-response", (_req, res) =>
         reject(new Error(`sync refused: ${res.statusCode}`)),
@@ -147,7 +160,7 @@ export async function syncOnce(
   message: string,
 ): Promise<unknown> {
   return new Promise((resolve) => {
-    ws.once("message", (data) => resolve(JSON.parse(String(data))));
+    ws.once("message", (data) => resolve(messageJson(data)));
     ws.send(message);
   });
 }

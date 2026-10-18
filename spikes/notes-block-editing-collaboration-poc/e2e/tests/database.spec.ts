@@ -23,14 +23,16 @@ const cell = (page: Page, row: number, prop: string) =>
 const titles = (page: Page) =>
   rows(page).evaluateAll((els) =>
     els
-      .sort(
+      .toSorted(
         (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top,
       )
-      .map(
-        (el) =>
-          (el.querySelector('[data-testid="cell-Name"]') as HTMLInputElement)
-            .value,
-      ),
+      .map((el) => {
+        const name = el.querySelector('[data-testid="cell-Name"]');
+        if (!(name instanceof HTMLInputElement)) {
+          throw new Error("row has no Name input");
+        }
+        return name.value;
+      }),
   );
 
 async function addProperty(page: Page, name: string, type: string) {

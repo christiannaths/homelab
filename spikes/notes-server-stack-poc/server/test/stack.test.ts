@@ -215,9 +215,11 @@ describe("4. Long-lived sessions, and revocation stops syncing", () => {
       .run(iso(165), iso(-200));
     expect(await tryUpgrade(s, admin.cookie)).toBe("open");
     // Connecting extends the session (updateAge is a day), so active devices never expire.
-    const { expiresAt } = s.db
+    const expiresAt = s.db
       .prepare(`SELECT expiresAt FROM session`)
-      .get() as { expiresAt: string };
+      .get()?.expiresAt;
+    if (typeof expiresAt !== "string")
+      throw new Error("session row has no expiresAt string");
     expect(Date.parse(expiresAt)).toBeGreaterThan(Date.now() + 360 * DAY_MS);
   });
 

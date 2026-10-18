@@ -31,6 +31,39 @@ export interface PendingSignIn {
   verifier: string;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+function parseDiscovery(value: unknown): Discovery {
+  if (!isRecord(value)) throw new Error("OIDC discovery is not an object");
+  const field = (name: keyof Discovery) => {
+    const found = value[name];
+    if (typeof found !== "string")
+      throw new Error(`OIDC discovery has no ${name}`);
+    return found;
+  };
+  return {
+    issuer: field("issuer"),
+    authorization_endpoint: field("authorization_endpoint"),
+    token_endpoint: field("token_endpoint"),
+    userinfo_endpoint: field("userinfo_endpoint"),
+    jwks_uri: field("jwks_uri"),
+  };
+}
+
+function parseTokens(value: unknown): {
+  id_token: string;
+  access_token: string;
+} {
+  if (
+    !isRecord(value) ||
+    typeof value.id_token !== "string" ||
+    typeof value.access_token !== "string"
+  )
+    throw new SignInError("Token response has no ID or access token");
+  return { id_token: value.id_token, access_token: value.access_token };
+}
+
 const random = (bytes: number) => randomBytes(bytes).toString("base64url");
 
 export class OidcClient {
@@ -48,7 +81,7 @@ export class OidcClient {
     ).then(async (response) => {
       if (!response.ok)
         throw new Error(`OIDC discovery failed: ${response.status}`);
-      return (await response.json()) as Discovery;
+      return parseDiscovery(await response.json());
     });
     // A failed discovery, such as VoidAuth being down, is retried on the next sign-in.
     this.#discovery.catch(() => (this.#discovery = undefined));
@@ -105,18 +138,15 @@ export class OidcClient {
     });
     if (!tokenResponse.ok)
       throw new SignInError(`Token exchange failed: ${tokenResponse.status}`);
-    const tokens = (await tokenResponse.json()) as {
-      id_token: string;
-      access_token: string;
-    };
+    const tokens = parseTokens(await tokenResponse.json());
 
     this.#jwks ??= createRemoteJWKSet(new URL(discovery.jwks_uri));
     const { payload } = await jwtVerify(tokens.id_token, this.#jwks, {
       issuer: discovery.issuer,
       audience: this.#config.clientId,
-    }).catch((error: unknown) => {
+    }).catch((reason: unknown) => {
       throw new SignInError(
-        `Invalid ID token: ${error instanceof Error ? error.message : String(error)}`,
+        `Invalid ID token: ${reason instanceof Error ? reason.message : String(reason)}`,
       );
     });
     if (payload.nonce !== pending.nonce)
@@ -130,8 +160,8 @@ export class OidcClient {
     });
     if (!userinfoResponse.ok)
       throw new SignInError(`Userinfo failed: ${userinfoResponse.status}`);
-    const userinfo = (await userinfoResponse.json()) as Record<string, unknown>;
-    if (userinfo.sub !== payload.sub)
+    const userinfo: unknown = await userinfoResponse.json();
+    if (!isRecord(userinfo) || userinfo.sub !== payload.sub)
       throw new SignInError("Userinfo is for someone else");
 
     const claims = { ...userinfo, ...payload };

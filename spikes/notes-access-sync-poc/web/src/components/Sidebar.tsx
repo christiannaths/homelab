@@ -39,7 +39,7 @@ export function Sidebar({ pages, tree, currentId, me, onSwitchPerson }: Props) {
       section: privateSection(me.id),
     });
     if (parentId) setExpanded(parentId, true);
-    location.hash = `#/page/${id}`;
+    window.location.assign(`#/page/${id}`);
   };
 
   const section = (

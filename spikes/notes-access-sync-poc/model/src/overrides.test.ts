@@ -42,7 +42,7 @@ const tripTree = (
 });
 
 const levels = (ws: Workspace, personId: string): Record<string, AccessLevel> =>
-  Object.fromEntries([...pageLevels(ws, personId)].sort());
+  Object.fromEntries(pageLevels(ws, personId));
 
 describe("overriding inherited access", () => {
   it("expands: raising someone's level on a subpage raises it there and below, not above", () => {

@@ -2,6 +2,20 @@ import { expect, test } from "@playwright/test";
 import { openApp, waitForServiceWorker } from "./helpers";
 import { TestServer } from "./server";
 
+// The slice of the app's SyncManager (exposed by web/src/main.tsx) this test reads.
+declare global {
+  interface Window {
+    __localnotion?: {
+      getSnapshot(): {
+        connection: string;
+        total: number;
+        synced: number;
+        pendingChanges: number;
+      };
+    };
+  }
+}
+
 // Gate for keeping Hocuspocus as the sync server (see docs/adr): a 2,000-page workspace
 // must sync to a new device and survive repeated reconnects and a server restart
 // without the server dropping connections. Slow, so opt-in: SLOW=1 npm run test:e2e
@@ -26,7 +40,9 @@ test(`${PAGES}-page workspace: initial sync, reconnects, server restart`, async 
       .poll(
         () =>
           page.evaluate(() => {
-            const s = (window as any).__localnotion.getSnapshot();
+            const sync = window.__localnotion;
+            if (!sync) throw new Error("window.__localnotion is not set");
+            const s = sync.getSnapshot();
             return s.connection === "connected" &&
               s.synced === s.total &&
               s.pendingChanges === 0
@@ -94,9 +110,18 @@ test(`${PAGES}-page workspace: initial sync, reconnects, server restart`, async 
       },
     );
 
-    const heapMB = await bob.evaluate(
-      () => ((performance as any).memory?.usedJSHeapSize ?? 0) / 1e6,
-    );
+    const heapMB = await bob.evaluate(() => {
+      const memory: unknown =
+        "memory" in performance ? performance.memory : undefined;
+      const used =
+        typeof memory === "object" &&
+        memory !== null &&
+        "usedJSHeapSize" in memory &&
+        typeof memory.usedJSHeapSize === "number"
+          ? memory.usedJSHeapSize
+          : 0;
+      return used / 1e6;
+    });
     results["bob: JS heap with all docs open (Chromium)"] =
       `${heapMB.toFixed(0)} MB`;
 

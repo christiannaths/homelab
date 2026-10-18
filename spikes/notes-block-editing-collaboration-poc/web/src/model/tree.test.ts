@@ -58,7 +58,7 @@ describe("buildTree", () => {
     ];
     const expected = ["a", "  c", "    b", "      d"];
     expect(shape(pages)).toEqual(expected);
-    expect(shape([...pages].reverse())).toEqual(expected);
+    expect(shape(pages.toReversed())).toEqual(expected);
   });
 
   it("hides the subtree of a trashed page and lists only the trashed page itself in trash", () => {

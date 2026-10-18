@@ -1,5 +1,6 @@
 // Questions 2 and 3: spotting the instance admin from the sign-in, and the sign-in basics.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { arrayField, stringField } from "@homelab/voidauth-sso-poc-server/json";
 import { newPerson, startApp } from "./app.ts";
 import { ADMIN_PASSWORD } from "./global-setup.ts";
 import { Person } from "./person.ts";
@@ -17,9 +18,10 @@ afterAll(() => app.close());
 
 async function inviteAndRegister(name: string | undefined) {
   const who = newPerson("clm");
-  const { appLink } = (await (
+  const created: unknown = await (
     await owner.app("POST", "/api/invites", { email: null })
-  ).json()) as { appLink: string };
+  ).json();
+  const appLink = stringField(created, "appLink");
   const person = new Person();
   const result = await person.registerDuringAppSignIn(
     { ...who, ...(name ? { name } : {}) },
@@ -45,18 +47,14 @@ describe("spotting the instance admin", () => {
   });
 
   it("advertises groups as its own scope and claim, separate from profile", async () => {
-    const discovery = (await (
-      await fetch(
-        `${app.lastSignIn.get(ownerSub)!.idToken.iss as string}/.well-known/openid-configuration`,
-      )
-    ).json()) as {
-      scopes_supported: string[];
-      claims_supported: string[];
-    };
-    expect(discovery.scopes_supported).toEqual(
+    const issuer = stringField(app.lastSignIn.get(ownerSub)!.idToken, "iss");
+    const discovery: unknown = await (
+      await fetch(`${issuer}/.well-known/openid-configuration`)
+    ).json();
+    expect(arrayField(discovery, "scopes_supported")).toEqual(
       expect.arrayContaining(["openid", "profile", "email", "groups"]),
     );
-    expect(discovery.claims_supported).toEqual(
+    expect(arrayField(discovery, "claims_supported")).toEqual(
       expect.arrayContaining([
         "sub",
         "email",

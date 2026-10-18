@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { integer } from "./rows.ts";
 
 /**
  * Each entry upgrades the schema by one version, tracked in SQLite's `user_version`.
@@ -40,9 +41,9 @@ export function openDatabase(dataDir: string): DatabaseSync {
   mkdirSync(dataDir, { recursive: true });
   const db = new DatabaseSync(path.join(dataDir, "notes.sqlite"));
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
-  const { user_version: version } = db.prepare("PRAGMA user_version").get() as {
-    user_version: number;
-  };
+  const versionRow = db.prepare("PRAGMA user_version").get();
+  if (!versionRow) throw new Error("PRAGMA user_version returned no row");
+  const version = integer(versionRow, "user_version");
   for (const [index, sql] of MIGRATIONS.entries()) {
     if (index < version) continue;
     db.exec("BEGIN");

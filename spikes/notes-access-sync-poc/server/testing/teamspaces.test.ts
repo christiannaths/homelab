@@ -70,7 +70,7 @@ describe("teamspaces", () => {
             teamspaceDocName(house),
             pageDocName(chores),
             pageDocName(kitchen),
-          ].sort(),
+          ].toSorted(),
         );
       expect(phone.pageTitles()).toEqual(["Chores", "Kitchen"]);
       expect(phone.pageText(kitchen)).toBe("Descale the kettle");
@@ -116,9 +116,9 @@ describe("teamspaces", () => {
 
       const maxDevice = await connect(max);
       await maxDevice.syncAll();
-      expect(Object.keys(maxDevice.teamspace(house)!.members).sort()).toEqual(
-        [max.id, nia.id].sort(),
-      );
+      expect(
+        Object.keys(maxDevice.teamspace(house)!.members).toSorted(),
+      ).toEqual([max.id, nia.id].toSorted());
       for (const device of [await connect(ada), await connect(olive)]) {
         expect(await device.syncAll()).not.toContain(pageDocName(chores));
       }

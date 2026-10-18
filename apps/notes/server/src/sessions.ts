@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { integer, text } from "./rows.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -48,24 +49,23 @@ export class Sessions {
       .prepare(
         "SELECT person_id, renewed_at, expires_at FROM sessions WHERE token_hash = ?",
       )
-      .get(tokenHash) as
-      { person_id: string; renewed_at: number; expires_at: number } | undefined;
+      .get(tokenHash);
     if (!row) return undefined;
     const now = this.#now();
-    if (row.expires_at <= now) {
+    if (integer(row, "expires_at") <= now) {
       this.#db
         .prepare("DELETE FROM sessions WHERE token_hash = ?")
         .run(tokenHash);
       return undefined;
     }
-    if (now - row.renewed_at >= RENEW_AFTER_MS) {
+    if (now - integer(row, "renewed_at") >= RENEW_AFTER_MS) {
       this.#db
         .prepare(
           "UPDATE sessions SET renewed_at = ?, expires_at = ? WHERE token_hash = ?",
         )
         .run(now, now + SESSION_LIFETIME_MS, tokenHash);
     }
-    return { token, personId: row.person_id };
+    return { token, personId: text(row, "person_id") };
   }
 
   revoke(token: string): void {

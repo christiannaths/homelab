@@ -100,7 +100,7 @@ describe("buildTree", () => {
     ];
     const expected = ["a", "  c", "    b", "      d"];
     expect(shape(pages)).toEqual(expected);
-    expect(shape([...pages].reverse())).toEqual(expected);
+    expect(shape(pages.toReversed())).toEqual(expected);
   });
 
   it("hides the subtree of a trashed page and lists only the trashed page itself in trash", () => {
@@ -291,7 +291,7 @@ describe("concurrent edits under the per-page split (two devices, offline, then 
     sync(devices[1], devices[2], [a, c, b]);
     sync(devices[2], devices[0], [b, a, c]);
     sync(devices[0], devices[1]);
-    const smallest = [a, b, c].sort()[0];
+    const smallest = [a, b, c].toSorted()[0];
     for (const d of devices) {
       expect(d.titles()).toEqual(devices[0].titles());
       expect(d.tree().roots.map((n) => n.page.id)).toEqual([smallest]);

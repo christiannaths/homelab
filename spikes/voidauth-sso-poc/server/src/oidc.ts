@@ -2,6 +2,7 @@
 // and jose so every step is visible. The app only needs VoidAuth during sign-in.
 import { createHash, randomBytes } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { jsonObject, stringField } from "./json.ts";
 
 export type OidcConfig = {
   issuer: string; // VoidAuth's issuer, `${APP_URL}/oidc`
@@ -17,6 +18,16 @@ type Discovery = {
   userinfo_endpoint: string;
   jwks_uri: string;
 };
+
+function parseDiscovery(value: unknown): Discovery {
+  return {
+    issuer: stringField(value, "issuer"),
+    authorization_endpoint: stringField(value, "authorization_endpoint"),
+    token_endpoint: stringField(value, "token_endpoint"),
+    userinfo_endpoint: stringField(value, "userinfo_endpoint"),
+    jwks_uri: stringField(value, "jwks_uri"),
+  };
+}
 
 /** What a sign-in hands the app: the ID token's claims and the userinfo response. */
 export type SignIn = {
@@ -50,7 +61,8 @@ export class OidcClient {
       `${this.#config.issuer}/.well-known/openid-configuration`,
     ).then(async (r) => {
       if (!r.ok) throw new Error(`OIDC discovery failed: ${r.status}`);
-      return (await r.json()) as Discovery;
+      const discovery: unknown = await r.json();
+      return parseDiscovery(discovery);
     });
     // A failed discovery (VoidAuth down) is retried on the next sign-in.
     this.#discovery.catch(() => (this.#discovery = undefined));
@@ -109,9 +121,10 @@ export class OidcClient {
       throw new Error(
         `Token exchange failed: ${tokenResponse.status} ${await tokenResponse.text()}`,
       );
-    const tokens = (await tokenResponse.json()) as {
-      id_token: string;
-      access_token: string;
+    const tokenBody: unknown = await tokenResponse.json();
+    const tokens = {
+      id_token: stringField(tokenBody, "id_token"),
+      access_token: stringField(tokenBody, "access_token"),
     };
 
     this.#jwks ??= createRemoteJWKSet(new URL(discovery.jwks_uri));
@@ -128,9 +141,10 @@ export class OidcClient {
     if (!userinfoResponse.ok)
       throw new Error(`Userinfo failed: ${userinfoResponse.status}`);
 
+    const userinfo: unknown = await userinfoResponse.json();
     return {
       idToken: payload,
-      userinfo: (await userinfoResponse.json()) as Record<string, unknown>,
+      userinfo: jsonObject(userinfo),
       accessToken: tokens.access_token,
     };
   }

@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Server } from "@hocuspocus/server";
+import { Server, type Connection } from "@hocuspocus/server";
 import {
   addPerson,
   canEditContent,
@@ -16,7 +16,6 @@ import {
   writeIndex,
   type Person,
   type Refusal,
-  type Role,
 } from "@homelab/notes-access-sync-poc-model";
 import {
   readTeamspace,
@@ -160,12 +159,12 @@ const server = new Server<ConnectionContext>({
   async onChange({ documentName, document }) {
     const ref = parseDocName(documentName);
     if (ref?.kind === "page" && catalog.update(ref.id, document))
-      refreshIndexes();
+      void refreshIndexes();
     if (
       ref?.kind === "teamspace" &&
       catalog.updateTeamspace(ref.teamspaceId, document)
     )
-      refreshIndexes();
+      void refreshIndexes();
   },
 
   async onLoadDocument({ documentName, document }) {
@@ -291,12 +290,27 @@ function applyAccessChanges(personId: string): void {
   for (const [documentName, document] of server.hocuspocus.documents) {
     const level = documentAccess(workspace, personId, documentName, levels);
     for (const connection of document.getConnections()) {
-      if (connection.context.person.id !== personId) continue;
+      if (connectionPersonId(connection) !== personId) continue;
       if (level === "none")
         connection.close({ code: 4403, reason: "access-revoked" });
       else connection.readOnly = readOnlyAt(level);
     }
   }
+}
+
+/** The id of the person a connection was opened for (its `onAuthenticate` context). */
+function connectionPersonId(connection: Connection): string {
+  const context: unknown = connection.context;
+  const person =
+    typeof context === "object" && context !== null && "person" in context
+      ? context.person
+      : undefined;
+  const id =
+    typeof person === "object" && person !== null && "id" in person
+      ? person.id
+      : undefined;
+  if (typeof id !== "string") throw new Error("connection has no person");
+  return id;
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): true {
@@ -307,7 +321,11 @@ function sendJson(res: ServerResponse, status: number, body: unknown): true {
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  for await (const chunk of req) {
+    const data: unknown = chunk;
+    if (!Buffer.isBuffer(data)) throw new Error("request body is not bytes");
+    chunks.push(data);
+  }
   try {
     return JSON.parse(Buffer.concat(chunks).toString() || "{}");
   } catch {
@@ -320,7 +338,7 @@ function connections(): { personId: string; documentName: string }[] {
   const out: { personId: string; documentName: string }[] = [];
   for (const [documentName, document] of server.hocuspocus.documents) {
     for (const connection of document.getConnections()) {
-      out.push({ personId: connection.context.person.id, documentName });
+      out.push({ personId: connectionPersonId(connection), documentName });
     }
   }
   return out;
@@ -352,15 +370,20 @@ async function handleApi(
     return sendJson(res, 200, connections());
   if (route === "GET /api/refusals") return sendJson(res, 200, refusals);
   if (route === "POST /api/people") {
-    const body = (await readJson(req)) as { name?: unknown; role?: unknown };
+    const body = await readJson(req);
+    const fields = typeof body === "object" && body !== null ? body : {};
+    const name = "name" in fields ? fields.name : undefined;
+    const requestedRole = "role" in fields ? fields.role : undefined;
     const role =
-      body.role === "owner" || body.role === "guest" ? body.role : "member";
+      requestedRole === "owner" || requestedRole === "guest"
+        ? requestedRole
+        : "member";
     const people = store.people();
     const actorId = req.headers.authorization?.replace(/^Bearer\s+/i, "");
     const actor = people.find((p) => p.id === actorId) ?? null;
     const result = addPerson(people, actor, {
       id: crypto.randomUUID(),
-      name: typeof body.name === "string" ? body.name : "",
+      name: typeof name === "string" ? name : "",
       role: role,
     });
     if (!result.ok)

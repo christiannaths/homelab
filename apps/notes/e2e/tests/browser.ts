@@ -128,10 +128,9 @@ export class Browser {
       throw new Error(
         `Creating an invite failed: ${response.status} ${await response.text()}`,
       );
-    const { id, challenge } = (await response.json()) as {
-      id: string;
-      challenge: string;
-    };
+    const invite: unknown = await response.json();
+    const id = stringField(invite, "id");
+    const challenge = stringField(invite, "challenge");
     return `${VOIDAUTH_URL}/invite?invite=${id}&challenge=${challenge}`;
   }
 
@@ -148,7 +147,7 @@ export class Browser {
       challenge: url.searchParams.get("challenge")!,
     });
     if (response.ok) {
-      const { location } = (await response.json()) as { location: string };
+      const location = stringField(await response.json(), "location");
       await this.jar.follow(location, (l) => l.pathname === "/api/cb");
     }
     return response;
@@ -204,6 +203,18 @@ export class Browser {
       throw new Error(
         `VoidAuth sign-in failed for ${username}: ${response.status}`,
       );
-    return ((await response.json()) as { location: string }).location;
+    return stringField(await response.json(), "location");
   }
+}
+
+/** A string field of a VoidAuth JSON response, failing the test when the response has another shape. */
+function stringField(body: unknown, key: string): string {
+  const value = isRecord(body) ? body[key] : undefined;
+  if (typeof value !== "string")
+    throw new Error(`VoidAuth response has no ${key}: ${JSON.stringify(body)}`);
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
