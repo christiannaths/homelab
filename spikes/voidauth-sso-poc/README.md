@@ -4,7 +4,7 @@ A throwaway spike for [issue #35](https://github.com/christiannaths/homelab/issu
 
 The answers, with evidence, are in [FINDINGS.md](FINDINGS.md).
 
-> Status: **done, waiting on a decision.** Freeze it once a platform ADR on sign-in across apps records the outcome.
+> Status: **frozen.** Its outcome is recorded in [ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md).
 
 VoidAuth is AGPL-3.0. This spike runs its official image unmodified and contains none of its code: the tests drive it over HTTP, the way its own web UI does.
 

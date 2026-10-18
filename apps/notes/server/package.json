@@ -1,0 +1,36 @@
+{
+  "name": "@homelab/notes-server",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "notes-server",
+    "tags": [
+      "scope:notes",
+      "platform:node"
+    ]
+  },
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "dev": "node --watch --no-experimental-webstorage src/index.ts",
+    "start": "node --no-experimental-webstorage src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^4.7.1",
+    "@hono/node-server": "^2.1.5",
+    "hono": "^4.13.13",
+    "jose": "^6.2.12",
+    "ws": "^8.22.0",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@hocuspocus/provider": "^4.7.1",
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
