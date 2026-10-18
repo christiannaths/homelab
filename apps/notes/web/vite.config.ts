@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { tokens } from "./src/tokens.ts";
 
 // The Notes server's address in development; it serves the API and the sync socket.
 const server = process.env.NOTES_SERVER ?? "http://localhost:3000";
@@ -8,6 +9,19 @@ const server = process.env.NOTES_SERVER ?? "http://localhost:3000";
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: "notes-theme-color",
+      transformIndexHtml: () =>
+        (["light", "dark"] as const).map((scheme) => ({
+          tag: "meta",
+          attrs: {
+            name: "theme-color",
+            media: `(prefers-color-scheme: ${scheme})`,
+            content: tokens.surface[scheme],
+          },
+          injectTo: "head",
+        })),
+    },
     VitePWA({
       // src/main.tsx registers the service worker itself, so it can wait for it before leaving
       // for the sign-in page.
@@ -20,8 +34,8 @@ export default defineConfig({
         description: "Offline-first notes for your homelab",
         display: "standalone",
         start_url: "/",
-        background_color: "#ffffff",
-        theme_color: "#ffffff",
+        background_color: tokens.surface.light,
+        theme_color: tokens.surface.light,
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },

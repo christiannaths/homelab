@@ -158,8 +158,8 @@ export async function startServer({
     return c.json({ person: current.person });
   });
 
-  // Signs this device out of Notes, then hands the browser to VoidAuth to sign out of the homelab
-  // account. Also used with no Notes session, by someone Notes turned away.
+  // The browser goes on to VoidAuth, so signing out of Notes signs out the homelab account too.
+  // Someone Notes turned away has no Notes session, and comes here to switch accounts.
   app.post("/api/sign-out", async (c) => {
     const token = getCookie(c, SESSION_COOKIE);
     if (token) endSession(token);

@@ -63,7 +63,10 @@ export class Notes {
     rememberPerson(undefined);
     // Saved first, so a sign-out cut short by a lost connection still finishes next time.
     setSignOutWaiting(true);
-    await this.#finishSignOut();
+    // Offline, the screen changes at once rather than when the request fails, which on a
+    // connection that hangs could take a long time.
+    if (!navigator.onLine) this.#show({ screen: "signed-out-here" });
+    else await this.#finishSignOut();
   }
 
   async #finishSignOut(): Promise<void> {
