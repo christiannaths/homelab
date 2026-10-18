@@ -17,7 +17,7 @@ The repo holds TypeScript and TSX, Markdown docs and ADRs, CSS, JSON, YAML, HTML
 - **Stylelint** lints CSS with `stylelint-config-standard`.
 - **ls-lint** checks names: folders and files are kebab-case, `.tsx` files may be PascalCase for React components, Markdown files may use conventional upper-case names such as `README.md`, and ADR files follow their own pattern, which `npm run adrs` checks in full.
 - **Not linted by the repo:** shell scripts and Dockerfiles, which are checked in the editor, and YAML, JSON and HTML beyond Prettier's formatting. TOML is neither formatted nor linted.
-- **Scope:** the whole repo, spikes included ([ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md)). Vendored code is excluded: the skills that `npx skills` manages in `.agents/skills/` (the `adr` skill is this repo's own and is included).
+- **Scope:** the whole repo, spikes included ([ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md)). Vendored code is excluded: the skills that `npx skills` manages in `.agents/skills/` (the `adr` and `comments` skills are this repo's own and are included).
 - **Configuration lives at the repo root**, one file per tool, and each tool runs once over the whole repo rather than as an Nx target in each project ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)).
 - **Where the checks run:**
   - `npm run check` runs `npm run format:check` and `npm run lint` before the boundary, ADR, typecheck and test checks.
