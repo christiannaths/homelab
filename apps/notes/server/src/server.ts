@@ -9,7 +9,12 @@ import { WebSocket, WebSocketServer } from "ws";
 import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
-import { OidcClient, SignInError, type PendingSignIn } from "./oidc.ts";
+import {
+  LogoutTokenError,
+  OidcClient,
+  SignInError,
+  type PendingSignIn,
+} from "./oidc.ts";
 import { People, type Person } from "./people.ts";
 import { SESSION_COOKIE, Sessions, type Session } from "./sessions.ts";
 
@@ -64,12 +69,12 @@ export async function startServer({
     postLogoutRedirectUri: new URL(POST_SIGN_OUT_PATH, publicUrl).href,
   });
 
-  // Open sync sockets by session token, so ending a session closes them at once (ADR-NOTE-014).
+  // Open sync sockets by session id, so ending a session closes them at once (ADR-NOTE-014).
   const socketsBySession = new Map<string, Set<WSContext>>();
-  const endSession = (token: string) => {
-    sessions.revoke(token);
-    for (const ws of socketsBySession.get(token) ?? [])
-      ws.close(4401, "Session ended");
+  const closeSockets = (ids: string[]) => {
+    for (const id of ids)
+      for (const ws of socketsBySession.get(id) ?? [])
+        ws.close(4401, "Session ended");
   };
 
   const hocuspocus = new Hocuspocus<SyncContext>({
@@ -129,24 +134,25 @@ export async function startServer({
       secure: true,
     });
     if (!saved) return c.json({ error: "no_sign_in_in_progress" }, 400);
-    let identity;
+    let result;
     try {
-      identity = await oidc.finish(
-        new URL(c.req.url),
-        parsePendingSignIn(saved),
-      );
+      result = await oidc.finish(new URL(c.req.url), parsePendingSignIn(saved));
     } catch (error) {
       if (error instanceof SignInError || error instanceof SyntaxError) {
         return c.json({ error: "sign_in_failed" }, 400);
       }
       return c.json({ error: "sign_in_unavailable" }, 502);
     }
-    const person = people.admit(identity);
+    const person = people.admit(result.identity);
     // The client's no-access screen never starts a sign-in itself, so this cannot loop.
     if (!person) return c.redirect(NO_ACCESS_PATH, 302);
-    c.header("set-cookie", sessions.cookie(sessions.issue(person.id)), {
-      append: true,
-    });
+    c.header(
+      "set-cookie",
+      sessions.cookie(sessions.issue(person.id, result.sid)),
+      {
+        append: true,
+      },
+    );
     return c.redirect("/", 302);
   });
 
@@ -162,11 +168,37 @@ export async function startServer({
   // account. Also used with no Notes session, by someone Notes turned away.
   app.post("/api/sign-out", async (c) => {
     const token = getCookie(c, SESSION_COOKIE);
-    if (token) endSession(token);
+    if (token) closeSockets([sessions.revoke(token)]);
     c.header("set-cookie", sessions.cookie(""));
     const endSessionUrl = await oidc.endSessionUrl().catch(() => undefined);
     if (!endSessionUrl) return c.json({ error: "sign_out_unavailable" }, 502);
     return c.json({ endSessionUrl });
+  });
+
+  // VoidAuth reports that a homelab account signed out, wherever that happened. VoidAuth 1.16
+  // names only the person, not the browser, so every one of their Notes sessions ends; browsers
+  // still signed in to VoidAuth come straight back through it, with no password, on their next
+  // session check.
+  app.post("/api/back-channel-logout", async (c) => {
+    c.header("cache-control", "no-store");
+    const form = await c.req.parseBody().catch(() => ({}));
+    const token = "logout_token" in form ? form.logout_token : undefined;
+    if (typeof token !== "string")
+      return c.json({ error: "invalid_request" }, 400);
+    let named;
+    try {
+      named = await oidc.verifyLogoutToken(token);
+    } catch (error) {
+      if (error instanceof LogoutTokenError)
+        return c.json({ error: "invalid_request" }, 400);
+      return c.json({ error: "temporarily_unavailable" }, 502);
+    }
+    closeSockets(
+      "sid" in named
+        ? sessions.revokeFromVoidAuthSession(named.sid)
+        : sessions.revokeForPerson(named.sub),
+    );
+    return c.body(null, 200);
   });
 
   app.get(
@@ -180,14 +212,14 @@ export async function startServer({
     },
     upgradeWebSocket((c: Context<SyncEnv>) => {
       const context = c.get("sync");
-      const token = context.session.token;
+      const id = context.session.id;
       let connection:
         ReturnType<typeof hocuspocus.handleConnection> | undefined;
       return {
         onOpen(_event, ws) {
-          const sockets = socketsBySession.get(token) ?? new Set();
+          const sockets = socketsBySession.get(id) ?? new Set();
           sockets.add(ws);
-          socketsBySession.set(token, sockets);
+          socketsBySession.set(id, sockets);
           // The socket is created by this module's WebSocketServer, so it is a ws WebSocket.
           if (!(ws.raw instanceof WebSocket))
             throw new Error("Sync socket is not a ws WebSocket");
@@ -199,9 +231,9 @@ export async function startServer({
             connection?.handleMessage(new Uint8Array(event.data));
         },
         onClose(event, ws) {
-          const sockets = socketsBySession.get(token);
+          const sockets = socketsBySession.get(id);
           sockets?.delete(ws);
-          if (sockets?.size === 0) socketsBySession.delete(token);
+          if (sockets?.size === 0) socketsBySession.delete(id);
           connection?.handleClose(event);
         },
       };

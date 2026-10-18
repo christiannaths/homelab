@@ -19,6 +19,7 @@ import {
   ADMIN_PASSWORD,
   ADMIN_USERNAME,
   NOTES_URL,
+  VOIDAUTH_URL,
 } from "./voidauth.ts";
 
 let notes: NotesServer;
@@ -83,6 +84,23 @@ describe("signing out", () => {
 
     await other.reload();
     await other.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
+  });
+});
+
+describe("signing out of the homelab elsewhere", () => {
+  it("signs Notes out when the person signs out on VoidAuth's own page", async () => {
+    const page = await newDevice(browser);
+    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await page.goto(VOIDAUTH_URL);
+    // The menu button is a Material icon whose ligature text is its only label.
+    await page.getByText("menu", { exact: true }).click();
+    await page.getByRole("link", { name: "Logout" }).click();
+    await confirmSignOut(page);
+    // VoidAuth then sends the browser to its default page, which is Notes in this suite.
+    await onVoidAuthSignIn(page);
+
+    await page.goto(NOTES_URL);
+    await onVoidAuthSignIn(page);
   });
 });
 

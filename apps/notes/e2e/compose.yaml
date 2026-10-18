@@ -6,6 +6,9 @@ services:
     image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
     ports:
       - "${VOIDAUTH_PORT:-3330}:3000"
+    # VoidAuth posts sign-out notices to the Notes server under test, which runs on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ${VOIDAUTH_DATA:?set VOIDAUTH_DATA}/config:/app/config
       - ${VOIDAUTH_DATA:?set VOIDAUTH_DATA}/db:/app/db
@@ -22,4 +25,5 @@ services:
       OIDC_notes_CLIENT_SECRET: ${NOTES_CLIENT_SECRET:?set NOTES_CLIENT_SECRET}
       OIDC_notes_CLIENT_REDIRECT_URLS: ${NOTES_REDIRECT_URL:-http://localhost:4120/api/sign-in/callback}
       OIDC_notes_CLIENT_POST_LOGOUT_URLS: ${NOTES_POST_LOGOUT_URL:-http://localhost:4120/}
+      OIDC_notes_CLIENT_BACKCHANNEL_LOGOUT_URI: ${NOTES_BACKCHANNEL_LOGOUT_URL:-http://host.docker.internal:4120/api/back-channel-logout}
       OIDC_notes_CLIENT_SKIP_CONSENT: "true"

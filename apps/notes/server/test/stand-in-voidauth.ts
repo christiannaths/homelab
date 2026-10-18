@@ -16,6 +16,7 @@ interface Grant {
   redirectUri: string;
   nonce: string;
   challenge: string;
+  sid: string | undefined;
 }
 
 export const CLIENT_ID = "notes";
@@ -27,6 +28,12 @@ export class StandInVoidAuth {
   /** Replaces the ID token's claims, to test what Notes refuses. */
   tamper:
     ((claims: Record<string, unknown>) => Record<string, unknown>) | undefined;
+
+  /**
+   * The browser's VoidAuth session id, put in ID tokens as `sid` when set. VoidAuth 1.16 never
+   * sends one to clients configured from environment variables, so it is unset by default.
+   */
+  sid: string | undefined;
 
   readonly #grants = new Map<string, Grant>();
   readonly #accessTokens = new Map<string, Account>();
@@ -72,6 +79,31 @@ export class StandInVoidAuth {
     await new Promise<void>((resolve) => this.#server?.close(() => resolve()));
   }
 
+  /**
+   * A back-channel logout token, as VoidAuth posts to Notes when the homelab account signs out.
+   * `forged` signs it with a key VoidAuth does not publish; `ageSeconds` backdates it.
+   */
+  async logoutToken(
+    claims: Record<string, unknown>,
+    { forged = false, ageSeconds = 0 } = {},
+  ): Promise<string> {
+    const key = forged
+      ? (await generateKeyPair("RS256")).privateKey
+      : this.#keys!.privateKey;
+    const issuedAt = Math.floor(Date.now() / 1000) - ageSeconds;
+    return new SignJWT({
+      events: { "http://schemas.openid.net/event/backchannel-logout": {} },
+      jti: randomBytes(8).toString("hex"),
+      ...claims,
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "k1", typ: "logout+jwt" })
+      .setIssuer(this.issuer)
+      .setAudience(CLIENT_ID)
+      .setIssuedAt(issuedAt)
+      .setExpirationTime(issuedAt + 120)
+      .sign(key);
+  }
+
   async #handle(req: IncomingMessage): Promise<{
     status: number;
     body: unknown;
@@ -109,6 +141,7 @@ export class StandInVoidAuth {
           redirectUri: redirect.href,
           nonce: q.get("nonce") ?? "",
           challenge: q.get("code_challenge") ?? "",
+          sid: this.sid,
         });
         redirect.searchParams.set("code", code);
       }
@@ -140,6 +173,7 @@ export class StandInVoidAuth {
         sub: grant.account.sub,
         nonce: grant.nonce,
       };
+      if (grant.sid) claims.sid = grant.sid;
       if (this.tamper) claims = this.tamper(claims);
       const idToken = await new SignJWT(claims)
         .setProtectedHeader({ alg: "RS256", kid: "k1" })

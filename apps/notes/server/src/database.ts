@@ -34,6 +34,12 @@ const MIGRATIONS = [
   );
   CREATE INDEX sessions_by_person ON sessions (person_id);
   `,
+  `
+  -- The VoidAuth session a device session was issued from, so VoidAuth's sign-out notices can end
+  -- it. Null when VoidAuth did not say, as for sessions issued before this column existed.
+  ALTER TABLE sessions ADD COLUMN voidauth_sid TEXT;
+  CREATE INDEX sessions_by_voidauth_sid ON sessions (voidauth_sid);
+  `,
 ];
 
 /** Opens (or creates) the instance's one SQLite file in `dataDir`, at the latest schema. */

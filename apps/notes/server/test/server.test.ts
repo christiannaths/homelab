@@ -28,6 +28,7 @@ beforeAll(() => voidauth.start());
 afterAll(() => voidauth.stop());
 afterEach(async () => {
   voidauth.tamper = undefined;
+  voidauth.sid = undefined;
   for (const d of devices.splice(0)) d.destroy();
   for (const s of servers.splice(0)) await s.close();
 });
@@ -340,6 +341,76 @@ describe("signing out", () => {
   });
 });
 
+describe("signing out of the homelab elsewhere", () => {
+  function notice(s: TestServer, logoutToken?: string) {
+    return fetch(`${s.url}/api/back-channel-logout`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(
+        logoutToken ? { logout_token: logoutToken } : {},
+      ),
+    });
+  }
+
+  const sessionStatus = async (s: TestServer, cookie: string) =>
+    (await fetch(`${s.url}/api/session`, { headers: { cookie } })).status;
+
+  test("a notice naming a VoidAuth session ends exactly the Notes sessions from it, and closes their sockets", async () => {
+    const s = await server();
+    voidauth.sid = "browser-1";
+    const phone = (await signIn(s, voidauth, OWNER)).cookie!;
+    const phoneAgain = (await signIn(s, voidauth, OWNER)).cookie!;
+    voidauth.sid = "browser-2";
+    const laptop = (await signIn(s, voidauth, OWNER)).cookie!;
+    const syncing = track(device(s, phone));
+    await syncing.open("pages/plan").synced;
+
+    const res = await notice(
+      s,
+      await voidauth.logoutToken({ sub: OWNER.sub, sid: "browser-1" }),
+    );
+    expect(res.status).toBe(200);
+    expect(await syncing.closed).toBe(4401);
+    expect(await sessionStatus(s, phone)).toBe(401);
+    expect(await sessionStatus(s, phoneAgain)).toBe(401);
+    expect(await sessionStatus(s, laptop)).toBe(200);
+  });
+
+  test("a notice naming only the person, as VoidAuth sends, ends all of that person's sessions", async () => {
+    const { s, cookie } = await withOwner();
+    const laptop = (await signIn(s, voidauth, OWNER)).cookie!;
+    const syncing = track(device(s, laptop));
+    await syncing.open("pages/plan").synced;
+
+    const res = await notice(s, await voidauth.logoutToken({ sub: OWNER.sub }));
+    expect(res.status).toBe(200);
+    expect(await syncing.closed).toBe(4401);
+    expect(await sessionStatus(s, cookie)).toBe(401);
+    expect(await sessionStatus(s, laptop)).toBe(401);
+  });
+
+  test("a missing, forged, expired or malformed logout token is refused, and no session ends", async () => {
+    const { s, cookie } = await withOwner();
+    const claims = { sub: OWNER.sub };
+    const refused = [
+      undefined,
+      "not-a-jwt",
+      await voidauth.logoutToken(claims, { forged: true }),
+      await voidauth.logoutToken(claims, { ageSeconds: 600 }),
+      // An ID token, not a logout token.
+      await voidauth.logoutToken({ ...claims, events: undefined, nonce: "n" }),
+      await voidauth.logoutToken({ events: undefined }),
+      await voidauth.logoutToken({}),
+    ];
+    for (const token of refused) {
+      const res = await notice(s, token);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid_request" });
+    }
+    expect(await sessionStatus(s, cookie)).toBe(200);
+  });
+});
+
 describe("storage", () => {
   test("health answers, and the schema is created once and reopened", async () => {
     const { s } = await withOwner();
@@ -347,7 +418,7 @@ describe("storage", () => {
       ok: true,
     });
     const versionRow = s.db.prepare("PRAGMA user_version").get() ?? {};
-    expect(integer(versionRow, "user_version")).toBe(1);
+    expect(integer(versionRow, "user_version")).toBe(2);
 
     const { dataDir } = s;
     await servers.pop()!.close();

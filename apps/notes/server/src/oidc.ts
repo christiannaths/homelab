@@ -130,8 +130,14 @@ export class OidcClient {
     return url.href;
   }
 
-  /** Checks the callback against the pending sign-in and returns who signed in. */
-  async finish(callback: URL, pending: PendingSignIn): Promise<Identity> {
+  /**
+   * Checks the callback against the pending sign-in and returns who signed in, with the VoidAuth
+   * session it came from when VoidAuth says.
+   */
+  async finish(
+    callback: URL,
+    pending: PendingSignIn,
+  ): Promise<{ identity: Identity; sid: string | null }> {
     const error = callback.searchParams.get("error");
     if (error) throw new SignInError(`VoidAuth refused the sign-in: ${error}`);
     if (callback.searchParams.get("state") !== pending.state)
@@ -158,11 +164,14 @@ export class OidcClient {
       throw new SignInError(`Token exchange failed: ${tokenResponse.status}`);
     const tokens = parseTokens(await tokenResponse.json());
 
-    this.#jwks ??= createRemoteJWKSet(new URL(discovery.jwks_uri));
-    const { payload } = await jwtVerify(tokens.id_token, this.#jwks, {
-      issuer: discovery.issuer,
-      audience: this.#config.clientId,
-    }).catch((reason: unknown) => {
+    const { payload } = await jwtVerify(
+      tokens.id_token,
+      this.#keys(discovery),
+      {
+        issuer: discovery.issuer,
+        audience: this.#config.clientId,
+      },
+    ).catch((reason: unknown) => {
       throw new SignInError(
         `Invalid ID token: ${reason instanceof Error ? reason.message : String(reason)}`,
       );
@@ -185,12 +194,54 @@ export class OidcClient {
     const claims = { ...userinfo, ...payload };
     const groups = Array.isArray(claims.groups) ? claims.groups : [];
     return {
-      sub: payload.sub,
-      name: typeof claims.name === "string" ? claims.name : null,
-      isInstanceAdmin: groups.includes(ADMIN_GROUP),
+      identity: {
+        sub: payload.sub,
+        name: typeof claims.name === "string" ? claims.name : null,
+        isInstanceAdmin: groups.includes(ADMIN_GROUP),
+      },
+      sid: typeof payload.sid === "string" ? payload.sid : null,
     };
   }
+
+  /**
+   * Checks a back-channel logout token from VoidAuth (OpenID Connect Back-Channel Logout 1.0) and
+   * returns whose sign-out it reports: a VoidAuth session, or, without one, a person.
+   */
+  async verifyLogoutToken(
+    token: string,
+  ): Promise<{ sid: string } | { sub: string }> {
+    const discovery = await this.#discover();
+    const { payload } = await jwtVerify(token, this.#keys(discovery), {
+      issuer: discovery.issuer,
+      audience: this.#config.clientId,
+      requiredClaims: ["iat", "jti"],
+      maxTokenAge: "5m",
+    }).catch((reason: unknown) => {
+      throw new LogoutTokenError(
+        `Invalid logout token: ${reason instanceof Error ? reason.message : String(reason)}`,
+      );
+    });
+    const events = isRecord(payload.events) ? payload.events : {};
+    if (!isRecord(events[LOGOUT_EVENT]))
+      throw new LogoutTokenError("Not a logout token");
+    // A nonce would make it an ID token, which must not be accepted in its place.
+    if ("nonce" in payload)
+      throw new LogoutTokenError("Logout token has a nonce");
+    if (typeof payload.sid === "string") return { sid: payload.sid };
+    if (typeof payload.sub === "string") return { sub: payload.sub };
+    throw new LogoutTokenError("Logout token names no one");
+  }
+
+  #keys(discovery: Discovery): ReturnType<typeof createRemoteJWKSet> {
+    this.#jwks ??= createRemoteJWKSet(new URL(discovery.jwks_uri));
+    return this.#jwks;
+  }
 }
+
+const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
+
+/** A back-channel logout token that Notes does not accept. */
+export class LogoutTokenError extends Error {}
 
 /** A sign-in that failed because of what came back, not because VoidAuth was unreachable. */
 export class SignInError extends Error {}

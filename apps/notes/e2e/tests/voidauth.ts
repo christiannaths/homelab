@@ -31,6 +31,7 @@ export function composeEnv(dataDir: string): ComposeEnv {
     NOTES_CLIENT_SECRET,
     NOTES_REDIRECT_URL: `${NOTES_URL}/api/sign-in/callback`,
     NOTES_POST_LOGOUT_URL: `${NOTES_URL}/`,
+    NOTES_BACKCHANNEL_LOGOUT_URL: `http://host.docker.internal:${NOTES_PORT}/api/back-channel-logout`,
   };
 }
 

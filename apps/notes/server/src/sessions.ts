@@ -11,11 +11,14 @@ const RENEW_AFTER_MS = DAY_MS;
 export const SESSION_COOKIE = "notes_session";
 
 export interface Session {
+  /** Identifies the session without revealing its token: the hash stored in place of it. */
+  id: string;
   token: string;
   personId: string;
 }
 
-const hash = (token: string) =>
+/** The id of the session a token belongs to. */
+export const sessionId = (token: string) =>
   createHash("sha256").update(token).digest("base64url");
 
 /** Notes' own device sessions (ADR-NOTE-014). VoidAuth is not involved once one is issued. */
@@ -28,23 +31,33 @@ export class Sessions {
     this.#now = now;
   }
 
-  /** Starts a session for one device and returns its token, which only the cookie holds. */
-  issue(personId: string): string {
+  /**
+   * Starts a session for one device and returns its token, which only the cookie holds.
+   * `voidauthSid` is the VoidAuth session it was signed in through, if VoidAuth said.
+   */
+  issue(personId: string, voidauthSid: string | null = null): string {
     const token = randomBytes(32).toString("base64url");
     const now = this.#now();
     this.#db
       .prepare(
-        `INSERT INTO sessions (token_hash, person_id, created_at, renewed_at, expires_at)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO sessions (token_hash, person_id, voidauth_sid, created_at, renewed_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(hash(token), personId, now, now, now + SESSION_LIFETIME_MS);
+      .run(
+        sessionId(token),
+        personId,
+        voidauthSid,
+        now,
+        now,
+        now + SESSION_LIFETIME_MS,
+      );
     return token;
   }
 
   /** The session for a cookie's token, extended for another year if it has not been today. */
   use(token: string | undefined): Session | undefined {
     if (!token) return undefined;
-    const tokenHash = hash(token);
+    const tokenHash = sessionId(token);
     const row = this.#db
       .prepare(
         "SELECT person_id, renewed_at, expires_at FROM sessions WHERE token_hash = ?",
@@ -65,13 +78,32 @@ export class Sessions {
         )
         .run(now, now + SESSION_LIFETIME_MS, tokenHash);
     }
-    return { token, personId: text(row, "person_id") };
+    return { id: tokenHash, token, personId: text(row, "person_id") };
   }
 
-  revoke(token: string): void {
-    this.#db
-      .prepare("DELETE FROM sessions WHERE token_hash = ?")
-      .run(hash(token));
+  /** Ends one session and returns its id. */
+  revoke(token: string): string {
+    const id = sessionId(token);
+    this.#db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(id);
+    return id;
+  }
+
+  /** Ends every session issued from one VoidAuth session, and returns their ids. */
+  revokeFromVoidAuthSession(voidauthSid: string): string[] {
+    return this.#db
+      .prepare(
+        "DELETE FROM sessions WHERE voidauth_sid = ? RETURNING token_hash",
+      )
+      .all(voidauthSid)
+      .map((row) => text(row, "token_hash"));
+  }
+
+  /** Ends every session of one person, and returns their ids. */
+  revokeForPerson(personId: string): string[] {
+    return this.#db
+      .prepare("DELETE FROM sessions WHERE person_id = ? RETURNING token_hash")
+      .all(personId)
+      .map((row) => text(row, "token_hash"));
   }
 
   /** The `Set-Cookie` value holding a session token, or clearing it when `token` is empty. */
