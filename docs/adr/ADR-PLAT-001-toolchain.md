@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-16
 - Depends on: none
-- Dependency of: [ADR-NOTE-005](../../apps/notes/docs/adr/ADR-NOTE-005-document-persistence.md), [ADR-NOTE-008](../../apps/notes/docs/adr/ADR-NOTE-008-model-correctness.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md), [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)
+- Dependency of: [ADR-NOTE-005](../../apps/notes/docs/adr/ADR-NOTE-005-document-persistence.md), [ADR-NOTE-008](../../apps/notes/docs/adr/ADR-NOTE-008-model-correctness.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md), [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md), [ADR-PLAT-005](ADR-PLAT-005-app-settings.md)
 
 ## Context
 The client and the server share data-model code and Yjs, and a very small team maintains the project.
