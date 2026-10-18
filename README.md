@@ -16,6 +16,10 @@ Throwaway proofs of concept that settled an app's decisions. They are kept froze
 | --- | --- |
 | [`notes-block-editing-collaboration-poc`](spikes/notes-block-editing-collaboration-poc/README.md) | Offline sync, block editing and live collaboration for `notes` |
 
+## Inspiration
+
+- [Project N.O.M.A.D.: a self-hosted internet in a box](https://readthemanual.co.uk/project-nomad-self-hosted-internet-in-a-box/)
+
 ## Setup
 
 Requires **Node.js 26+**. With [mise](https://mise.jdx.dev), run `mise install` in the repo root (it reads `mise.toml`); with nvm, run `nvm install` (it reads `.nvmrc`). Then:
