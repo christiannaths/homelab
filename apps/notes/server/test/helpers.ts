@@ -59,6 +59,7 @@ export function tempDataDir(): string {
 export async function start(
   voidauth: StandInVoidAuth,
   dataDir = tempDataDir(),
+  clientDir?: string,
 ): Promise<TestServer> {
   let offset = 0;
   const port = await freePort();
@@ -67,6 +68,7 @@ export async function start(
     dataDir,
     port,
     publicUrl: url,
+    clientDir,
     oidc: {
       issuer: voidauth.issuer,
       clientId: CLIENT_ID,

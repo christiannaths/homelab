@@ -60,7 +60,9 @@ class CookieJar {
 
 const onVoidAuthLogin = (l: URL) =>
   l.origin === VOIDAUTH_URL && l.pathname === "/login";
-const backInNotes = (l: URL) => l.origin === NOTES_URL && l.pathname === "/";
+/** Notes' callback redirected to the app: to `/`, or to `/no-access` for someone it turned away. */
+const backInNotes = (l: URL) =>
+  l.origin === NOTES_URL && (l.pathname === "/" || l.pathname === "/no-access");
 
 export interface Registration {
   username: string;
@@ -78,7 +80,7 @@ export class Browser {
 
   /**
    * Opens Notes' sign-in and types a password on VoidAuth's page if it asks for one.
-   * Returns the status of Notes' callback: 302 when admitted.
+   * Returns the status of Notes' callback, with where it redirected to or what it answered.
    */
   async signInToNotes(
     username?: string,
@@ -98,7 +100,7 @@ export class Browser {
         backInNotes,
       ));
     }
-    if (backInNotes(url)) return { status: 302, body: null };
+    if (backInNotes(url)) return { status: 302, body: url.pathname };
     return {
       status: response.status,
       body: await response.json().catch(() => null),

@@ -11,6 +11,8 @@ export interface OidcConfig {
   clientSecret: string;
   /** Notes' callback, as registered with VoidAuth. */
   redirectUri: string;
+  /** Where VoidAuth sends the browser after signing the homelab account out, as registered. */
+  postLogoutRedirectUri: string;
 }
 
 /** VoidAuth's group for its admins, sent in the `groups` claim. */
@@ -22,6 +24,7 @@ interface Discovery {
   token_endpoint: string;
   userinfo_endpoint: string;
   jwks_uri: string;
+  end_session_endpoint: string;
 }
 
 /** A started sign-in, kept in a short-lived cookie until the callback. */
@@ -48,6 +51,7 @@ function parseDiscovery(value: unknown): Discovery {
     token_endpoint: field("token_endpoint"),
     userinfo_endpoint: field("userinfo_endpoint"),
     jwks_uri: field("jwks_uri"),
+    end_session_endpoint: field("end_session_endpoint"),
   };
 }
 
@@ -110,6 +114,20 @@ export class OidcClient {
       code_challenge_method: "S256",
     }).toString();
     return { url: url.href, pending };
+  }
+
+  /**
+   * VoidAuth's page that signs the homelab account out in this browser, and with it every
+   * homelab app. VoidAuth asks the person to confirm, then returns them to Notes.
+   */
+  async endSessionUrl(): Promise<string> {
+    const { end_session_endpoint } = await this.#discover();
+    const url = new URL(end_session_endpoint);
+    url.search = new URLSearchParams({
+      client_id: this.#config.clientId,
+      post_logout_redirect_uri: this.#config.postLogoutRedirectUri,
+    }).toString();
+    return url.href;
   }
 
   /** Checks the callback against the pending sign-in and returns who signed in. */

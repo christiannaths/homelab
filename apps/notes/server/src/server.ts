@@ -1,5 +1,7 @@
+import path from "node:path";
 import { Hocuspocus } from "@hocuspocus/server";
 import { serve, upgradeWebSocket } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { WSContext } from "hono/ws";
@@ -18,6 +20,8 @@ export interface ServerOptions {
   port: number;
   /** The address devices use, behind the HTTPS reverse proxy (ADR-NOTE-003). */
   publicUrl: string;
+  /** The web client's build (apps/notes/web/dist). Without it, only the API is served. */
+  clientDir?: string;
   /** Notes' client registration with VoidAuth (ADR-PLAT-004). */
   oidc: { issuer: string; clientId: string; clientSecret: string };
   /** For tests that move time forward. */
@@ -37,11 +41,16 @@ interface SyncEnv {
 
 const PENDING_SIGN_IN_COOKIE = "notes_sign_in";
 export const CALLBACK_PATH = "/api/sign-in/callback";
+/** The client's screen for someone VoidAuth signed in but Notes does not admit. */
+export const NO_ACCESS_PATH = "/no-access";
+/** Where VoidAuth returns the browser after a sign-out: Notes, which then goes to sign-in. */
+export const POST_SIGN_OUT_PATH = "/";
 
 export async function startServer({
   dataDir,
   port,
   publicUrl,
+  clientDir,
   oidc: oidcOptions,
   now,
 }: ServerOptions) {
@@ -52,6 +61,7 @@ export async function startServer({
   const oidc = new OidcClient({
     ...oidcOptions,
     redirectUri: new URL(CALLBACK_PATH, publicUrl).href,
+    postLogoutRedirectUri: new URL(POST_SIGN_OUT_PATH, publicUrl).href,
   });
 
   // Open sync sockets by session token, so ending a session closes them at once (ADR-NOTE-014).
@@ -132,7 +142,8 @@ export async function startServer({
       return c.json({ error: "sign_in_unavailable" }, 502);
     }
     const person = people.admit(identity);
-    if (!person) return c.json({ error: "not_a_member" }, 403);
+    // The client's no-access screen never starts a sign-in itself, so this cannot loop.
+    if (!person) return c.redirect(NO_ACCESS_PATH, 302);
     c.header("set-cookie", sessions.cookie(sessions.issue(person.id)), {
       append: true,
     });
@@ -147,11 +158,15 @@ export async function startServer({
     return c.json({ person: current.person });
   });
 
-  app.post("/api/sign-out", (c) => {
+  // Signs this device out of Notes, then hands the browser to VoidAuth to sign out of the homelab
+  // account. Also used with no Notes session, by someone Notes turned away.
+  app.post("/api/sign-out", async (c) => {
     const token = getCookie(c, SESSION_COOKIE);
     if (token) endSession(token);
     c.header("set-cookie", sessions.cookie(""));
-    return c.body(null, 204);
+    const endSessionUrl = await oidc.endSessionUrl().catch(() => undefined);
+    if (!endSessionUrl) return c.json({ error: "sign_out_unavailable" }, 502);
+    return c.json({ endSessionUrl });
   });
 
   app.get(
@@ -192,6 +207,30 @@ export async function startServer({
       };
     }),
   );
+
+  app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
+
+  if (clientDir) {
+    // The service worker and the app shell must be revalidated so updates reach devices; Vite
+    // fingerprints everything under assets/, so those never change.
+    const onFound = (filePath: string, c: Context) => {
+      c.header(
+        "cache-control",
+        filePath.includes(`${path.sep}assets${path.sep}`)
+          ? "public, max-age=31536000, immutable"
+          : "no-cache",
+      );
+    };
+    app.use("*", serveStatic({ root: clientDir, onFound }));
+    // Client-side routes get the app shell. The sync socket is a route of its own, not a page.
+    app.get("*", async (c, next) => {
+      if (c.req.path.startsWith("/sync")) return c.text("Not Found", 404);
+      return serveStatic({ root: clientDir, path: "index.html", onFound })(
+        c,
+        next,
+      );
+    });
+  }
 
   const wss = new WebSocketServer({ noServer: true });
   const server = serve({ fetch: app.fetch, port, websocket: { server: wss } });

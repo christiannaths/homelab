@@ -77,7 +77,7 @@ describe("the instance admin", () => {
   it("signs in through VoidAuth, becomes the Notes owner, and syncs a page", async () => {
     expect(await owner.signInToNotes(ADMIN_USERNAME, ADMIN_PASSWORD)).toEqual({
       status: 302,
-      body: null,
+      body: "/",
     });
     const session: unknown = await (
       await owner.notes("GET", "/api/session")
@@ -92,7 +92,7 @@ describe("the instance admin", () => {
 
   it("signs in on a second device without typing the password again", async () => {
     // The same browser is still signed in to VoidAuth, so VoidAuth sends it straight back.
-    expect(await owner.signInToNotes()).toEqual({ status: 302, body: null });
+    expect(await owner.signInToNotes()).toEqual({ status: 302, body: "/" });
   });
 });
 
@@ -120,7 +120,7 @@ describe("closed registration", () => {
       account.username,
       account.password,
     );
-    expect(result).toEqual({ status: 403, body: { error: "not_a_member" } });
+    expect(result).toEqual({ status: 302, body: "/no-access" });
 
     // The link works once.
     const again = await new Browser().acceptInvite(link, newAccount("reuse"));

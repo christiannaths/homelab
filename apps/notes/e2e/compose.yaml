@@ -21,4 +21,5 @@ services:
       OIDC_notes_CLIENT_DISPLAY_NAME: Notes
       OIDC_notes_CLIENT_SECRET: ${NOTES_CLIENT_SECRET:?set NOTES_CLIENT_SECRET}
       OIDC_notes_CLIENT_REDIRECT_URLS: ${NOTES_REDIRECT_URL:-http://localhost:4120/api/sign-in/callback}
+      OIDC_notes_CLIENT_POST_LOGOUT_URLS: ${NOTES_POST_LOGOUT_URL:-http://localhost:4120/}
       OIDC_notes_CLIENT_SKIP_CONSENT: "true"

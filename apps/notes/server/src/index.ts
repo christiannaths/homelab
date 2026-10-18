@@ -18,6 +18,7 @@ const server = await startServer({
   ),
   port,
   publicUrl: process.env.PUBLIC_URL ?? `http://localhost:${port}`,
+  clientDir: path.join(import.meta.dirname, "../../web/dist"),
   oidc: {
     issuer: required("OIDC_ISSUER"),
     clientId: process.env.OIDC_CLIENT_ID ?? "notes",

@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 import {
@@ -9,6 +11,7 @@ import {
   signIn,
   start,
   STRANGER,
+  tempDataDir,
   tryUpgrade,
   waitFor,
   type Device,
@@ -40,6 +43,19 @@ function track(d: Device) {
   return d;
 }
 
+/** The VoidAuth end-session address in a sign-out response. */
+async function endSessionUrl(res: Response): Promise<URL> {
+  const body: unknown = await res.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("endSessionUrl" in body) ||
+    typeof body.endSessionUrl !== "string"
+  )
+    throw new Error(`No endSessionUrl in ${JSON.stringify(body)}`);
+  return new URL(body.endSessionUrl);
+}
+
 /** A server whose owner has signed in once; returns that device's cookie. */
 async function withOwner() {
   const s = await server();
@@ -61,18 +77,18 @@ describe("signing in through VoidAuth", () => {
     });
   });
 
-  test("someone who is not a VoidAuth admin cannot become the first owner", async () => {
+  test("someone who is not a VoidAuth admin cannot become the first owner, and is shown the no-access screen", async () => {
     const s = await server();
     const result = await signIn(s, voidauth, STRANGER);
-    expect(result.status).toBe(403);
-    expect(result.body).toEqual({ error: "not_a_member" });
+    expect(result.status).toBe(302);
+    expect(result.body).toBe("/no-access");
     expect(result.cookie).toBeUndefined();
   });
 
   test("once there is an owner, a VoidAuth account admits nobody else, admin or not", async () => {
     const { s } = await withOwner();
-    expect((await signIn(s, voidauth, OTHER_ADMIN)).status).toBe(403);
-    expect((await signIn(s, voidauth, STRANGER)).status).toBe(403);
+    expect((await signIn(s, voidauth, OTHER_ADMIN)).body).toBe("/no-access");
+    expect((await signIn(s, voidauth, STRANGER)).body).toBe("/no-access");
   });
 
   test("the owner signs in again on another device, and the name follows VoidAuth", async () => {
@@ -271,13 +287,56 @@ describe("signing out", () => {
       method: "POST",
       headers: { cookie },
     });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie")).toMatch(
       /^notes_session=; .*Max-Age=0/,
     );
     expect(await phone.closed).toBe(4401);
     expect(await tryUpgrade(s, cookie)).toBe(401);
     expect(await tryUpgrade(s, laptop)).toBe("open");
+  });
+
+  test("sends the browser on to VoidAuth to sign out of the homelab account, and back to Notes", async () => {
+    const { s, cookie } = await withOwner();
+    const res = await fetch(`${s.url}/api/sign-out`, {
+      method: "POST",
+      headers: { cookie },
+    });
+    const url = await endSessionUrl(res);
+    expect(url.origin + url.pathname).toBe(`${voidauth.issuer}/session/end`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      client_id: "notes",
+      post_logout_redirect_uri: `${s.url}/`,
+    });
+  });
+
+  test("without a Notes session, as for someone Notes turned away, still leads to VoidAuth", async () => {
+    const s = await server();
+    const res = await fetch(`${s.url}/api/sign-out`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((await endSessionUrl(res)).pathname).toBe("/oidc/session/end");
+  });
+
+  test("with VoidAuth unreachable, still ends the device's session and says the rest is unavailable", async () => {
+    const down = new StandInVoidAuth();
+    await down.start();
+    const before = await start(down);
+    const { cookie } = await signIn(before, down, OWNER);
+    await before.close();
+    await down.stop();
+    // A restart, so the server has not looked VoidAuth up since it went down.
+    const s = await start(down, before.dataDir);
+    servers.push(s);
+    const res = await fetch(`${s.url}/api/sign-out`, {
+      method: "POST",
+      headers: { cookie: cookie! },
+    });
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "sign_out_unavailable" });
+    expect(
+      (await fetch(`${s.url}/api/session`, { headers: { cookie: cookie! } }))
+        .status,
+    ).toBe(401);
   });
 });
 
@@ -294,7 +353,40 @@ describe("storage", () => {
     await servers.pop()!.close();
     const again = await server(dataDir);
     // The owner is still there after a restart, so nobody else can take over.
-    expect((await signIn(again, voidauth, OTHER_ADMIN)).status).toBe(403);
+    expect((await signIn(again, voidauth, OTHER_ADMIN)).body).toBe(
+      "/no-access",
+    );
     expect((await signIn(again, voidauth, OWNER)).status).toBe(302);
+  });
+});
+
+describe("the web client", () => {
+  /** A stand-in for the client's build: an app shell and one asset. */
+  function builtClient() {
+    const dir = tempDataDir();
+    writeFileSync(path.join(dir, "index.html"), "<title>Notes</title>");
+    mkdirSync(path.join(dir, "assets"));
+    writeFileSync(path.join(dir, "assets", "app.js"), "console.log(1)");
+    return dir;
+  }
+
+  test("is served, with the app shell for client-side routes but not for the API or sync", async () => {
+    const s = await start(voidauth, undefined, builtClient());
+    servers.push(s);
+    const shell = await fetch(`${s.url}/`);
+    expect(shell.headers.get("content-type")).toMatch(/text\/html/);
+    expect(await shell.text()).toBe("<title>Notes</title>");
+    expect(await (await fetch(`${s.url}/assets/app.js`)).text()).toBe(
+      "console.log(1)",
+    );
+    expect(await (await fetch(`${s.url}/no-access`)).text()).toBe(
+      "<title>Notes</title>",
+    );
+
+    const unknownApi = await fetch(`${s.url}/api/nothing-here`);
+    expect(unknownApi.status).toBe(404);
+    expect(await unknownApi.json()).toEqual({ error: "not_found" });
+    expect((await fetch(`${s.url}/sync`)).status).toBe(401);
+    expect((await fetch(`${s.url}/sync/more`)).status).toBe(404);
   });
 });

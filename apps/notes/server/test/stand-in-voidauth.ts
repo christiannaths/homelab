@@ -89,6 +89,7 @@ export class StandInVoidAuth {
           token_endpoint: `${this.issuer}/token`,
           userinfo_endpoint: `${this.issuer}/me`,
           jwks_uri: `${this.issuer}/jwks`,
+          end_session_endpoint: `${this.issuer}/session/end`,
         },
       };
     }

@@ -15,6 +15,8 @@ export const NOTES_CLIENT_SECRET = "notes-e2e-secret";
 /** The instance admin VoidAuth creates on first run. */
 export const ADMIN_USERNAME = "auth_admin";
 export const ADMIN_PASSWORD = "violet-quartz-harbour-71";
+/** The display name VoidAuth gives that admin. */
+export const ADMIN_NAME = "Auth Admin";
 
 export type ComposeEnv = Record<string, string>;
 
@@ -28,6 +30,7 @@ export function composeEnv(dataDir: string): ComposeEnv {
     DEFAULT_REDIRECT: `${NOTES_URL}/`,
     NOTES_CLIENT_SECRET,
     NOTES_REDIRECT_URL: `${NOTES_URL}/api/sign-in/callback`,
+    NOTES_POST_LOGOUT_URL: `${NOTES_URL}/`,
   };
 }
 
