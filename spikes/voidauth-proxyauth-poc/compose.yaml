@@ -1,0 +1,48 @@
+# One gateway (Caddy) in front of VoidAuth and two apps, each on its own hostname under
+# one parent domain. VoidAuth's session cookie is set on that parent domain, so one sign-in and
+# one sign-out cover every app. Only the gateway publishes a port: the apps trust the Remote-*
+# headers it sets, so nothing else may reach them.
+name: ${COMPOSE_PROJECT_NAME:-voidauth-proxyauth-poc}
+services:
+  gateway:
+    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
+    ports:
+      - "${GATEWAY_PORT:-8443}:443"
+    volumes:
+      - ./gateway/gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ${DATA_DIR:-./data}/caddy:/data
+      # The Encyclopedia's static build (`npx nx run encyclopedia-web:build`), served by the gateway.
+      - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+    depends_on: [voidauth, notes]
+
+  voidauth:
+    image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
+    volumes:
+      - ${DATA_DIR:-./data}/voidauth/config:/app/config
+      - ${DATA_DIR:-./data}/voidauth/db:/app/db
+    environment:
+      APP_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}
+      # The session cookie goes on the parent domain, so every app's hostname receives it.
+      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
+      DB_ADAPTER: sqlite
+      # Where VoidAuth sends people after signing out: its own sign-in page.
+      DEFAULT_REDIRECT: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}/
+      SIGNUP: "false"
+      # The tests sign many people in from one address; VoidAuth limits per address.
+      API_RATELIMIT: "1000"
+
+  # A stand-in for Notes. It knows nothing about OIDC: it reads who is signed in from the headers
+  # the gateway adds after VoidAuth allows the request.
+  notes:
+    image: node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+    command: node /app/server.ts
+    volumes:
+      - ./app/src:/app:ro
+    environment:
+      APP_ID: notes
+      APP_NAME: Notes
+      SIGN_OUT_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}/logout
