@@ -1,6 +1,6 @@
 # VoidAuth ProxyAuth spike: findings
 
-Run on 2026-10-19 against VoidAuth **1.16.0** (`voidauth/voidauth:1.16.0@sha256:189ef16f…`, unmodified, SQLite) behind Caddy **2.10.2**, with Docker 29.8 and Chromium through Playwright. Evidence is the e2e suite in `e2e/tests/` (8 tests, all passing, about two minutes) and VoidAuth's source at the [v1.16.0 tag](https://github.com/voidauth/voidauth/tree/v1.16.0), read outside this repo.
+Run on 2026-10-19 against VoidAuth **1.16.0** (`voidauth/voidauth:1.16.0@sha256:189ef16f…`, unmodified, SQLite) behind Caddy **2.10.2**, with Docker 29.8 and Chromium through Playwright. Evidence is the e2e suite in `e2e/tests/` (9 tests, all passing, about two minutes) and VoidAuth's source at the [v1.16.0 tag](https://github.com/voidauth/voidauth/tree/v1.16.0), read outside this repo.
 
 ## Recommendation
 
@@ -10,6 +10,7 @@ Three things to carry into the decision:
 
 - **The gateway must delete `Remote-*` headers from the browser** before asking VoidAuth. The setup in VoidAuth's own Caddy docs doesn't, and a forged header reached the app in this spike (below).
 - **An offline-first app learns about a sign-out the next time it loads online.** Until then, its offline copy stays readable on that device.
+- **The Encyclopedia's service worker hides a sign-out.** It answers page loads from its cache, so after signing out its title page still opens on that device. Anything it fetches from the server is refused. Its service worker should load pages network first, as the stand-in's does.
 - **This changes decided ADRs.** ADR-PLAT-004 and ADR-NOTE-014 have apps doing OIDC and keeping their own device sessions; with ProxyAuth, apps trust the gateway instead. Not changed in this spike.
 
 ## 1. Sign in once
@@ -39,7 +40,7 @@ The app gets `Remote-User` (username), `Remote-Name`, `Remote-Email` and `Remote
 
 ## 4. Forged headers
 
-**A gap in the documented setup, closed in the gateway.** Caddy's `forward_auth` with `copy_headers` overwrites only the headers VoidAuth sends. Bob has no email, so VoidAuth sends no `Remote-Email`, and with the Caddyfile from [VoidAuth's docs](https://github.com/voidauth/voidauth/blob/v1.16.0/docs/ProxyAuth-and-Trusted-Header-SSO-Setup.md) the `Remote-Email: ada@example.com` that Bob's browser sent reached the app. The same applies to `Remote-Name`, and to `Remote-Groups` for someone with no groups. `gateway/gateway.caddyfile` deletes all four request headers before asking VoidAuth; `a person can't claim someone else's name or groups through the gateway` checks it.
+**A gap in the documented setup, closed in the gateway.** Caddy's `forward_auth` with `copy_headers` overwrites only the headers VoidAuth sends. Bob has no email, so VoidAuth sends no `Remote-Email`, and with the Caddyfile from [VoidAuth's docs](https://github.com/voidauth/voidauth/blob/v1.16.0/docs/ProxyAuth-and-Trusted-Header-SSO-Setup.md) the `Remote-Email: ada@example.com` that Bob's browser sent reached the app. (Found with an earlier version of the test; it now checks Ada, who also has no email, on Notes.) The same applies to `Remote-Name`, and to `Remote-Groups` for someone with no groups. `gateway/gateway.caddyfile` deletes all four request headers before asking VoidAuth; `a person can't claim someone else's name or groups through the gateway` checks it.
 
 Because apps trust these headers, only the gateway may reach them: the apps publish no port in `compose.yaml`.
 
@@ -51,6 +52,7 @@ What the gateway changes for an offline-first app:
 
 - **Signed out, the app's requests get a redirect to VoidAuth, not a 401.** The page's `fetch("/api/me", { redirect: "manual" })` sees an `opaqueredirect`. The service worker must go network first and pass that redirect through, or a signed-out person would keep seeing the cached app.
 - **A sign-out reaches an app the next time it loads online.** The stand-in's service worker sees the redirect on a page load and deletes everything the app kept on the device (`after signing out in another app, the next online visit wipes the offline copy`). If the device goes offline before that, the app still opens offline with the last person's data (`signed out while offline, the app still opens offline until it is next online`).
+- **A cache-first service worker never asks the gateway.** The Encyclopedia (from `apps/encyclopedia/web`) uses Workbox with `navigateFallback`, which serves `index.html` from its cache for every page load. Through the gateway it installs and opens offline (`the Encyclopedia's own service worker opens it offline through the gateway`). But after a sign-out in Notes, reloading the Encyclopedia still shows its title page, while a request that reaches the server goes to sign-in (`one sign-out signs every app on the device out, and no other device`). For a title page that holds nothing private this is cosmetic. Once it shows saved articles, it should load pages network first and fall back to the cache only when offline.
 - A service worker needs a certificate the browser trusts. Chromium refuses to register one on a site with a certificate error, even with errors ignored, so the tests trust Caddy's CA by key (`--ignore-certificate-errors-spki-list`).
 
 ## 6. What it means for the apps
@@ -63,7 +65,7 @@ What the gateway changes for an offline-first app:
 
 ## Notes
 
-- The second app is the same stand-in as Notes. The Encyclopedia stub page (draft PR #67) is not on `main` yet; using it means pointing the `encyclopedia` site in the Caddyfile at its build.
+- Notes is a stand-in app (`app/`); the Encyclopedia is the real `apps/encyclopedia/web` build, served by the gateway as static files. It shows no signed-in person and has no sign-out link, so the tests read who is signed in from Notes, and sign out from the Encyclopedia's tab by opening VoidAuth's `/logout`.
 - Tested on port 8453 with `--host-resolver-rules`; a real install uses 443 and DNS.
 
 ## What this spike did not test

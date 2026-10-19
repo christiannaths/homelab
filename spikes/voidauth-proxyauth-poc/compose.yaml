@@ -1,4 +1,4 @@
-# One gateway (Caddy) in front of VoidAuth and two stand-in apps, each on its own hostname under
+# One gateway (Caddy) in front of VoidAuth and two apps, each on its own hostname under
 # one parent domain. VoidAuth's session cookie is set on that parent domain, so one sign-in and
 # one sign-out cover every app. Only the gateway publishes a port: the apps trust the Remote-*
 # headers it sets, so nothing else may reach them.
@@ -12,9 +12,11 @@ services:
     volumes:
       - ./gateway/gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
       - ${DATA_DIR:-./data}/caddy:/data
+      # The Encyclopedia's static build (`npx nx run encyclopedia-web:build`), served by the gateway.
+      - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
-    depends_on: [voidauth, notes, encyclopedia]
+    depends_on: [voidauth, notes]
 
   voidauth:
     image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
@@ -33,23 +35,14 @@ services:
       # The tests sign many people in from one address; VoidAuth limits per address.
       API_RATELIMIT: "1000"
 
-  # The same stand-in app twice. It knows nothing about OIDC: it reads who is signed in from the
-  # headers the gateway adds after VoidAuth allows the request.
+  # A stand-in for Notes. It knows nothing about OIDC: it reads who is signed in from the headers
+  # the gateway adds after VoidAuth allows the request.
   notes:
-    image: &node node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+    image: node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
     command: node /app/server.ts
-    volumes: &app-source
+    volumes:
       - ./app/src:/app:ro
     environment:
       APP_ID: notes
       APP_NAME: Notes
-      SIGN_OUT_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}/logout
-
-  encyclopedia:
-    image: *node
-    command: node /app/server.ts
-    volumes: *app-source
-    environment:
-      APP_ID: encyclopedia
-      APP_NAME: Encyclopedia
       SIGN_OUT_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}/logout

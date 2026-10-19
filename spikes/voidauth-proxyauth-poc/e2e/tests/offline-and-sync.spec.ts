@@ -22,6 +22,23 @@ test("the app syncs over a WebSocket through the gateway and opens offline", asy
   );
 });
 
+test("the Encyclopedia's own service worker opens it offline through the gateway", async ({
+  browser,
+}) => {
+  const device = await newDevice(browser);
+  const page = await device.newPage();
+  await page.goto(`${ENCYCLOPEDIA}/`);
+  await signIn(page, ADA);
+  await page.waitForURL(`${ENCYCLOPEDIA}/`);
+  await page.evaluate(() => navigator.serviceWorker.ready);
+
+  await device.setOffline(true);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Encyclopedia" }),
+  ).toBeVisible();
+});
+
 test("after signing out in another app, the next online visit wipes the offline copy", async ({
   browser,
 }) => {
@@ -34,7 +51,7 @@ test("after signing out in another app, the next online visit wipes the offline 
 
   const encyclopedia = await device.newPage();
   await encyclopedia.goto(`${ENCYCLOPEDIA}/`);
-  await encyclopedia.locator("#sign-out").click();
+  await encyclopedia.goto(`${AUTH}/logout`);
   await encyclopedia.locator('button[name="logout"][value="yes"]').click();
   await encyclopedia.waitForURL(`${AUTH}/login**`);
 
@@ -59,7 +76,7 @@ test("signed out while offline, the app still opens offline until it is next onl
 
   const encyclopedia = await device.newPage();
   await encyclopedia.goto(`${ENCYCLOPEDIA}/`);
-  await encyclopedia.locator("#sign-out").click();
+  await encyclopedia.goto(`${AUTH}/logout`);
   await encyclopedia.locator('button[name="logout"][value="yes"]').click();
   await encyclopedia.waitForURL(`${AUTH}/login**`);
 

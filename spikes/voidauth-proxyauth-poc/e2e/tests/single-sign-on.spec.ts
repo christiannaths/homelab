@@ -19,6 +19,8 @@ import {
 } from "./stack.ts";
 
 const who = (page: Page) => page.locator("#who");
+const encyclopediaTitle = (page: Page) =>
+  page.getByRole("heading", { name: "Encyclopedia" });
 
 /** Opens the app's sync WebSocket from a page, as the app's own code would. */
 function openSync(page: Page, app: string): Promise<"open" | "refused"> {
@@ -45,7 +47,8 @@ test("one sign-in opens every app the admin granted", async ({ browser }) => {
 
   // No second sign-in: VoidAuth's session cookie is on the parent domain.
   await page.goto(`${ENCYCLOPEDIA}/`);
-  await expect(who(page)).toHaveText("Signed in as Ada Lovelace (ada), member");
+  await expect(encyclopediaTitle(page)).toBeVisible();
+  expect(page.url()).toBe(`${ENCYCLOPEDIA}/`);
   const session = (await page.context().cookies()).find(
     (c) => c.name === "x-voidauth-session",
   );
@@ -61,7 +64,7 @@ test("an app the person wasn't granted refuses them", async ({ browser }) => {
   await page.goto(`${ENCYCLOPEDIA}/`);
   await signIn(page, BOB);
   await page.waitForURL(`${ENCYCLOPEDIA}/`);
-  await expect(who(page)).toHaveText("Signed in as Bob Ross (bob), member");
+  await expect(encyclopediaTitle(page)).toBeVisible();
 
   await page.goto(`${NOTES}/`);
   await page.waitForURL(`${AUTH}/forbidden?reason=user_group_missing`);
@@ -81,7 +84,8 @@ test("one sign-out signs every app on the device out, and no other device", asyn
   await expect(who(notes)).toContainText("(ada)");
   const encyclopedia = await laptop.newPage();
   await encyclopedia.goto(`${ENCYCLOPEDIA}/`);
-  await expect(who(encyclopedia)).toContainText("(ada)");
+  await expect(encyclopediaTitle(encyclopedia)).toBeVisible();
+  await encyclopedia.evaluate(() => navigator.serviceWorker.ready);
 
   const phone = await (await newDevice(browser)).newPage();
   await phone.goto(`${NOTES}/`);
@@ -93,7 +97,13 @@ test("one sign-out signs every app on the device out, and no other device", asyn
   await notes.locator('button[name="logout"][value="yes"]').click();
   await notes.waitForURL(`${AUTH}/login**`);
 
+  // The Encyclopedia's service worker answers page loads from its cache (Workbox's
+  // navigateFallback), so its title page still opens without asking the gateway. Anything it
+  // fetches from the server goes to sign-in.
   await encyclopedia.reload();
+  await expect(encyclopediaTitle(encyclopedia)).toBeVisible();
+  expect(encyclopedia.url()).toBe(`${ENCYCLOPEDIA}/`);
+  await encyclopedia.goto(`${ENCYCLOPEDIA}/api/articles`);
   await encyclopedia.waitForURL(`${AUTH}/login**`);
   await notes.goto(`${NOTES}/`);
   await notes.waitForURL(`${AUTH}/login**`);
@@ -107,16 +117,16 @@ test("a person can't claim someone else's name or groups through the gateway", a
   browser,
 }) => {
   const page = await (await newDevice(browser)).newPage();
-  await page.goto(`${ENCYCLOPEDIA}/`);
-  await signIn(page, BOB);
-  await expect(who(page)).toContainText("(bob)");
+  await page.goto(`${NOTES}/`);
+  await signIn(page, ADA);
+  await expect(who(page)).toContainText("(ada)");
 
-  // Bob has no email: the gateway must drop his forged Remote-Email, not pass it on.
+  // Ada has no email: the gateway must drop her forged Remote-Email, not pass it on.
   const me = await page.evaluate(async () => {
     const response = await fetch("/api/me", {
       headers: {
-        "Remote-User": "ada",
-        "Remote-Groups": "auth_admins,encyclopedia-admins",
+        "Remote-User": "bob",
+        "Remote-Groups": "auth_admins",
         "Remote-Email": "ada@example.com",
       },
     });
@@ -124,11 +134,11 @@ test("a person can't claim someone else's name or groups through the gateway", a
   });
   expect(JSON.parse(me)).toMatchObject({
     person: {
-      username: "bob",
-      name: "Bob Ross",
+      username: "ada",
+      name: "Ada Lovelace",
       email: null,
-      groups: ["encyclopedia"],
-      level: "member",
+      groups: ["encyclopedia", "notes", "notes-admins"],
+      level: "admin",
     },
   });
 });
@@ -137,7 +147,7 @@ test("taking an app away from someone applies on their next request", async ({
   browser,
 }) => {
   const page = await (await newDevice(browser)).newPage();
-  await page.goto(`${ENCYCLOPEDIA}/`);
+  await page.goto(`${NOTES}/`);
   await signIn(page, DANA);
   await expect(who(page)).toContainText("(dana)");
 
@@ -149,7 +159,7 @@ test("taking an app away from someone applies on their next request", async ({
     await voidauthApi(admin, "Listing groups", "GET", "/admin/groups"),
   );
   const id = stringField(
-    groups.find((g) => g.name === "encyclopedia"),
+    groups.find((g) => g.name === "notes"),
     "id",
   );
   const group = await voidauthApi(
@@ -159,28 +169,22 @@ test("taking an app away from someone applies on their next request", async ({
     `/admin/group/${id}`,
   );
   const members = records(isRecord(group) ? group.users : undefined);
-  await voidauthApi(
-    admin,
-    "Removing Dana from Encyclopedia",
-    "POST",
-    "/admin/group",
-    {
-      id,
-      name: "encyclopedia",
-      mfaRequired: false,
-      autoAssign: false,
-      users: members
-        .filter((user) => user.username !== DANA.username)
-        .map((user) => ({
-          id: stringField(user, "id"),
-          username: stringField(user, "username"),
-        })),
-      customClaims: [],
-    },
-  );
+  await voidauthApi(admin, "Removing Dana from Notes", "POST", "/admin/group", {
+    id,
+    name: "notes",
+    mfaRequired: false,
+    autoAssign: false,
+    users: members
+      .filter((user) => user.username !== DANA.username)
+      .map((user) => ({
+        id: stringField(user, "id"),
+        username: stringField(user, "username"),
+      })),
+    customClaims: [],
+  });
 
   await page.reload();
   await page.waitForURL(`${AUTH}/forbidden?reason=user_group_missing`);
-  await page.goto(`${NOTES}/`);
-  await expect(who(page)).toContainText("(dana)");
+  await page.goto(`${ENCYCLOPEDIA}/`);
+  await expect(encyclopediaTitle(page)).toBeVisible();
 });

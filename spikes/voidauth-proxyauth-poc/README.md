@@ -12,18 +12,19 @@ VoidAuth is AGPL-3.0. This spike runs its official image unmodified and contains
 browser ──https──▶ gateway (Caddy) ──▶ auth.home.test          VoidAuth
                         │
                         ├─ asks VoidAuth (forward_auth) ──▶ 200 + Remote-* headers, or a redirect
-                        ├──▶ notes.home.test               stand-in app
-                        └──▶ encyclopedia.home.test        the same stand-in app
+                        ├──▶ notes.home.test               stand-in for Notes
+                        └──▶ encyclopedia.home.test        apps/encyclopedia/web build, static
 ```
 
-- `compose.yaml`: the gateway, VoidAuth `1.16.0` pinned by digest, and the stand-in app twice. Only the gateway publishes a port.
+- `compose.yaml`: the gateway, VoidAuth `1.16.0` pinned by digest, and the stand-in for Notes. The gateway serves the Encyclopedia's build (`apps/encyclopedia/web/dist`) itself. Only the gateway publishes a port.
 - `gateway/gateway.caddyfile`: one site per hostname. Each app site asks VoidAuth before passing a request on, after deleting any `Remote-*` headers the browser sent.
-- `app` (`voidauth-proxyauth-poc-app`): a stand-in homelab app with no sign-in code. It reads the person from the gateway's headers (`person.ts`), serves an offline-capable page with a service worker, `/api/me`, and a `/sync` WebSocket.
+- `app` (`voidauth-proxyauth-poc-app`): a stand-in for Notes with no sign-in code. It reads the person from the gateway's headers (`person.ts`), serves an offline-capable page with a service worker, `/api/me`, and a `/sync` WebSocket.
 - `e2e` (`voidauth-proxyauth-poc-e2e`): Playwright in Chromium, through the gateway. Global setup starts the stack with empty data and sets it up as a homelab admin would: the first-run admin password, one group per app, one ProxyAuth domain per app, and an invite per person carrying their groups.
 
 ## Run it
 
 ```sh
+npx nx run encyclopedia-web:build            # the gateway serves its dist/
 cd spikes/voidauth-proxyauth-poc
 export STORAGE_KEY=$(openssl rand -hex 24)   # keep it: it encrypts VoidAuth's secrets
 docker compose up -d
@@ -36,7 +37,7 @@ Point `auth.home.test`, `notes.home.test` and `encyclopedia.home.test` at this m
 
 ```sh
 npx nx run-many -t typecheck test -p 'tag:scope:voidauth-proxyauth-poc'   # no Docker
-npx nx e2e voidauth-proxyauth-poc-e2e   # Docker; uses port 8453; about two minutes
+npx nx e2e voidauth-proxyauth-poc-e2e   # builds the Encyclopedia; Docker; uses port 8453; about two minutes
 ```
 
 Set `KEEP_STACK=1` to leave the stack running afterwards, and `PLAYWRIGHT_CHROMIUM_PATH` to use an installed Chromium.
