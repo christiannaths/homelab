@@ -24,6 +24,7 @@ Ideas that have been talked through but not committed to. Nothing here is planne
 | **Household papers** | Not a separate app: manuals, warranties, receipts and records kept in `notes` |  |
 | **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. Likely bundles Sonarr, Radarr and Jellyfin, with a small household request page built on top. |
 | **Passwords** | A shared household password vault that works with the Bitwarden apps on phones and browsers | Bundles Vaultwarden rather than building one. |
+| **Home page** | Where people land after signing in: the apps each person can use, plus a search across all of them | Built once and shared by every app. |
 
 Encyclopedia stays its own app rather than joining Library. That keeps its GPL licence out of Library, and its content (chosen by the admin and updated monthly) is different from what household members add themselves.
 
