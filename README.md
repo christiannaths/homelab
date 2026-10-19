@@ -11,18 +11,18 @@ Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app i
 
 ## App ideas
 
-Ideas that have been talked through but not committed to. Nothing here is planned or promised, and any of it may change or be dropped. The apps are meant for a household: one person plus the family or housemates they share things with.
+Ideas that have been talked through but not committed to. Nothing here is planned or promised, and any of it may change or be dropped. The apps are meant for a household: one person plus the family or housemates they share things with. Where an existing FOSS app is a natural fit and covers the main use cases, homelab bundles it behind the shared sign-in instead of building its own.
 
 | Idea | What it would be | Notes |
 | --- | --- | --- |
 | **Library** | The things a household saves from elsewhere and reads later: ebooks, and read-later web pages kept offline in full | Pocket is a loose reference for read-later. It would link to Encyclopedia, and a "send to Notes" action would clip a page into Notes. |
 | **Knowledge base** | Not a separate app: one workspace inside `notes` | Notes is what the household writes, and Library is what it keeps. |
 | **Household coordination** | Not a separate app: lists, chores and plans as pages and databases in `notes` | A shared calendar that syncs to phones is the one part Notes may not cover well. |
-| **Photos and videos** | The household's shared library of photos and home videos | Definitely wanted. |
+| **Photos and videos** | The household's shared library of photos and home videos | Definitely wanted. Immich is the candidate to bundle. |
 | **Cooking** | The principles of cooking and flavour rather than a pile of recipes: a few bases (such as the mother sauces) that branch into many dishes | Likely its own app, so it can show the branching map and scale ratios. A plain recipe app is not the goal: recipes would hang off the branches they come from. References: _Ratio_, _Salt Fat Acid Heat_, _The Flavor Bible_. |
 | **Offline maps** | Maps of the household's region that work with no network, with search and saved places | Built on OpenStreetMap data. Pairs naturally with Encyclopedia. |
 | **Household papers** | Not a separate app: manuals, warranties, receipts and records kept in `notes` |  |
-| **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. |
+| **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. Likely bundles Sonarr, Radarr and Jellyfin, with a small household request page built on top. |
 
 Encyclopedia stays its own app rather than joining Library. That keeps its GPL licence out of Library, and its content (chosen by the admin and updated monthly) is different from what household members add themselves.
 
