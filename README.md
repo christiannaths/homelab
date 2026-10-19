@@ -9,6 +9,17 @@ Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app i
 | [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace (starting fresh) |
 | [`encyclopedia`](apps/encyclopedia/README.md) | **Encyclopedia**: a read-only copy of Wikipedia, already populated, with saved lists that work offline (docs only) |
 
+## App ideas
+
+Ideas that have been talked through but not committed to. Nothing here is planned or promised, and any of it may change or be dropped. The apps are meant for a household: one person plus the family or housemates they share things with.
+
+| Idea | What it would be | Notes |
+| --- | --- | --- |
+| **Library** | The things a household saves from elsewhere and reads later: ebooks, and read-later web pages kept offline in full | Pocket is a loose reference for read-later. It would link to Encyclopedia, and a "send to Notes" action would clip a page into Notes. |
+| **Knowledge base** | Not a separate app: one workspace inside `notes` | Notes is what the household writes, and Library is what it keeps. |
+
+Encyclopedia stays its own app rather than joining Library. That keeps its GPL licence out of Library, and its content (chosen by the admin and updated monthly) is different from what household members add themselves.
+
 ## Spikes
 
 Throwaway proofs of concept that settled an app's decisions. They are kept frozen and still build, but repo-wide commands skip them ([ADR-PLAT-003](docs/adr/ADR-PLAT-003-proof-of-concept-code.md)).
