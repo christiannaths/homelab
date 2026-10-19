@@ -18,6 +18,8 @@ Ideas that have been talked through but not committed to. Nothing here is planne
 | **Library** | The things a household saves from elsewhere and reads later: ebooks, and read-later web pages kept offline in full | Pocket is a loose reference for read-later. It would link to Encyclopedia, and a "send to Notes" action would clip a page into Notes. |
 | **Knowledge base** | Not a separate app: one workspace inside `notes` | Notes is what the household writes, and Library is what it keeps. |
 | **Household coordination** | Not a separate app: lists, chores and plans as pages and databases in `notes` | A shared calendar that syncs to phones is the one part Notes may not cover well. |
+| **Photos and videos** | The household's shared library of photos and home videos | Definitely wanted. |
+| **Cooking** | The principles of cooking and flavour rather than a pile of recipes: a few bases (such as the mother sauces) that branch into many dishes | A plain recipe app is not the goal. Recipes would hang off the branches they come from. |
 
 Encyclopedia stays its own app rather than joining Library. That keeps its GPL licence out of Library, and its content (chosen by the admin and updated monthly) is different from what household members add themselves.
 
