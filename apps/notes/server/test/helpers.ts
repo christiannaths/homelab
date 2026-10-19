@@ -9,36 +9,44 @@ import {
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { startServer, type NotesServer } from "../src/server.ts";
-import {
-  CLIENT_ID,
-  CLIENT_SECRET,
-  StandInVoidAuth,
-  type Account,
-} from "./stand-in-voidauth.ts";
 
-export const DAY_MS = 24 * 3600 * 1000;
+/** Who the gateway says is signing in, as VoidAuth would tell it. */
+export interface Account {
+  username: string;
+  name?: string;
+  groups: string[];
+}
 
 export const OWNER: Account = {
-  sub: "sub-owner",
+  username: "alex",
   name: "Alex",
-  groups: ["auth_admins"],
+  groups: ["notes-admins"],
 };
-export const OTHER_ADMIN: Account = {
-  sub: "sub-admin-2",
-  name: "Robin",
-  groups: ["auth_admins"],
-};
-export const STRANGER: Account = {
-  sub: "sub-stranger",
+export const MEMBER: Account = {
+  username: "sam",
   name: "Sam",
-  groups: [],
+  groups: ["notes"],
 };
+/** A homelab admin, whom VoidAuth lets into every app whatever its groups. */
+export const HOMELAB_ADMIN: Account = {
+  username: "auth_admin",
+  groups: ["auth_admins"],
+};
+
+export const VOIDAUTH_URL = "https://auth.home.test";
+
+/** The headers the gateway adds after VoidAuth lets a request through. */
+export function gatewayHeaders(account: Account): Record<string, string> {
+  return {
+    "remote-user": account.username,
+    ...(account.name && { "remote-name": encodeURIComponent(account.name) }),
+    ...(account.groups.length && { "remote-groups": account.groups.join(",") }),
+  };
+}
 
 export interface TestServer extends NotesServer {
   url: string;
   dataDir: string;
-  /** Moves the server's clock forward. */
-  advance(ms: number): void;
 }
 
 async function freePort(): Promise<number> {
@@ -57,84 +65,36 @@ export function tempDataDir(): string {
 
 /** Starts a server on a free port; pass the same dataDir to simulate a restart. */
 export async function start(
-  voidauth: StandInVoidAuth,
   dataDir = tempDataDir(),
+  clientDir?: string,
 ): Promise<TestServer> {
-  let offset = 0;
   const port = await freePort();
-  const url = `http://localhost:${port}`;
   const server = await startServer({
     dataDir,
     port,
-    publicUrl: url,
-    oidc: {
-      issuer: voidauth.issuer,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-    },
-    now: () => Date.now() + offset,
+    voidauthUrl: VOIDAUTH_URL,
+    clientDir,
   });
-  return { ...server, url, dataDir, advance: (ms) => (offset += ms) };
+  return { ...server, url: `http://localhost:${port}`, dataDir };
 }
 
-export interface SignInResult {
-  status: number;
-  body: unknown;
-  /** The session cookie as a browser would send it, if one was set. */
-  cookie: string | undefined;
-  setCookie: string[];
-}
-
-/** Walks the sign-in redirects as a browser would, with `account` signing in on VoidAuth. */
-export async function signIn(
+/** A request as it arrives from the gateway, or straight from the network without `account`. */
+export function request(
   server: TestServer,
-  voidauth: StandInVoidAuth,
-  account: Account | undefined,
-) {
-  voidauth.account = account;
-  const started = await fetch(`${server.url}/api/sign-in`, {
+  route: string,
+  account?: Account,
+): Promise<Response> {
+  return fetch(`${server.url}${route}`, {
     redirect: "manual",
+    headers: account ? gatewayHeaders(account) : {},
   });
-  const pending = started.headers
-    .getSetCookie()
-    .map((c) => c.split(";")[0])
-    .join("; ");
-  const atVoidAuth = await fetch(started.headers.get("location")!, {
-    redirect: "manual",
-  });
-  return callback(server, atVoidAuth.headers.get("location")!, pending);
 }
 
-/** Calls Notes' sign-in callback with the given location and cookies. */
-export async function callback(
-  server: TestServer,
-  location: string,
-  cookie: string,
-): Promise<SignInResult> {
-  const response = await fetch(location, {
-    redirect: "manual",
-    headers: { cookie },
-  });
-  const setCookie = response.headers.getSetCookie();
-  const session = setCookie.find(
-    (c) => c.startsWith("notes_session=") && !c.startsWith("notes_session=;"),
-  );
-  return {
-    status: response.status,
-    body:
-      response.status === 302
-        ? response.headers.get("location")
-        : await response.json(),
-    cookie: session?.split(";")[0],
-    setCookie,
-  };
-}
-
-/** A WebSocket that sends the session cookie on the upgrade request, as a same-origin browser does. */
-function cookieWebSocket(cookie: string) {
+/** A WebSocket whose upgrade request carries the gateway's headers. */
+function gatewayWebSocket(account: Account) {
   return class extends WebSocket {
     constructor(url: string, protocols?: string | string[]) {
-      super(url, protocols, { headers: { cookie } });
+      super(url, protocols, { headers: gatewayHeaders(account) });
     }
   };
 }
@@ -151,12 +111,12 @@ export interface Device {
 }
 
 /** One device: one socket carrying many documents, as the PWA will. */
-export function device(server: TestServer, cookie: string): Device {
+export function device(server: TestServer, account: Account): Device {
   let resolveClosed: (code: number) => void;
   const closed = new Promise<number>((resolve) => (resolveClosed = resolve));
   const socket = new HocuspocusProviderWebsocket({
     url: server.url.replace("http", "ws") + "/sync",
-    WebSocketPolyfill: cookieWebSocket(cookie),
+    WebSocketPolyfill: gatewayWebSocket(account),
     // Tests check one connection attempt at a time.
     maxAttempts: 1,
     onClose: ({ event }) => resolveClosed(event.code),
@@ -174,8 +134,8 @@ export function device(server: TestServer, cookie: string): Device {
         websocketProvider: socket,
         name,
         document: doc,
-        // The session travels in the cookie; Hocuspocus still sends a token per document.
-        token: "cookie",
+        // The person travels in the gateway's headers; Hocuspocus still sends a token per document.
+        token: "gateway",
         onSynced: () => onSynced(),
         onAuthenticationFailed: ({ reason }) => onDenied(reason),
       });
@@ -204,11 +164,11 @@ export async function waitFor(
 /** Opens a raw WebSocket to /sync and reports how the upgrade went. */
 export function tryUpgrade(
   server: TestServer,
-  cookie?: string,
+  account?: Account,
 ): Promise<"open" | number> {
   return new Promise((resolve) => {
     const ws = new WebSocket(server.url.replace("http", "ws") + "/sync", {
-      headers: cookie ? { cookie } : {},
+      headers: account ? gatewayHeaders(account) : {},
     });
     ws.on("open", () => {
       ws.close();

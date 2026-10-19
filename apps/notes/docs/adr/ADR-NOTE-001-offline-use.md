@@ -38,7 +38,7 @@ Full offline support is a core requirement. Access follows Notion's model ([ADR-
 
 - Storage and memory on each device grow with what its person can open, which is at most the whole workspace. That is acceptable at the scale set by [ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md).
 - Permissions are enforced when changes sync, not when they are made ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
-- A device that never syncs again keeps what it has. A removed person's device learns of the removal only if the server still answers it: the session must keep reaching the server long enough to be told "no access". Signing out or revoking a session stops syncing and leaves the data ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
+- A device that never syncs again keeps what it has. A removed person's device learns of the removal only if the server still answers it: it must keep reaching the server long enough to be told "no access". Signing out or losing access to Notes stops syncing and leaves the data ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
 - The offered copy of a lost page is the whole page, not only the unsynced edits, because a Yjs update cannot be split back into the server's part and the device's.
 - A device keeps pages it created offline before the server has indexed them, so it reopens every document in its storage and lets the server's answer decide what is deleted.
 - How docs are held in memory and stored on the device can still change (see "Not decided yet" in the [index](README.md)). The rule that every device holds everything its person can open does not.

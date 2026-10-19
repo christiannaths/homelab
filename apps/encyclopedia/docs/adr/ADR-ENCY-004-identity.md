@@ -1,7 +1,7 @@
 # ADR-ENCY-004. How does the app know who is reading?
 
 - Status: Accepted
-- Date: 2026-10-18
+- Date: 2026-10-19
 - Depends on: [ADR-ENCY-001](ADR-ENCY-001-content-source.md), [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)
 - Dependency of: [ADR-ENCY-005](ADR-ENCY-005-offline-use.md)
 
@@ -11,10 +11,10 @@ Saved lists belong to a person, and only the homelab admin should change which W
 
 ## Decision
 
-- **People sign in with their homelab account** through VoidAuth, like every homelab app ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)). Encyclopedia has no sign-in of its own, and nobody reads without signing in.
-- **Who may use Encyclopedia is what the admin granted when inviting them.** Encyclopedia adds no access rules of its own.
+- **People sign in with their homelab account** at the homelab gateway, like every homelab app ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)). Encyclopedia has no sign-in of its own, and nobody reads without signing in.
+- **Who may use Encyclopedia is what the admin granted** through VoidAuth's `encyclopedia` and `encyclopedia-admins` groups. Encyclopedia adds no access rules of its own.
 - **Only the homelab admin changes the content settings** ([ADR-ENCY-001](ADR-ENCY-001-content-source.md)). Every other person who has access reads, searches and keeps saved lists.
-- **A person is identified by VoidAuth's `sub`,** never by email, and their saved lists are keyed by it.
+- **A person is identified by their VoidAuth username,** never by email, and their saved lists are keyed by it.
 - **A device stays signed in** across restarts and while offline, so saved articles open with no network.
 
 ## Evidence
@@ -26,3 +26,8 @@ Saved lists belong to a person, and only the homelab admin should change which W
 
 - Encyclopedia follows the platform's account and invite work. It has no people screens of its own.
 - Public reading without an account is ruled out. Offering it later would need a new decision.
+
+## Changelog
+
+- 2026-10-19: A person is identified by their VoidAuth username, read from the homelab gateway's headers, instead of VoidAuth's `sub`, and the admin grants Encyclopedia through VoidAuth groups. Every homelab app now sits behind one gateway that asks VoidAuth about each request ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)).
+- 2026-10-18: Accepted. People signed in with their homelab account through VoidAuth, identified by VoidAuth's `sub`.

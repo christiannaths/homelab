@@ -1,24 +1,37 @@
-# VoidAuth for Notes' end-to-end tests: the official image, unmodified, pinned by digest
-# (ADR-PLAT-004). It moves to apps/accounts/ with the containers work (issue #41).
+# The homelab around Notes for its end-to-end tests: the gateway (Caddy) and VoidAuth, the official
+# image unmodified and pinned by digest (ADR-PLAT-004). The Notes server runs in the test process
+# on the host, and the gateway reaches it there. Both move to apps/accounts/ with the containers
+# work (issue #41).
 name: ${COMPOSE_PROJECT_NAME:-notes-e2e}
 services:
+  gateway:
+    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
+    ports:
+      - "${GATEWAY_PORT:-8463}:443"
+    volumes:
+      - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ${DATA_DIR:?set DATA_DIR}/caddy:/data
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      NOTES_UPSTREAM: host.docker.internal:${NOTES_PORT:-4120}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on: [voidauth]
+
   voidauth:
     image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
-    ports:
-      - "${VOIDAUTH_PORT:-3330}:3000"
     volumes:
-      - ${VOIDAUTH_DATA:?set VOIDAUTH_DATA}/config:/app/config
-      - ${VOIDAUTH_DATA:?set VOIDAUTH_DATA}/db:/app/db
+      - ${DATA_DIR:?set DATA_DIR}/voidauth/config:/app/config
+      - ${DATA_DIR:?set DATA_DIR}/voidauth/db:/app/db
     environment:
-      APP_URL: ${APP_URL:-http://localhost:3330}
+      APP_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8463}
+      # The session cookie goes on the parent domain, so every app's hostname receives it.
+      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
       STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
       DB_ADAPTER: sqlite
-      DEFAULT_REDIRECT: ${DEFAULT_REDIRECT:-http://localhost:4120/}
+      DEFAULT_REDIRECT: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8463}/
       # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
       SIGNUP: "false"
       # The suite signs many people in from one address; VoidAuth limits per address.
       API_RATELIMIT: "1000"
-      OIDC_notes_CLIENT_DISPLAY_NAME: Notes
-      OIDC_notes_CLIENT_SECRET: ${NOTES_CLIENT_SECRET:?set NOTES_CLIENT_SECRET}
-      OIDC_notes_CLIENT_REDIRECT_URLS: ${NOTES_REDIRECT_URL:-http://localhost:4120/api/sign-in/callback}
-      OIDC_notes_CLIENT_SKIP_CONSENT: "true"

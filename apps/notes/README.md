@@ -4,7 +4,7 @@ A lean, self-hosted Notion-style workspace for homelabs. **Offline-first**: ever
 
 The `notes` app in the [homelab monorepo](../../README.md).
 
-> Status: **early.** The [server](server/README.md) signs people in through VoidAuth and syncs documents. There is no web client yet. The app is built against the decisions already settled:
+> Status: **early.** The [server](server/README.md) reads who is signed in from the homelab gateway and syncs documents. The [web client](web) signs in with the homelab account, opens offline, and has one page so far. The app is built against the decisions already settled:
 >
 > - [`docs/adr/`](docs/adr/README.md): the Notes ADRs, including what is deliberately _not_ decided yet, plus the [platform ADRs](../../docs/adr/README.md) for the whole repo
 > - [`docs/specs/`](docs/specs): the feature specs

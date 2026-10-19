@@ -11,18 +11,13 @@ function required(name: string): string {
   return value;
 }
 
-const port = Number(process.env.PORT ?? 3000);
 const server = await startServer({
   dataDir: path.resolve(
     process.env.DATA_DIR ?? path.join(import.meta.dirname, "../data"),
   ),
-  port,
-  publicUrl: process.env.PUBLIC_URL ?? `http://localhost:${port}`,
-  oidc: {
-    issuer: required("OIDC_ISSUER"),
-    clientId: process.env.OIDC_CLIENT_ID ?? "notes",
-    clientSecret: required("OIDC_CLIENT_SECRET"),
-  },
+  port: Number(process.env.PORT ?? 3000),
+  voidauthUrl: required("VOIDAUTH_URL"),
+  clientDir: path.join(import.meta.dirname, "../../web/dist"),
 });
 console.log(`Notes server listening on port ${server.port}`);
 

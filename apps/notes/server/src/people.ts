@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import type { GatewayIdentity } from "./gateway.ts";
 import { nullableText, text } from "./rows.ts";
 
 const ROLES = ["owner", "member", "guest"] as const;
@@ -8,20 +9,19 @@ const isRole = (value: string): value is Role =>
   ROLES.some((role) => role === value);
 
 export interface Person {
+  /** The VoidAuth username. */
   id: string;
   role: Role;
   name: string | null;
 }
 
-/** Who VoidAuth says signed in. */
-export interface Identity {
-  sub: string;
-  name: string | null;
-  /** In VoidAuth's `auth_admins` group (ADR-PLAT-004). */
-  isInstanceAdmin: boolean;
-}
+/**
+ * VoidAuth groups that make someone a Notes owner (ADR-NOTE-009): Notes' own admins, and the
+ * homelab's admins, whom VoidAuth lets into every app.
+ */
+const OWNER_GROUPS = ["notes-admins", "auth_admins"];
 
-/** The people Notes admits (ADR-NOTE-009). A VoidAuth account alone admits no one. */
+/** The people who have used Notes (ADR-NOTE-009). VoidAuth's groups decide who gets in. */
 export class People {
   readonly #db: DatabaseSync;
 
@@ -39,29 +39,21 @@ export class People {
     return { id: text(row, "id"), role, name: nullableText(row, "name") };
   }
 
-  /**
-   * Admits a signed-in identity, or returns undefined to refuse it. Someone already in is admitted,
-   * with their name kept in step with VoidAuth. While nobody is in, the first VoidAuth admin becomes
-   * the first owner.
-   */
-  admit(identity: Identity): Person | undefined {
-    const existing = this.get(identity.sub);
-    if (existing) {
-      this.#db
-        .prepare("UPDATE people SET name = ? WHERE id = ?")
-        .run(identity.name, identity.sub);
-      return { ...existing, name: identity.name };
-    }
-    if (!identity.isInstanceAdmin) return undefined;
-    // One statement, so two first sign-ins at once cannot both become the first owner.
-    const inserted = this.#db
+  /** The person the gateway let in, added on their first request and kept in step with VoidAuth. */
+  admit(identity: GatewayIdentity): Person {
+    const person: Person = {
+      id: identity.username,
+      role: identity.groups.some((group) => OWNER_GROUPS.includes(group))
+        ? "owner"
+        : "member",
+      name: identity.name,
+    };
+    this.#db
       .prepare(
-        `INSERT INTO people (id, role, name, created_at)
-         SELECT ?, 'owner', ?, ? WHERE NOT EXISTS (SELECT 1 FROM people)`,
+        `INSERT INTO people (id, role, name, created_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET role = excluded.role, name = excluded.name`,
       )
-      .run(identity.sub, identity.name, Date.now());
-    return inserted.changes === 1
-      ? { id: identity.sub, role: "owner", name: identity.name }
-      : undefined;
+      .run(person.id, person.role, person.name, Date.now());
+    return person;
   }
 }
