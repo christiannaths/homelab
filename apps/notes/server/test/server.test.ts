@@ -1,39 +1,34 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+import { afterEach, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 import {
-  callback,
-  DAY_MS,
   device,
-  OTHER_ADMIN,
+  HOMELAB_ADMIN,
+  MEMBER,
   OWNER,
-  signIn,
+  request,
   start,
-  STRANGER,
   tempDataDir,
   tryUpgrade,
+  VOIDAUTH_URL,
   waitFor,
   type Device,
   type TestServer,
 } from "./helpers.ts";
 import { integer, text } from "../src/rows.ts";
-import { StandInVoidAuth } from "./stand-in-voidauth.ts";
 
-const voidauth = new StandInVoidAuth();
 const servers: TestServer[] = [];
 const devices: Device[] = [];
 
-beforeAll(() => voidauth.start());
-afterAll(() => voidauth.stop());
 afterEach(async () => {
-  voidauth.tamper = undefined;
   for (const d of devices.splice(0)) d.destroy();
   for (const s of servers.splice(0)) await s.close();
 });
 
-async function server(dataDir?: string) {
-  const s = await start(voidauth, dataDir);
+async function server(dataDir?: string, clientDir?: string) {
+  const s = await start(dataDir, clientDir);
   servers.push(s);
   return s;
 }
@@ -43,190 +38,86 @@ function track(d: Device) {
   return d;
 }
 
-/** The VoidAuth end-session address in a sign-out response. */
-async function endSessionUrl(res: Response): Promise<URL> {
-  const body: unknown = await res.json();
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("endSessionUrl" in body) ||
-    typeof body.endSessionUrl !== "string"
-  )
-    throw new Error(`No endSessionUrl in ${JSON.stringify(body)}`);
-  return new URL(body.endSessionUrl);
-}
-
-/** A server whose owner has signed in once; returns that device's cookie. */
-async function withOwner() {
-  const s = await server();
-  const { cookie } = await signIn(s, voidauth, OWNER);
-  return { s, cookie: cookie! };
-}
-
-describe("signing in through VoidAuth", () => {
-  test("the first VoidAuth admin to sign in becomes the owner", async () => {
+describe("the person the gateway signed in", () => {
+  test("is a Notes owner with the notes-admins group", async () => {
     const s = await server();
-    const result = await signIn(s, voidauth, OWNER);
-    expect(result.status).toBe(302);
-    expect(result.body).toBe("/");
-    const session = await fetch(`${s.url}/api/session`, {
-      headers: { cookie: result.cookie! },
-    });
-    expect(await session.json()).toEqual({
-      person: { id: OWNER.sub, role: "owner", name: "Alex" },
-    });
-  });
-
-  test("someone who is not a VoidAuth admin cannot become the first owner, and is shown the no-access screen", async () => {
-    const s = await server();
-    const result = await signIn(s, voidauth, STRANGER);
-    expect(result.status).toBe(302);
-    expect(result.body).toBe("/no-access");
-    expect(result.cookie).toBeUndefined();
-  });
-
-  test("once there is an owner, a VoidAuth account admits nobody else, admin or not", async () => {
-    const { s } = await withOwner();
-    expect((await signIn(s, voidauth, OTHER_ADMIN)).body).toBe("/no-access");
-    expect((await signIn(s, voidauth, STRANGER)).body).toBe("/no-access");
-  });
-
-  test("the owner signs in again on another device, and the name follows VoidAuth", async () => {
-    const { s } = await withOwner();
-    const laptop = await signIn(s, voidauth, { ...OWNER, name: "Alex K" });
-    expect(laptop.status).toBe(302);
-    const session = await fetch(`${s.url}/api/session`, {
-      headers: { cookie: laptop.cookie! },
-    });
-    expect(await session.json()).toEqual({
-      person: { id: OWNER.sub, role: "owner", name: "Alex K" },
-    });
-  });
-
-  test("a callback that does not match the sign-in it started is refused", async () => {
-    const s = await server();
-    voidauth.account = OWNER;
-    const started = await fetch(`${s.url}/api/sign-in`, { redirect: "manual" });
-    const pending = started.headers
-      .getSetCookie()
-      .map((c) => c.split(";")[0])
-      .join("; ");
-    const location = new URL(
-      (
-        await fetch(started.headers.get("location")!, { redirect: "manual" })
-      ).headers.get("location")!,
-    );
-
-    const forgedState = new URL(location);
-    forgedState.searchParams.set("state", "forged");
-    expect((await callback(s, forgedState.href, pending)).status).toBe(400);
-    // Without the sign-in cookie, as when someone else's callback link is opened.
-    expect((await callback(s, location.href, "")).status).toBe(400);
-  });
-
-  test("an ID token for another sign-in is refused", async () => {
-    const s = await server();
-    voidauth.tamper = (claims) => ({ ...claims, nonce: "replayed" });
-    const result = await signIn(s, voidauth, OWNER);
-    expect(result.status).toBe(400);
-    expect(result.cookie).toBeUndefined();
-  });
-
-  test("VoidAuth refusing the sign-in is reported, and nobody is signed in", async () => {
-    const s = await server();
-    const result = await signIn(s, voidauth, undefined);
-    expect(result.status).toBe(400);
-    expect(result.cookie).toBeUndefined();
-  });
-});
-
-describe("device sessions", () => {
-  test("the session cookie lasts a year and cannot be read by scripts", async () => {
-    const s = await server();
-    const { setCookie } = await signIn(s, voidauth, OWNER);
-    const session = setCookie.find((c) => c.startsWith("notes_session="))!;
-    expect(session).toMatch(/Max-Age=31536000/);
-    expect(session).toMatch(/HttpOnly/);
-    expect(session).toMatch(/Secure/);
-    expect(session).toMatch(/SameSite=Lax/);
-  });
-
-  test("the session token is not stored as is", async () => {
-    const { s, cookie } = await withOwner();
-    const token = cookie.split("=")[1];
-    const hashes = s.db
-      .prepare("SELECT token_hash FROM sessions")
-      .all()
-      .map((row) => text(row, "token_hash"));
-    expect(hashes).toHaveLength(1);
-    expect(hashes[0]).not.toBe(token);
-  });
-
-  test("a device unused for 200 days still syncs, and using it extends the session a year again", async () => {
-    const { s, cookie } = await withOwner();
-    s.advance(200 * DAY_MS);
-    expect(await tryUpgrade(s, cookie)).toBe("open");
-    s.advance(300 * DAY_MS);
-    expect(await tryUpgrade(s, cookie)).toBe("open");
-  });
-
-  test("a device unused for over a year is signed out", async () => {
-    const { s, cookie } = await withOwner();
-    s.advance(366 * DAY_MS);
-    expect(await tryUpgrade(s, cookie)).toBe(401);
-    expect(
-      (await fetch(`${s.url}/api/session`, { headers: { cookie } })).status,
-    ).toBe(401);
-  });
-
-  test("the session check renews the cookie for another year", async () => {
-    const { s, cookie } = await withOwner();
-    const res = await fetch(`${s.url}/api/session`, { headers: { cookie } });
+    const res = await request(s, "/api/session", OWNER);
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toBe(
-      `${cookie}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=31536000`,
-    );
+    expect(await res.json()).toEqual({
+      person: { id: "alex", role: "owner", name: "Alex" },
+    });
   });
 
-  test("devices keep syncing while VoidAuth is down", async () => {
-    const { s, cookie } = await withOwner();
-    await voidauth.stop();
-    try {
-      const d = track(device(s, cookie));
-      await d.open("pages/plan").synced;
-      expect(
-        (await fetch(`${s.url}/api/session`, { headers: { cookie } })).status,
-      ).toBe(200);
-    } finally {
-      await voidauth.start();
-    }
+  test("is a member with only the notes group", async () => {
+    const s = await server();
+    expect(await (await request(s, "/api/session", MEMBER)).json()).toEqual({
+      person: { id: "sam", role: "member", name: "Sam" },
+    });
+  });
+
+  test("is an owner as a homelab admin, with no name when VoidAuth has none", async () => {
+    const s = await server();
+    expect(
+      await (await request(s, "/api/session", HOMELAB_ADMIN)).json(),
+    ).toEqual({ person: { id: "auth_admin", role: "owner", name: null } });
+  });
+
+  test("keeps their name and role in step with VoidAuth", async () => {
+    const s = await server();
+    await request(s, "/api/session", OWNER);
+    const renamed = { ...OWNER, name: "Zoë Ångström", groups: ["notes"] };
+    expect(await (await request(s, "/api/session", renamed)).json()).toEqual({
+      person: { id: "alex", role: "member", name: "Zoë Ångström" },
+    });
+    const row = s.db.prepare("SELECT role, name FROM people").get() ?? {};
+    expect([text(row, "role"), text(row, "name")]).toEqual([
+      "member",
+      "Zoë Ångström",
+    ]);
+  });
+
+  test("is nobody on a request that did not come through the gateway", async () => {
+    const s = await server();
+    const res = await request(s, "/api/session");
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "signed_out" });
+    expect(await tryUpgrade(s)).toBe(401);
   });
 });
 
-test("a sign-in while VoidAuth is unreachable is reported as unavailable", async () => {
-  const down = new StandInVoidAuth();
-  await down.start();
-  await down.stop();
-  const s = await start(down);
-  servers.push(s);
-  const res = await fetch(`${s.url}/api/sign-in`, { redirect: "manual" });
-  expect(res.status).toBe(502);
-  expect(await res.json()).toEqual({ error: "sign_in_unavailable" });
+describe("signing in and out", () => {
+  test("signing in returns to the app, since the gateway has already signed the browser in", async () => {
+    const s = await server();
+    const res = await request(s, "/api/sign-in", OWNER);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+  });
+
+  test("signing out goes to VoidAuth's sign-out page, which signs out every homelab app", async () => {
+    const s = await server();
+    const res = await request(s, "/api/sign-out", OWNER);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(`${VOIDAUTH_URL}/logout`);
+  });
 });
 
 describe("sync", () => {
-  test("no cookie, or a forged one, is refused before the upgrade", async () => {
-    const { s } = await withOwner();
+  test("an upgrade that did not come through the gateway is refused", async () => {
+    const s = await server();
     expect(await tryUpgrade(s)).toBe(401);
-    expect(await tryUpgrade(s, "notes_session=forged")).toBe(401);
+    expect(await tryUpgrade(s, OWNER)).toBe("open");
+  });
+
+  test("until the access rules exist, a member opens no documents", async () => {
+    const s = await server();
+    const page = track(device(s, MEMBER)).open("pages/plan");
+    expect(await page.denied).toBeTruthy();
   });
 
   test("two devices co-edit a page, and it survives a server restart", async () => {
-    let { s, cookie } = await withOwner();
-    const laptop = (await signIn(s, voidauth, OWNER)).cookie!;
-
-    const a = track(device(s, cookie)).open("pages/plan");
-    const b = track(device(s, laptop)).open("pages/plan");
+    let s = await server();
+    const a = track(device(s, OWNER)).open("pages/plan");
+    const b = track(device(s, OWNER)).open("pages/plan");
     await Promise.all([a.synced, b.synced]);
     a.doc.getText("body").insert(0, "hello from the phone");
     await waitFor(
@@ -238,22 +129,22 @@ describe("sync", () => {
     await servers.pop()!.close();
     s = await server(dataDir);
 
-    const c = track(device(s, laptop)).open("pages/plan");
+    const c = track(device(s, OWNER)).open("pages/plan");
     await c.synced;
     expect(c.doc.getText("body").toString()).toBe("hello from the phone");
   });
 
   test("one socket carries many documents", async () => {
-    const { s, cookie } = await withOwner();
-    const d = track(device(s, cookie));
+    const s = await server();
+    const d = track(device(s, OWNER));
     await Promise.all(
       Array.from({ length: 300 }, (_, i) => d.open(`pages/page-${i}`).synced),
     );
   });
 
-  test("edits made offline sync after reconnecting with the same session", async () => {
-    const { s, cookie } = await withOwner();
-    const first = track(device(s, cookie));
+  test("edits made offline sync after reconnecting", async () => {
+    const s = await server();
+    const first = track(device(s, OWNER));
     const before = first.open("pages/plan");
     await before.synced;
     const offlineState = Y.encodeStateAsUpdate(before.doc);
@@ -263,7 +154,7 @@ describe("sync", () => {
     Y.applyUpdate(local, offlineState);
     local.getText("body").insert(0, "written offline");
 
-    const after = track(device(s, cookie)).open("pages/plan");
+    const after = track(device(s, OWNER)).open("pages/plan");
     Y.applyUpdate(after.doc, Y.encodeStateAsUpdate(local));
     await after.synced;
     await waitFor(
@@ -274,89 +165,49 @@ describe("sync", () => {
   });
 });
 
-describe("signing out", () => {
-  test("closes that device's socket at once, but not the person's other devices", async () => {
-    const { s, cookie } = await withOwner();
-    const laptop = (await signIn(s, voidauth, OWNER)).cookie!;
-    const phone = track(device(s, cookie));
-    const other = track(device(s, laptop));
-    await phone.open("pages/plan").synced;
-    await other.open("pages/plan").synced;
-
-    const res = await fetch(`${s.url}/api/sign-out`, {
-      method: "POST",
-      headers: { cookie },
-    });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toMatch(
-      /^notes_session=; .*Max-Age=0/,
-    );
-    expect(await phone.closed).toBe(4401);
-    expect(await tryUpgrade(s, cookie)).toBe(401);
-    expect(await tryUpgrade(s, laptop)).toBe("open");
-  });
-
-  test("sends the browser on to VoidAuth to sign out of the homelab account, and back to Notes", async () => {
-    const { s, cookie } = await withOwner();
-    const res = await fetch(`${s.url}/api/sign-out`, {
-      method: "POST",
-      headers: { cookie },
-    });
-    const url = await endSessionUrl(res);
-    expect(url.origin + url.pathname).toBe(`${voidauth.issuer}/session/end`);
-    expect(Object.fromEntries(url.searchParams)).toEqual({
-      client_id: "notes",
-      post_logout_redirect_uri: `${s.url}/`,
-    });
-  });
-
-  test("without a Notes session, as for someone Notes turned away, still leads to VoidAuth", async () => {
-    const s = await server();
-    const res = await fetch(`${s.url}/api/sign-out`, { method: "POST" });
-    expect(res.status).toBe(200);
-    expect((await endSessionUrl(res)).pathname).toBe("/oidc/session/end");
-  });
-
-  test("with VoidAuth unreachable, still ends the device's session and says the rest is unavailable", async () => {
-    const down = new StandInVoidAuth();
-    await down.start();
-    const before = await start(down);
-    const { cookie } = await signIn(before, down, OWNER);
-    await before.close();
-    await down.stop();
-    // A restart, so the server has not looked VoidAuth up since it went down.
-    const s = await start(down, before.dataDir);
-    servers.push(s);
-    const res = await fetch(`${s.url}/api/sign-out`, {
-      method: "POST",
-      headers: { cookie: cookie! },
-    });
-    expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: "sign_out_unavailable" });
-    expect(
-      (await fetch(`${s.url}/api/session`, { headers: { cookie: cookie! } }))
-        .status,
-    ).toBe(401);
-  });
-});
-
 describe("storage", () => {
-  test("health answers, and the schema is created once and reopened", async () => {
-    const { s } = await withOwner();
-    expect(await (await fetch(`${s.url}/api/health`)).json()).toEqual({
+  test("health answers, and people are kept across a restart", async () => {
+    const s = await server();
+    expect(await (await request(s, "/api/health")).json()).toEqual({
       ok: true,
     });
+    await request(s, "/api/session", OWNER);
     const versionRow = s.db.prepare("PRAGMA user_version").get() ?? {};
-    expect(integer(versionRow, "user_version")).toBe(1);
+    expect(integer(versionRow, "user_version")).toBe(2);
 
     const { dataDir } = s;
     await servers.pop()!.close();
     const again = await server(dataDir);
-    // The owner is still there after a restart, so nobody else can take over.
-    expect((await signIn(again, voidauth, OTHER_ADMIN)).body).toBe(
-      "/no-access",
-    );
-    expect((await signIn(again, voidauth, OWNER)).status).toBe(302);
+    const ids = again.db
+      .prepare("SELECT id FROM people")
+      .all()
+      .map((row) => text(row, "id"));
+    expect(ids).toEqual(["alex"]);
+  });
+
+  test("an instance from before the gateway loses its sessions and the people keyed by sub", async () => {
+    const dataDir = tempDataDir();
+    const old = new DatabaseSync(path.join(dataDir, "notes.sqlite"));
+    old.exec(`
+      CREATE TABLE documents (name TEXT PRIMARY KEY, state BLOB NOT NULL, updated_at INTEGER NOT NULL);
+      CREATE TABLE people (id TEXT PRIMARY KEY, role TEXT NOT NULL, name TEXT, created_at INTEGER NOT NULL);
+      CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, person_id TEXT NOT NULL, created_at INTEGER NOT NULL,
+        renewed_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+      INSERT INTO documents VALUES ('pages/plan', x'00', 1);
+      INSERT INTO people VALUES ('0b8c-sub', 'owner', 'Alex', 1);
+      INSERT INTO sessions VALUES ('hash', '0b8c-sub', 1, 1, 2);
+      PRAGMA user_version = 1;
+    `);
+    old.close();
+
+    const s = await server(dataDir);
+    const tables = s.db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .all()
+      .map((row) => text(row, "name"));
+    expect(tables).not.toContain("sessions");
+    expect(s.db.prepare("SELECT id FROM people").all()).toEqual([]);
+    expect(s.db.prepare("SELECT name FROM documents").all()).toHaveLength(1);
   });
 });
 
@@ -371,22 +222,21 @@ describe("the web client", () => {
   }
 
   test("is served, with the app shell for client-side routes but not for the API or sync", async () => {
-    const s = await start(voidauth, undefined, builtClient());
-    servers.push(s);
-    const shell = await fetch(`${s.url}/`);
+    const s = await server(undefined, builtClient());
+    const shell = await request(s, "/", OWNER);
     expect(shell.headers.get("content-type")).toMatch(/text\/html/);
     expect(await shell.text()).toBe("<title>Notes</title>");
-    expect(await (await fetch(`${s.url}/assets/app.js`)).text()).toBe(
+    expect(await (await request(s, "/assets/app.js")).text()).toBe(
       "console.log(1)",
     );
-    expect(await (await fetch(`${s.url}/no-access`)).text()).toBe(
+    expect(await (await request(s, "/pages/plan")).text()).toBe(
       "<title>Notes</title>",
     );
 
-    const unknownApi = await fetch(`${s.url}/api/nothing-here`);
+    const unknownApi = await request(s, "/api/nothing-here");
     expect(unknownApi.status).toBe(404);
     expect(await unknownApi.json()).toEqual({ error: "not_found" });
-    expect((await fetch(`${s.url}/sync`)).status).toBe(401);
-    expect((await fetch(`${s.url}/sync/more`)).status).toBe(404);
+    expect((await request(s, "/sync")).status).toBe(401);
+    expect((await request(s, "/sync/more")).status).toBe(404);
   });
 });

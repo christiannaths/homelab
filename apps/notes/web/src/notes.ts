@@ -3,7 +3,7 @@
 import {
   checkSession,
   SIGN_IN_PATH,
-  signOutOfNotes,
+  SIGN_OUT_PATH,
   type Person,
 } from "./api.ts";
 import {
@@ -17,11 +17,8 @@ export type View =
   /** Checking the session, or on the way to a sign-in page. Nothing shows. */
   | { screen: "starting" }
   | { screen: "needs-connection" }
-  | { screen: "no-access" }
   | { screen: "signed-out-here" }
   | { screen: "home"; person: Person; online: boolean };
-
-export const NO_ACCESS_PATH = "/no-access";
 
 export class Notes {
   #view: View = { screen: "starting" };
@@ -45,12 +42,10 @@ export class Notes {
   async start(): Promise<void> {
     window.addEventListener("online", () => void this.#reconnected());
     window.addEventListener("offline", () => this.#wentOffline());
-    // The server sends people here when it refuses them. Starting a sign-in from here would only
-    // bring them back, so this screen waits for them to choose another account.
-    if (location.pathname === NO_ACCESS_PATH) {
-      this.#show({ screen: "no-access" });
-      return;
-    }
+    // A sign-out made in another app or tab reaches this one when it is next looked at.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void this.#reconnected();
+    });
     if (signOutWaiting()) {
       await this.#finishSignOut();
       return;
@@ -70,13 +65,15 @@ export class Notes {
   }
 
   async #finishSignOut(): Promise<void> {
-    const endSessionUrl = await signOutOfNotes();
-    if (!endSessionUrl) {
+    const result = await checkSession();
+    if (result.status === "unreachable") {
       this.#show({ screen: "signed-out-here" });
       return;
     }
     setSignOutWaiting(false);
-    location.assign(endSessionUrl);
+    // Already signed out elsewhere: going to VoidAuth's sign-out page would only ask to sign in.
+    if (result.status === "signed-out") await this.#goToSignIn();
+    else location.assign(SIGN_OUT_PATH);
   }
 
   async #checkSession(): Promise<void> {

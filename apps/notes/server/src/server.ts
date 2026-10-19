@@ -3,35 +3,27 @@ import { Hocuspocus } from "@hocuspocus/server";
 import { serve, upgradeWebSocket } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono, type Context } from "hono";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import type { WSContext } from "hono/ws";
 import { WebSocket, WebSocketServer } from "ws";
 import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
-import { OidcClient, SignInError, type PendingSignIn } from "./oidc.ts";
+import { identityFrom } from "./gateway.ts";
 import { People, type Person } from "./people.ts";
-import { SESSION_COOKIE, Sessions, type Session } from "./sessions.ts";
 
 export interface ServerOptions {
   /** Holds the instance's one SQLite file (ADR-NOTE-004, ADR-NOTE-005). */
   dataDir: string;
   /** 0 picks a free port. */
   port: number;
-  /** The address devices use, behind the HTTPS reverse proxy (ADR-NOTE-003). */
-  publicUrl: string;
+  /** VoidAuth's address, whose `/logout` page signs the homelab account out (ADR-PLAT-004). */
+  voidauthUrl: string;
   /** The web client's build (apps/notes/web/dist). Without it, only the API is served. */
   clientDir?: string;
-  /** Notes' client registration with VoidAuth (ADR-PLAT-004). */
-  oidc: { issuer: string; clientId: string; clientSecret: string };
-  /** For tests that move time forward. */
-  now?: () => number;
 }
 
-/** Who is on the other end of a sync socket. Checked once, when the socket opens. */
+/** Who is on the other end of a sync socket. Read once, when the socket opens. */
 interface SyncContext {
   person: Person;
-  session: Session;
 }
 
 /** What the /sync middleware hands to the WebSocket upgrade. */
@@ -39,38 +31,16 @@ interface SyncEnv {
   Variables: { sync: SyncContext };
 }
 
-const PENDING_SIGN_IN_COOKIE = "notes_sign_in";
-export const CALLBACK_PATH = "/api/sign-in/callback";
-/** The client's screen for someone VoidAuth signed in but Notes does not admit. */
-export const NO_ACCESS_PATH = "/no-access";
-/** Where VoidAuth returns the browser after a sign-out: Notes, which then goes to sign-in. */
-export const POST_SIGN_OUT_PATH = "/";
-
 export async function startServer({
   dataDir,
   port,
-  publicUrl,
+  voidauthUrl,
   clientDir,
-  oidc: oidcOptions,
-  now,
 }: ServerOptions) {
   const db = openDatabase(dataDir);
   const documents = new DocumentStore(db);
   const people = new People(db);
-  const sessions = new Sessions(db, now);
-  const oidc = new OidcClient({
-    ...oidcOptions,
-    redirectUri: new URL(CALLBACK_PATH, publicUrl).href,
-    postLogoutRedirectUri: new URL(POST_SIGN_OUT_PATH, publicUrl).href,
-  });
-
-  // Open sync sockets by session token, so ending a session closes them at once (ADR-NOTE-014).
-  const socketsBySession = new Map<string, Set<WSContext>>();
-  const endSession = (token: string) => {
-    sessions.revoke(token);
-    for (const ws of socketsBySession.get(token) ?? [])
-      ws.close(4401, "Session ended");
-  };
+  const signOutUrl = new URL("/logout", voidauthUrl).href;
 
   const hocuspocus = new Hocuspocus<SyncContext>({
     debounce: 1000,
@@ -80,8 +50,8 @@ export async function startServer({
     maxUnauthenticatedQueueMessages: 100_000,
     maxUnauthenticatedQueueSize: 256 * 1024 * 1024,
 
-    // Runs for every document a socket opens; the session was checked when the socket opened.
-    // Until the access rules are built (ADR-NOTE-011), only workspace owners open documents.
+    // Runs for every document a socket opens; the person was read when the socket opened.
+    // Until the access rules are built (ADR-NOTE-011), only owners open documents.
     async onAuthenticate({ context }) {
       if (people.get(context.person.id)?.role !== "owner")
         throw new Error("No access");
@@ -98,96 +68,45 @@ export async function startServer({
     },
   });
 
-  const signedIn = (cookie: string | undefined) => {
-    const session = sessions.use(cookie);
-    const person = session && people.get(session.personId);
-    return session && person ? { session, person } : undefined;
+  const signedIn = (c: Context): Person | undefined => {
+    const identity = identityFrom(c.req.raw.headers);
+    return identity && people.admit(identity);
   };
 
   const app = new Hono<SyncEnv>();
 
   app.get("/api/health", (c) => c.json({ ok: true }));
 
-  app.get("/api/sign-in", async (c) => {
-    const started = await oidc.start().catch(() => undefined);
-    if (!started) return c.json({ error: "sign_in_unavailable" }, 502);
-    const { url, pending } = started;
-    setCookie(c, PENDING_SIGN_IN_COOKIE, JSON.stringify(pending), {
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-      path: "/api/sign-in",
-      maxAge: 600,
-    });
-    return c.redirect(url, 302);
-  });
+  // A page load the service worker leaves to the network, so a signed-out browser meets the
+  // gateway, which sends it to VoidAuth's sign-in page and back here. By then it is signed in.
+  app.get("/api/sign-in", (c) => c.redirect("/", 302));
 
-  app.get(CALLBACK_PATH, async (c) => {
-    const saved = getCookie(c, PENDING_SIGN_IN_COOKIE);
-    deleteCookie(c, PENDING_SIGN_IN_COOKIE, {
-      path: "/api/sign-in",
-      secure: true,
-    });
-    if (!saved) return c.json({ error: "no_sign_in_in_progress" }, 400);
-    let identity;
-    try {
-      identity = await oidc.finish(
-        new URL(c.req.url),
-        parsePendingSignIn(saved),
-      );
-    } catch (error) {
-      if (error instanceof SignInError || error instanceof SyntaxError) {
-        return c.json({ error: "sign_in_failed" }, 400);
-      }
-      return c.json({ error: "sign_in_unavailable" }, 502);
-    }
-    const person = people.admit(identity);
-    // The client's no-access screen never starts a sign-in itself, so this cannot loop.
-    if (!person) return c.redirect(NO_ACCESS_PATH, 302);
-    c.header("set-cookie", sessions.cookie(sessions.issue(person.id)), {
-      append: true,
-    });
-    return c.redirect("/", 302);
-  });
-
-  // The PWA calls this whenever it is online: it renews the cookie, which the sync upgrade cannot.
+  // The PWA calls this whenever it starts online or reconnects. A signed-out browser never gets
+  // here: the gateway answers with a redirect to VoidAuth instead.
   app.get("/api/session", (c) => {
-    const current = signedIn(getCookie(c, SESSION_COOKIE));
-    if (!current) return c.json({ error: "signed_out" }, 401);
-    c.header("set-cookie", sessions.cookie(current.session.token));
-    return c.json({ person: current.person });
+    const person = signedIn(c);
+    if (!person) return c.json({ error: "signed_out" }, 401);
+    return c.json({ person });
   });
 
-  // The browser goes on to VoidAuth, so signing out of Notes signs out the homelab account too.
-  // Someone Notes turned away has no Notes session, and comes here to switch accounts.
-  app.post("/api/sign-out", async (c) => {
-    const token = getCookie(c, SESSION_COOKIE);
-    if (token) endSession(token);
-    c.header("set-cookie", sessions.cookie(""));
-    const endSessionUrl = await oidc.endSessionUrl().catch(() => undefined);
-    if (!endSessionUrl) return c.json({ error: "sign_out_unavailable" }, 502);
-    return c.json({ endSessionUrl });
-  });
+  // Signing out of Notes is signing out of the homelab account, which signs out every app.
+  app.get("/api/sign-out", (c) => c.redirect(signOutUrl, 302));
 
   app.get(
     "/sync",
-    // Refuse the upgrade without a valid session, before any WebSocket exists.
+    // Refuse an upgrade that did not come through the gateway, before any WebSocket exists.
     async (c, next) => {
-      const current = signedIn(getCookie(c, SESSION_COOKIE));
-      if (!current) return c.text("Unauthorized", 401);
-      c.set("sync", current);
+      const person = signedIn(c);
+      if (!person) return c.text("Unauthorized", 401);
+      c.set("sync", { person });
       return next();
     },
     upgradeWebSocket((c: Context<SyncEnv>) => {
       const context = c.get("sync");
-      const token = context.session.token;
       let connection:
         ReturnType<typeof hocuspocus.handleConnection> | undefined;
       return {
         onOpen(_event, ws) {
-          const sockets = socketsBySession.get(token) ?? new Set();
-          sockets.add(ws);
-          socketsBySession.set(token, sockets);
           // The socket is created by this module's WebSocketServer, so it is a ws WebSocket.
           if (!(ws.raw instanceof WebSocket))
             throw new Error("Sync socket is not a ws WebSocket");
@@ -198,10 +117,7 @@ export async function startServer({
           if (event.data instanceof ArrayBuffer)
             connection?.handleMessage(new Uint8Array(event.data));
         },
-        onClose(event, ws) {
-          const sockets = socketsBySession.get(token);
-          sockets?.delete(ws);
-          if (sockets?.size === 0) socketsBySession.delete(token);
+        onClose(event) {
           connection?.handleClose(event);
         },
       };
@@ -249,23 +165,6 @@ export async function startServer({
       db.close();
     },
   };
-}
-
-/** The pending sign-in cookie, which a browser could have altered. Bad JSON throws a SyntaxError. */
-function parsePendingSignIn(saved: string): PendingSignIn {
-  const value: unknown = JSON.parse(saved);
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("state" in value) ||
-    !("nonce" in value) ||
-    !("verifier" in value) ||
-    typeof value.state !== "string" ||
-    typeof value.nonce !== "string" ||
-    typeof value.verifier !== "string"
-  )
-    throw new SignInError("Malformed pending sign-in cookie");
-  return { state: value.state, nonce: value.nonce, verifier: value.verifier };
 }
 
 export type NotesServer = Awaited<ReturnType<typeof startServer>>;

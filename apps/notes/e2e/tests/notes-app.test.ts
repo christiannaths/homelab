@@ -1,37 +1,64 @@
-// The Notes app in a real Chromium, against the real VoidAuth image: signing in with the homelab
-// account, signing out, and starting offline (issue #47).
+// The Notes app in a real Chromium, behind the homelab gateway and the real VoidAuth image:
+// signing in with the homelab account, signing out of every app at once, and starting offline
+// (issue #47, ADR-PLAT-004).
 import type { NotesServer } from "@homelab/notes-server";
-import type { Browser } from "playwright";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Browser as VoidAuthClient } from "./browser.ts";
+import type { Browser, Page } from "playwright";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
+  ADA,
+  AUTH_URL,
+  BOB,
   confirmSignOut,
+  DANA,
+  EVE,
   launchChromium,
   newDevice,
+  NOTES_URL,
   onVoidAuthSignIn,
   signIn,
   startNotes,
   typePassword,
+  VOIDAUTH_SESSION_COOKIE,
   waitUntilOfflineReady,
-} from "./chromium.ts";
-import {
-  ADMIN_NAME,
-  ADMIN_PASSWORD,
-  ADMIN_USERNAME,
-  NOTES_URL,
-} from "./voidauth.ts";
+} from "./stack.ts";
 
 let notes: NotesServer;
 let browser: Browser;
 
 beforeAll(async () => {
   notes = await startNotes();
-  browser = await launchChromium();
+  browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
   await notes?.close();
 });
+
+/** What Notes' API says about the signed-in person, asked from a Notes page. */
+function sessionFrom(page: Page, headers: Record<string, string> = {}) {
+  return page.evaluate(async (sent) => {
+    const response = await fetch("/api/session", { headers: sent });
+    return {
+      status: response.status,
+      body: (await response.json()) as unknown,
+    };
+  }, headers);
+}
+
+/** Whether a sync socket opens from a Notes page. */
+function syncOpens(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const socket = new WebSocket(`wss://${location.host}/sync`);
+        socket.addEventListener("open", () => {
+          socket.close();
+          resolve(true);
+        });
+        socket.addEventListener("error", () => resolve(false));
+      }),
+  );
+}
 
 describe("signing in with the homelab account", () => {
   it("goes straight to the homelab sign-in page when signed out", async () => {
@@ -40,30 +67,78 @@ describe("signing in with the homelab account", () => {
     await onVoidAuthSignIn(page);
   });
 
-  it("lands the first homelab admin on the protected page, and opens again without a password", async () => {
+  it("lands an owner on the protected page, and opens again without a password", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await signIn(page, ADA);
     expect(new URL(page.url()).origin).toBe(NOTES_URL);
-    await page.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
+    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+    expect(await sessionFrom(page)).toMatchObject({
+      status: 200,
+      body: { person: { id: "ada", role: "owner" } },
+    });
 
     await page.goto(NOTES_URL);
-    await page.getByText("Signed in as").waitFor();
+    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
   });
 
-  it("signs in to Notes with no password while signed in to the homelab", async () => {
+  it("lets in a member, as the notes group says", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
-    // Notes has no session on this device now, but the homelab account is still signed in.
-    await page.context().clearCookies({ name: "notes_session" });
+    await signIn(page, DANA);
+    await page.getByText(`Signed in as ${DANA.name}`).waitFor();
+    expect(await sessionFrom(page)).toMatchObject({
+      body: { person: { id: "dana", role: "member" } },
+    });
+  });
+
+  it("opens with no password after signing in on the homelab's own page", async () => {
+    const page = await newDevice(browser);
+    await page.goto(`${AUTH_URL}/`);
+    await onVoidAuthSignIn(page);
+    await typePassword(page, ADA);
+    await page.waitForURL(`${AUTH_URL}/`);
+
     await page.goto(NOTES_URL);
-    await page.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
+    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+  });
+
+  it("turns away someone the homelab admin didn't give Notes, before Notes sees them", async () => {
+    const page = await newDevice(browser);
+    await page.goto(NOTES_URL);
+    await onVoidAuthSignIn(page);
+    await typePassword(page, BOB);
+    await page.waitForURL(
+      (url) => url.origin === AUTH_URL && url.pathname === "/forbidden",
+    );
+  });
+
+  it("can't claim someone else's name or groups by sending the gateway's headers", async () => {
+    const page = await newDevice(browser);
+    await signIn(page, EVE);
+    expect(
+      await sessionFrom(page, {
+        "Remote-User": "ada",
+        "Remote-Name": "Ada Lovelace",
+        "Remote-Groups": "notes-admins",
+      }),
+    ).toEqual({
+      status: 200,
+      body: { person: { id: "eve", role: "member", name: null } },
+    });
+  });
+
+  it("syncs through the gateway only while signed in", async () => {
+    const page = await newDevice(browser);
+    await signIn(page, ADA);
+    expect(await syncOpens(page)).toBe(true);
+    await page.context().clearCookies({ name: VOIDAUTH_SESSION_COOKIE });
+    expect(await syncOpens(page)).toBe(false);
   });
 });
 
 describe("signing out", () => {
   it("signs out of the homelab account, so opening Notes again asks for the password", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await signIn(page, ADA);
     await page.getByRole("button", { name: "Sign out" }).click();
     await confirmSignOut(page);
     await onVoidAuthSignIn(page);
@@ -75,27 +150,46 @@ describe("signing out", () => {
   it("leaves the person's other browsers signed in", async () => {
     const page = await newDevice(browser);
     const other = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
-    await signIn(other, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await signIn(page, ADA);
+    await signIn(other, ADA);
     await page.getByRole("button", { name: "Sign out" }).click();
     await confirmSignOut(page);
     await onVoidAuthSignIn(page);
 
     await other.reload();
-    await other.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
+    await other.getByText(`Signed in as ${ADA.name}`).waitFor();
+  });
+
+  it("signing out on the homelab's own page signs out Notes, open tabs included", async () => {
+    const page = await newDevice(browser);
+    await signIn(page, ADA);
+    const homelab = await page.context().newPage();
+    await homelab.goto(`${AUTH_URL}/logout`);
+    await confirmSignOut(homelab);
+    await onVoidAuthSignIn(homelab);
+
+    // Coming back to the open Notes tab.
+    await page.evaluate(() =>
+      document.dispatchEvent(new Event("visibilitychange")),
+    );
+    await onVoidAuthSignIn(page);
+
+    const reopened = await page.context().newPage();
+    await reopened.goto(NOTES_URL);
+    await onVoidAuthSignIn(reopened);
   });
 });
 
 describe("offline", () => {
   it("installs as an app, with a manifest and icons", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
-    const href = await page
-      .locator('link[rel="manifest"]')
-      .getAttribute("href");
-    const manifest: unknown = await (
-      await fetch(new URL(href ?? "", NOTES_URL))
-    ).json();
+    await signIn(page, ADA);
+    const manifest = await page.evaluate(async () => {
+      const href = document
+        .querySelector('link[rel="manifest"]')
+        ?.getAttribute("href");
+      return (await (await fetch(href ?? "")).json()) as unknown;
+    });
     expect(manifest).toMatchObject({
       name: "Notes",
       display: "standalone",
@@ -110,24 +204,27 @@ describe("offline", () => {
 
   it("opens signed in with no network, says it is offline, and clears that on reconnecting", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await signIn(page, ADA);
     await waitUntilOfflineReady(page);
 
     await page.context().setOffline(true);
     await page.reload();
-    await page.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
+    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
     await page.getByText("Offline", { exact: true }).waitFor();
 
     await page.context().setOffline(false);
     await page
       .getByText("Offline", { exact: true })
       .waitFor({ state: "detached" });
-    await page.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
+    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
   });
 
-  it("says signing in needs a connection on a device that has never signed in", async () => {
+  it("says signing in needs a connection when opened signed out with no network", async () => {
     const page = await newDevice(browser);
-    await page.goto(NOTES_URL);
+    await signIn(page, ADA);
+    await waitUntilOfflineReady(page);
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await confirmSignOut(page);
     await onVoidAuthSignIn(page);
 
     await page.context().setOffline(true);
@@ -135,26 +232,24 @@ describe("offline", () => {
     await page.getByText("Signing in needs a connection").waitFor();
   });
 
-  it("sends a device whose session ended while it was offline to sign-in once it reconnects", async () => {
+  it("sends a device signed out while it was offline to sign-in once it reconnects", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await signIn(page, ADA);
     await waitUntilOfflineReady(page);
     await page.context().setOffline(true);
     await page.reload();
     await page.getByText("Offline", { exact: true }).waitFor();
 
-    // The session ends on the server meanwhile, as when the device is signed out from elsewhere.
-    const session = (await page.context().cookies(NOTES_URL)).find(
-      (cookie) => cookie.name === "notes_session",
-    );
-    await fetch(`${NOTES_URL}/api/sign-out`, {
-      method: "POST",
-      headers: { cookie: `notes_session=${session?.value}` },
-    });
+    // The homelab session ends meanwhile, as when the browser is signed out from elsewhere.
+    await page.context().clearCookies({ name: VOIDAUTH_SESSION_COOKIE });
 
     const signingIn = page.waitForRequest(`${NOTES_URL}/api/sign-in`);
     await page.context().setOffline(false);
     await signingIn;
+    await onVoidAuthSignIn(page);
+    expect(
+      await page.evaluate(() => localStorage.getItem("notes.person")),
+    ).toBe(null);
   });
 });
 
@@ -164,7 +259,7 @@ describe("signing out offline", () => {
 
   it("signs out on the device at once, and finishes on the next online start", async () => {
     const page = await newDevice(browser);
-    await signIn(page, ADMIN_USERNAME, ADMIN_PASSWORD);
+    await signIn(page, ADA);
     await waitUntilOfflineReady(page);
     await page.context().setOffline(true);
     await page.reload();
@@ -177,64 +272,11 @@ describe("signing out offline", () => {
     expect(await page.getByText("Signed in as").count()).toBe(0);
 
     await page.context().setOffline(false);
-    const sessionChecks: string[] = [];
-    page.on("request", (request) => {
-      if (request.url() === `${NOTES_URL}/api/session`)
-        sessionChecks.push(request.url());
-    });
     await page.reload();
-    await page.waitForURL((url) => url.pathname.startsWith("/logout"));
-    // The sign-out ran first: Notes never asked who was signed in.
-    expect(sessionChecks).toEqual([]);
     await confirmSignOut(page);
     await onVoidAuthSignIn(page);
 
     await page.goto(NOTES_URL);
     await onVoidAuthSignIn(page);
-  });
-});
-
-describe("someone the homelab hasn't given Notes", () => {
-  /** A homelab account made from an admin's invite link, which Notes does not admit. */
-  async function invitedAccount() {
-    const admin = new VoidAuthClient();
-    await admin.signInToVoidAuth(ADMIN_USERNAME, ADMIN_PASSWORD);
-    const username = `guest_${process.pid}_${Date.now()}`;
-    const account = { username, password: `amber-${username}-lighthouse-93` };
-    const response = await new VoidAuthClient().acceptInvite(
-      await admin.createInvite(),
-      account,
-    );
-    expect(response.ok).toBe(true);
-    return account;
-  }
-
-  it("sees the no-access screen, which stays on reload, and can use a different account", async () => {
-    const { username, password } = await invitedAccount();
-    const page = await newDevice(browser);
-    await page.goto(NOTES_URL);
-    await onVoidAuthSignIn(page);
-    await typePassword(page, username, password);
-    await page
-      .getByText("You don't have access to Notes. Ask your homelab admin.")
-      .waitFor();
-
-    const signInsStarted: string[] = [];
-    page.on("request", (request) => {
-      if (request.url().startsWith(`${NOTES_URL}/api/sign-in`))
-        signInsStarted.push(request.url());
-    });
-    await page.reload();
-    await page
-      .getByRole("button", { name: "Use a different account" })
-      .waitFor();
-    expect(new URL(page.url()).pathname).toBe("/no-access");
-    expect(signInsStarted).toEqual([]);
-
-    await page.getByRole("button", { name: "Use a different account" }).click();
-    await confirmSignOut(page);
-    await onVoidAuthSignIn(page);
-    await typePassword(page, ADMIN_USERNAME, ADMIN_PASSWORD);
-    await page.getByText(`Signed in as ${ADMIN_NAME}`).waitFor();
   });
 });

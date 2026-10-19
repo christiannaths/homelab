@@ -22,37 +22,30 @@ export function parsePerson(value: unknown): Person | undefined {
   };
 }
 
-/** Asks who is signed in on this device, which also renews the device session. */
+/**
+ * Asks who is signed in on this device. A signed-out browser gets the gateway's redirect to
+ * VoidAuth instead of an answer (ADR-NOTE-014); it is not followed, since only a page load can
+ * sign in.
+ */
 export async function checkSession(): Promise<SessionCheck> {
   let response: Response;
   try {
-    response = await fetch("/api/session", { cache: "no-store" });
+    response = await fetch("/api/session", {
+      cache: "no-store",
+      redirect: "manual",
+    });
   } catch {
     return { status: "unreachable" };
   }
-  if (response.status === 401) return { status: "signed-out" };
+  if (response.type === "opaqueredirect" || response.status === 401)
+    return { status: "signed-out" };
   if (!response.ok) return { status: "unreachable" };
   const body: unknown = await response.json().catch(() => undefined);
   const person = isRecord(body) ? parsePerson(body.person) : undefined;
   return person ? { status: "signed-in", person } : { status: "unreachable" };
 }
 
-/** Where the browser goes to sign in with the homelab account. */
+/** Page loads the service worker leaves to the network, so they reach the gateway. */
 export const SIGN_IN_PATH = "/api/sign-in";
-
-/**
- * Ends this device's Notes session and returns VoidAuth's end-session address, where the browser
- * goes next to sign out of the homelab account. Undefined when the server could not be reached.
- */
-export async function signOutOfNotes(): Promise<string | undefined> {
-  try {
-    const response = await fetch("/api/sign-out", { method: "POST" });
-    if (!response.ok) return undefined;
-    const body: unknown = await response.json();
-    return isRecord(body) && typeof body.endSessionUrl === "string"
-      ? body.endSessionUrl
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
+/** Leads to VoidAuth's sign-out page, which signs the homelab account out of every app. */
+export const SIGN_OUT_PATH = "/api/sign-out";

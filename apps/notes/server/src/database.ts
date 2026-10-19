@@ -34,6 +34,12 @@ const MIGRATIONS = [
   );
   CREATE INDEX sessions_by_person ON sessions (person_id);
   `,
+  `
+  -- ADR-NOTE-014: the gateway signs people in, so Notes keeps no device sessions. ADR-NOTE-009:
+  -- people are keyed by VoidAuth username instead of sub, so the people keyed by sub are dropped.
+  DROP TABLE sessions;
+  DELETE FROM people;
+  `,
 ];
 
 /** Opens (or creates) the instance's one SQLite file in `dataDir`, at the latest schema. */

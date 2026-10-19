@@ -22,13 +22,6 @@ export function App({ notes }: { notes: Notes }) {
           </Text>
         </Message>
       );
-    case "no-access":
-      return (
-        <Message title="Notes">
-          <Text>You don't have access to Notes. Ask your homelab admin.</Text>
-          <Button onClick={signOut}>Use a different account</Button>
-        </Message>
-      );
     case "signed-out-here":
       return (
         <Message title="Notes">

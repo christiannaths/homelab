@@ -15,7 +15,7 @@ Each topic has exactly one ADR, and it always states the current decision. When 
 | [ADR-PLAT-001](ADR-PLAT-001-toolchain.md) | How is the code written, run and packaged? | The code is TypeScript on Node.js 26, in npm workspaces | Accepted |
 | [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md) | How do several independent apps share one repo? | The repo is an Nx monorepo of independent apps | Accepted |
 | [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md) | How is proof-of-concept code kept apart from the apps? | Spikes live in spikes/ and stay out of repo-wide builds and tests, but are formatted and linted | Accepted |
-| [ADR-PLAT-004](ADR-PLAT-004-sign-in.md) | How do people sign in to the homelab's apps? | VoidAuth signs people in to every app, and registration is by invite only | Accepted |
+| [ADR-PLAT-004](ADR-PLAT-004-sign-in.md) | How do people sign in to the homelab's apps? | One gateway asks VoidAuth about every app request, so one sign-in and one sign-out cover every app; registration is by invite only | Accepted |
 | [ADR-PLAT-005](ADR-PLAT-005-app-settings.md) | How does an app get its settings from the person installing it? | Environment variables only, each also readable from a `_FILE`, checked by Zod at startup through `@homelab/settings` | Accepted |
 | [ADR-PLAT-006](ADR-PLAT-006-code-quality.md) | How is code kept consistently formatted and free of common mistakes? | Prettier formats, Oxlint, markdownlint, Stylelint and ls-lint lint, in `npm run check` and a pre-commit hook | Accepted |
 | [ADR-PLAT-007](ADR-PLAT-007-licensing.md) | How is the homelab's code licensed? | MIT for the repo; an app may carry its own licence when a dependency requires it | Accepted |
