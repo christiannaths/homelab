@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-18
 - Depends on: [ADR-PLAT-001](ADR-PLAT-001-toolchain.md), [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)
-- Dependency of: none
+- Dependency of: [ADR-ENCY-001](../../apps/encyclopedia/docs/adr/ADR-ENCY-001-content-source.md)
 
 ## Context
 

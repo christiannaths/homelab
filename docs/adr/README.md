@@ -6,6 +6,7 @@ Decisions that hold for **every app** in this repo: the toolchain, the repo layo
 | --- | --- | --- |
 | `PLAT` | Every app | `docs/adr/` (this folder) |
 | `NOTE` | Notes (LocalNotion) | [`apps/notes/docs/adr/`](../../apps/notes/docs/adr/README.md) |
+| `ENCY` | Encyclopedia | [`apps/encyclopedia/docs/adr/`](../../apps/encyclopedia/docs/adr/README.md) |
 
 Each topic has exactly one ADR, and it always states the current decision. When a decision changes, its ADR is edited in place and its **Changelog** says what changed and why. Open questions go in **Not decided yet** below. How to write and edit ADRs, and the format they follow, is in the [`adr` skill](../../.agents/skills/adr/SKILL.md).
 
@@ -17,6 +18,7 @@ Each topic has exactly one ADR, and it always states the current decision. When 
 | [ADR-PLAT-004](ADR-PLAT-004-sign-in.md) | How do people sign in to the homelab's apps? | VoidAuth signs people in to every app, and registration is by invite only | Accepted |
 | [ADR-PLAT-005](ADR-PLAT-005-app-settings.md) | How does an app get its settings from the person installing it? | Environment variables only, each also readable from a `_FILE`, checked by Zod at startup through `@homelab/settings` | Accepted |
 | [ADR-PLAT-006](ADR-PLAT-006-code-quality.md) | How is code kept consistently formatted and free of common mistakes? | Prettier formats, Oxlint, markdownlint, Stylelint and ls-lint lint, in `npm run check` and a pre-commit hook | Accepted |
+| [ADR-PLAT-007](ADR-PLAT-007-licensing.md) | How is the homelab's code licensed? | MIT for the repo; an app may carry its own licence when a dependency requires it | Accepted |
 
 ## Not decided yet
 
