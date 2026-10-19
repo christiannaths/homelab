@@ -20,6 +20,9 @@ Ideas that have been talked through but not committed to. Nothing here is planne
 | **Household coordination** | Not a separate app: lists, chores and plans as pages and databases in `notes` | A shared calendar that syncs to phones is the one part Notes may not cover well. |
 | **Photos and videos** | The household's shared library of photos and home videos | Definitely wanted. |
 | **Cooking** | The principles of cooking and flavour rather than a pile of recipes: a few bases (such as the mother sauces) that branch into many dishes | Likely its own app, so it can show the branching map and scale ratios. A plain recipe app is not the goal: recipes would hang off the branches they come from. References: _Ratio_, _Salt Fat Acid Heat_, _The Flavor Bible_. |
+| **Offline maps** | Maps of the household's region that work with no network, with search and saved places | Built on OpenStreetMap data. Pairs naturally with Encyclopedia. |
+| **Household papers** | Not a separate app: manuals, warranties, receipts and records kept in `notes` |  |
+| **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. |
 
 Encyclopedia stays its own app rather than joining Library. That keeps its GPL licence out of Library, and its content (chosen by the admin and updated monthly) is different from what household members add themselves.
 
