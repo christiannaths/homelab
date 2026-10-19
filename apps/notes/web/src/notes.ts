@@ -104,7 +104,8 @@ export class Notes {
 
   async #reconnected(): Promise<void> {
     const { screen } = this.#view;
-    if (screen === "home" || screen === "needs-connection")
+    if (screen === "signed-out-here") await this.#finishSignOut();
+    else if (screen === "home" || screen === "needs-connection")
       await this.#checkSession();
   }
 

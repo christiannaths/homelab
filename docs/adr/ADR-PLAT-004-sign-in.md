@@ -68,5 +68,5 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Changelog
 
-- 2026-10-19: Every app sits behind one gateway that asks VoidAuth about each request, and apps read the person from its headers instead of being OIDC clients with their own device sessions. As OIDC clients, apps could not learn of a sign-out made elsewhere, so signing out once did not sign the browser out of every app ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68). The admin now grants apps through VoidAuth groups, and the first-owner rule moved to the apps.
+- 2026-10-19: Every app sits behind one gateway that asks VoidAuth about each request, and apps read the person from its headers instead of being OIDC clients with their own device sessions. As OIDC clients, apps could not learn of a sign-out made elsewhere, so signing out once did not sign the browser out of every app ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68). The admin now grants each app and its level through VoidAuth groups, which replaces the first `auth_admins` member becoming an app's first owner.
 - 2026-10-17: Accepted. VoidAuth was the one sign-in, with each app an OIDC client keyed by `sub` and keeping its own members, roles and device sessions. The first `auth_admins` member to sign in to an app became its first owner.

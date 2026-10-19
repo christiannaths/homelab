@@ -68,7 +68,8 @@ export async function startServer({
     },
   });
 
-  const signedIn = (c: Context): Person | undefined => {
+  /** The person the gateway signed in, added to or brought up to date in Notes' people. */
+  const admitted = (c: Context): Person | undefined => {
     const identity = identityFrom(c.req.raw.headers);
     return identity && people.admit(identity);
   };
@@ -84,7 +85,7 @@ export async function startServer({
   // The PWA calls this whenever it starts online or reconnects. A signed-out browser never gets
   // here: the gateway answers with a redirect to VoidAuth instead.
   app.get("/api/session", (c) => {
-    const person = signedIn(c);
+    const person = admitted(c);
     if (!person) return c.json({ error: "signed_out" }, 401);
     return c.json({ person });
   });
@@ -96,7 +97,7 @@ export async function startServer({
     "/sync",
     // Refuse an upgrade that did not come through the gateway, before any WebSocket exists.
     async (c, next) => {
-      const person = signedIn(c);
+      const person = admitted(c);
       if (!person) return c.text("Unauthorized", 401);
       c.set("sync", { person });
       return next();

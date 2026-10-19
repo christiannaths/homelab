@@ -18,8 +18,8 @@ export function identityFrom(headers: Headers): GatewayIdentity | undefined {
     name: decoded(headers.get("remote-name")),
     groups: (headers.get("remote-groups") ?? "")
       .split(",")
-      .map((group) => decodeURIComponent(group.trim()))
-      .filter(Boolean),
+      .map((group) => decoded(group.trim()))
+      .filter((group) => group !== null),
   };
 }
 

@@ -50,7 +50,7 @@ VOIDAUTH_URL=… npx nx dev notes-server
 npx nx dev notes-web   # http://localhost:5173, proxying /api and /sync to the server on port 3000
 ```
 
-Without the gateway in front, nobody is signed in, so the client goes to sign-in. Send the gateway's headers yourself to work signed in, for example with a browser extension that adds `Remote-User`. The service worker exists only in the production build, so offline starts are tried there.
+Without the gateway in front, nobody is signed in, and the client waits as if offline. Send the gateway's headers yourself to work signed in, for example with a browser extension that adds `Remote-User`. The service worker exists only in the production build, so offline starts are tried there.
 
 ## Tests
 

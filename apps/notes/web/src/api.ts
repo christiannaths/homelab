@@ -37,8 +37,9 @@ export async function checkSession(): Promise<SessionCheck> {
   } catch {
     return { status: "unreachable" };
   }
-  if (response.type === "opaqueredirect" || response.status === 401)
-    return { status: "signed-out" };
+  if (response.type === "opaqueredirect") return { status: "signed-out" };
+  // A 401 means no gateway is in front of Notes. Treated as signed out, the app would start a
+  // sign-in that comes straight back here, so it waits as if offline instead.
   if (!response.ok) return { status: "unreachable" };
   const body: unknown = await response.json().catch(() => undefined);
   const person = isRecord(body) ? parsePerson(body.person) : undefined;
