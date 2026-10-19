@@ -1,0 +1,53 @@
+# The whole homelab on one machine, for trying it by hand: the gateway (Caddy), VoidAuth, Notes and
+# the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with `npm run local`
+# from the repository root, which also builds the apps and sets VoidAuth up (see README.md).
+# Only the gateway publishes a port: Notes trusts the Remote-* headers the gateway sets.
+name: homelab-local
+services:
+  gateway:
+    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
+    ports:
+      - "${GATEWAY_PORT:-8443}:443"
+    volumes:
+      - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - caddy:/data
+      # The Encyclopedia's static build, served by the gateway.
+      - ../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+    depends_on: [voidauth, notes]
+
+  voidauth:
+    image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
+    volumes:
+      - voidauth-config:/app/config
+      - voidauth-db:/app/db
+    environment:
+      APP_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}
+      # The session cookie goes on the parent domain, so every app's hostname receives it.
+      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
+      DB_ADAPTER: sqlite
+      DEFAULT_REDIRECT: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}/
+      # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
+      SIGNUP: "false"
+
+  # The real Notes server, run from this checkout. It serves apps/notes/web/dist.
+  notes:
+    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+    working_dir: /repo
+    command: node --no-experimental-webstorage apps/notes/server/src/index.ts
+    volumes:
+      - ..:/repo:ro
+      - notes:/data
+    environment:
+      VOIDAUTH_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}
+      PORT: "3000"
+      DATA_DIR: /data
+
+volumes:
+  caddy:
+  voidauth-config:
+  voidauth-db:
+  notes:

@@ -1,0 +1,2 @@
+# Holds STORAGE_KEY, which encrypts VoidAuth's secrets; made by start.ts.
+.env
