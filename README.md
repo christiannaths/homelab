@@ -23,6 +23,7 @@ Ideas that have been talked through but not committed to. Nothing here is planne
 | **Offline maps** | Maps of the household's region that work with no network, with search and saved places | Built on OpenStreetMap data. Pairs naturally with Encyclopedia. |
 | **Household papers** | Not a separate app: manuals, warranties, receipts and records kept in `notes` |  |
 | **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. Likely bundles Sonarr, Radarr and Jellyfin, with a small household request page built on top. |
+| **Passwords** | A shared household password vault that works with the Bitwarden apps on phones and browsers | Bundles Vaultwarden rather than building one. |
 
 Encyclopedia stays its own app rather than joining Library. That keeps its GPL licence out of Library, and its content (chosen by the admin and updated monthly) is different from what household members add themselves.
 
