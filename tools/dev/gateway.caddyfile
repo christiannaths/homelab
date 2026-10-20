@@ -1,25 +1,9 @@
-# The homelab gateway (ADR-PLAT-004): every request to an app is asked about at VoidAuth first.
-# VoidAuth answers from its session cookie on the parent domain: 200 with Remote-* headers, a
-# redirect to its sign-in page, or a redirect to its "forbidden" page when the person's groups
-# don't include the app's.
+# The homelab gateway (ADR-PLAT-004): every request to an app is asked about at VoidAuth first, by
+# the sign-in check in packages/gateway/signed-in.caddyfile.
 {
 	# A self-signed CA, since *.homelab.localhost has no public certificate. A real install uses its own.
 	local_certs
 	skip_install_trust
-}
-
-# Goes first in an app site's route block, before whatever serves the app.
-(signed-in) {
-	# forward_auth only overwrites the headers VoidAuth sends. It sends no Remote-Name or
-	# Remote-Email for a person without one, so the browser's own would reach the app.
-	request_header -Remote-User
-	request_header -Remote-Groups
-	request_header -Remote-Name
-	request_header -Remote-Email
-	forward_auth voidauth:3000 {
-		uri /api/authz/forward-auth
-		copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
-	}
 }
 
 auth.{$HOMELAB_DOMAIN} {
@@ -28,7 +12,7 @@ auth.{$HOMELAB_DOMAIN} {
 
 notes.{$HOMELAB_DOMAIN} {
 	route {
-		import signed-in
+		import /etc/caddy/signed-in.caddyfile
 		reverse_proxy notes:3000
 	}
 }
@@ -36,7 +20,7 @@ notes.{$HOMELAB_DOMAIN} {
 # The Encyclopedia's static build, with its own service worker. Unknown paths get index.html.
 encyclopedia.{$HOMELAB_DOMAIN} {
 	route {
-		import signed-in
+		import /etc/caddy/signed-in.caddyfile
 		root * /srv/encyclopedia
 		try_files {path} /index.html
 		file_server

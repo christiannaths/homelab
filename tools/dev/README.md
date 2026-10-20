@@ -56,5 +56,5 @@ Set `GATEWAY_PORT` (default `8443`), `HOMELAB_DOMAIN` (default `homelab.localhos
 ## Files
 
 - `compose.yaml`: the containers. Only the gateway publishes a port, since Notes trusts the `Remote-*` headers the gateway sets.
-- `gateway.caddyfile`: one site per hostname; each app's site asks VoidAuth before passing a request on, and the login site goes to `start.ts`.
+- `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check in [`packages/gateway/signed-in.caddyfile`](../../packages/gateway/signed-in.caddyfile), and the login site goes to `start.ts`.
 - `start.ts`: what `npm run dev` and `npm run dev:reset` run, and the login links' handler.

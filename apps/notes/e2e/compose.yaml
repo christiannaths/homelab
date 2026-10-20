@@ -11,6 +11,7 @@ services:
       - "${GATEWAY_PORT:-8463}:443"
     volumes:
       - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ../../../packages/gateway/signed-in.caddyfile:/etc/caddy/signed-in.caddyfile:ro
       - ${DATA_DIR:?set DATA_DIR}/caddy:/data
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}

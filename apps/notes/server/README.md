@@ -31,7 +31,7 @@ Environment variables, for now read directly (issue #40):
 
 ### The gateway and VoidAuth
 
-Notes trusts the `Remote-*` headers on every request, so **only the gateway may reach it**: never publish its port. The gateway must delete any `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups` headers the browser sent before asking VoidAuth, as [`../e2e/gateway.caddyfile`](../e2e/gateway.caddyfile) does.
+Notes trusts the `Remote-*` headers on every request, so **only the gateway may reach it**: never publish its port. The gateway must delete any `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups` headers the browser sent before asking VoidAuth, as the sign-in check in [`packages/gateway/signed-in.caddyfile`](../../../packages/gateway/signed-in.caddyfile) does.
 
 In VoidAuth, Notes needs:
 

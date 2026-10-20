@@ -1,0 +1,17 @@
+# The homelab's sign-in check (ADR-PLAT-004), imported first in the route of every app's site: the
+# gateway asks VoidAuth about each request and passes on who is signed in as Remote-* headers,
+# which apps trust. VoidAuth answers from its session cookie: 200 with the headers, a redirect to
+# its sign-in page, or a redirect to its "forbidden" page when the person's groups don't include
+# the app's.
+#
+# forward_auth only overwrites the headers VoidAuth sends. It sends no Remote-Name, Remote-Email or
+# Remote-Groups for a person without one, so the browser's own would reach the app: they are
+# deleted first.
+request_header -Remote-User
+request_header -Remote-Groups
+request_header -Remote-Name
+request_header -Remote-Email
+forward_auth voidauth:3000 {
+	uri /api/authz/forward-auth
+	copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+}

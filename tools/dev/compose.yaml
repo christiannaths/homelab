@@ -11,6 +11,7 @@ services:
       - "${GATEWAY_PORT:-8443}:443"
     volumes:
       - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ../../packages/gateway/signed-in.caddyfile:/etc/caddy/signed-in.caddyfile:ro
       - caddy:/data
       # The Encyclopedia's static build, served by the gateway.
       - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
