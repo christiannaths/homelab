@@ -17,8 +17,7 @@
     "apps/*/*",
     "packages/*",
     "spikes/*/*",
-    "tools",
-    "local"
+    "tools"
   ],
   "scripts": {
     "build": "nx run-many -t build --exclude=tag:spike",
@@ -31,7 +30,8 @@
     "boundaries": "node tools/check-boundaries.ts",
     "adrs": "node tools/check-adrs.ts",
     "check": "npm run format:check && npm run lint && npm run boundaries && npm run adrs && nx run-many -t typecheck test --exclude=tag:spike",
-    "local": "node local/start.ts",
+    "dev": "node tools/dev/start.ts",
+    "dev:reset": "node tools/dev/start.ts reset",
     "prepare": "husky || true"
   },
   "devDependencies": {
