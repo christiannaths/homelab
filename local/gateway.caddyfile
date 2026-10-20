@@ -3,7 +3,7 @@
 # redirect to its sign-in page, or a redirect to its "forbidden" page when the person's groups
 # don't include the app's.
 {
-	# A self-signed CA, since *.home.test has no public certificate. A real install uses its own.
+	# A self-signed CA, since *.homelab.localhost has no public certificate. A real install uses its own.
 	local_certs
 	skip_install_trust
 }

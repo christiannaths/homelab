@@ -1,6 +1,6 @@
 # The homelab on your machine
 
-One command starts everything that exists so far, for trying it by hand: the gateway (Caddy), VoidAuth, [Notes](../apps/notes/README.md) and the [Encyclopedia](../apps/encyclopedia/README.md), each on its own hostname under `home.test`, signed in as one of a few test people.
+One command starts everything that exists so far, for trying it by hand: the gateway (Caddy), VoidAuth, [Notes](../apps/notes/README.md) and the [Encyclopedia](../apps/encyclopedia/README.md), each on its own hostname under `homelab.localhost`, signed in as one of a few test people.
 
 It is not an install for real use: the passwords below are in this file, and the certificates come from the gateway's own CA.
 
@@ -9,34 +9,28 @@ It is not an install for real use: the passwords below are in this file, and the
 You need Docker, Node 26 and `npm install` done. From the repository root:
 
 ```sh
-npm run local
+npm run dev
 ```
 
-It builds both apps' web clients, starts the containers, sets VoidAuth up as a homelab admin would, and prints the addresses and accounts. Running it again keeps everything and only fills in what is missing.
+It builds both apps' web clients, starts the containers with their logs streaming, sets VoidAuth up as a homelab admin would, and prints the addresses and accounts among the logs. Running it again keeps everything and only fills in what is missing. Ctrl+C stops the containers, keeping accounts and data.
 
-The first time, also:
+Browsers send every name under `.localhost` to this machine, so there is no hosts file to edit.
 
-1. **Point the names at this machine.** Add this line to `/etc/hosts` (`sudo nano /etc/hosts`); the script prints it while it is missing:
+The first time, also **trust the gateway's CA** (optional, but needed to install the apps and open them offline: browsers register no service worker on a site with a certificate warning). The script saves it as `local/data/gateway-root-ca.crt`. On macOS:
 
-   ```text
-   127.0.0.1 auth.home.test notes.home.test encyclopedia.home.test
-   ```
+```sh
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain local/data/gateway-root-ca.crt
+```
 
-2. **Trust the gateway's CA** (optional, but needed to install the apps and open them offline: browsers register no service worker on a site with a certificate warning). The script saves it as `local/data/gateway-root-ca.crt`. On macOS:
-
-   ```sh
-   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain local/data/gateway-root-ca.crt
-   ```
-
-   Then restart the browser. Firefox keeps its own list: Settings, Privacy & Security, Certificates, View Certificates, Authorities, Import. `npm run local -- reset` makes a new CA, which must be trusted again.
+Then restart the browser. Firefox keeps its own list: Settings, Privacy & Security, Certificates, View Certificates, Authorities, Import. `npm run dev:reset` makes a new CA, which must be trusted again.
 
 ## Addresses and accounts
 
 | Address |  |
 | --- | --- |
-| <https://notes.home.test:8443/> | Notes |
-| <https://encyclopedia.home.test:8443/> | The Encyclopedia |
-| <https://auth.home.test:8443/> | VoidAuth: signing in, your account, and the admin pages (`/admin`) |
+| <https://notes.homelab.localhost:8443/> | Notes |
+| <https://encyclopedia.homelab.localhost:8443/> | The Encyclopedia |
+| <https://auth.homelab.localhost:8443/> | VoidAuth: signing in, your account, and the admin pages (`/admin`) |
 
 | Username | Password | Gets |
 | --- | --- | --- |
@@ -47,17 +41,16 @@ The first time, also:
 
 VoidAuth offers to set up a passkey after a password sign-in; **Skip** is fine.
 
-## Stop and start over
+## Start over
 
 ```sh
-npm run local -- stop    # stops the containers, keeping accounts and data
-npm run local -- reset   # deletes everything; the next `npm run local` starts from empty
+npm run dev:reset   # deletes everything; the next `npm run dev` starts from empty
 ```
 
-Set `GATEWAY_PORT` (default `8443`) or `HOMELAB_DOMAIN` (default `home.test`) to use another port or domain, the same on every run. The Notes server runs from this checkout, so restarting it picks up server changes (`docker compose -f local/compose.yaml restart notes`), and `npm run local` rebuilds the web clients.
+Set `GATEWAY_PORT` (default `8443`) or `HOMELAB_DOMAIN` (default `homelab.localhost`) to use another port or domain, the same on every run. The Notes server runs from this checkout, so restarting it picks up server changes (`docker compose -f local/compose.yaml restart notes`), and `npm run dev` rebuilds the web clients.
 
 ## Files
 
 - `compose.yaml`: the containers. Only the gateway publishes a port, since Notes trusts the `Remote-*` headers the gateway sets.
 - `gateway.caddyfile`: one site per hostname; each app's site asks VoidAuth before passing a request on.
-- `start.ts`: what `npm run local` runs.
+- `start.ts`: what `npm run dev` and `npm run dev:reset` run.

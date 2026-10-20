@@ -52,7 +52,7 @@ npm run check             # formatting, lint, module boundaries, ADR rules, then
 npm run fix               # applies Prettier and every linter's safe fixes
 npm run build
 npm run test:e2e          # every app's end-to-end tests
-npm run local             # the whole homelab on this machine, to try by hand (see local/README.md)
+npm run dev               # the whole homelab on this machine, to try by hand (see local/README.md)
 ```
 
 Run one project's task with `npx nx <target> <project>` (for example `npx nx typecheck tools`), every project's with `npx nx run-many -t <target>`, and `npx nx graph` to see how projects depend on each other.

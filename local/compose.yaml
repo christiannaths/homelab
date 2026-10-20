@@ -1,5 +1,5 @@
 # The whole homelab on one machine, for trying it by hand: the gateway (Caddy), VoidAuth, Notes and
-# the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with `npm run local`
+# the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with `npm run dev`
 # from the repository root, which also builds the apps and sets VoidAuth up (see README.md).
 # Only the gateway publishes a port: Notes trusts the Remote-* headers the gateway sets.
 name: homelab-local
@@ -15,7 +15,7 @@ services:
       # The Encyclopedia's static build, served by the gateway.
       - ../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
-      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
     depends_on: [voidauth, notes]
 
   voidauth:
@@ -24,12 +24,12 @@ services:
       - voidauth-config:/app/config
       - voidauth-db:/app/db
     environment:
-      APP_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}
+      APP_URL: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
       # The session cookie goes on the parent domain, so every app's hostname receives it.
-      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
       STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
       DB_ADAPTER: sqlite
-      DEFAULT_REDIRECT: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}/
+      DEFAULT_REDIRECT: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}/
       # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
       SIGNUP: "false"
 
@@ -42,7 +42,7 @@ services:
       - ..:/repo:ro
       - notes:/data
     environment:
-      VOIDAUTH_URL: https://auth.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8443}
+      VOIDAUTH_URL: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
       PORT: "3000"
       DATA_DIR: /data
 
