@@ -60,7 +60,7 @@ Run one project's task with `npx nx <target> <project>` (for example `npx nx typ
 ## Layout
 
 ```text
-apps/<app>/          one app: npm workspace packages (web, server, e2e), its Dockerfile and its docs
+apps/<app>/          one app: npm workspace packages (web, server, e2e), its docs and, once it ships, its Dockerfile
 packages/            code shared by more than one app
 spikes/<spike>/      a frozen proof of concept, laid out like an app and skipped by repo-wide commands
 docs/adr/            platform ADRs, which hold for every app, and the ADR format

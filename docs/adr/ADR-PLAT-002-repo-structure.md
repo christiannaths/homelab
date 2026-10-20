@@ -34,7 +34,7 @@ The repo is growing from one app into a home for several homelab apps. What the 
 ## Evidence
 
 - This repo on Nx 23.3.0 and Node 26.12.0: through `nx run-many`, typecheck, the unit tests and the build pass, and a repeat run is served entirely from the cache. The e2e tests pass as `nx run notes-e2e:e2e`.
-- The Notes image builds from `apps/notes/Dockerfile`, starts, and answers `/api/health`.
+- The first Notes spike's image builds from `spikes/notes-block-editing-collaboration-poc/Dockerfile`, starts, and answers `/api/health`.
 - The boundary script was tested against a planted shared package that imported from an app and was imported by the server across platforms, and it reported both violations.
 - Nx analyses imports in source files only when `pluginsConfig["@nx/js"]` is set, because `@nx/js` is not installed. Without that setting, the graph holds only `package.json` and implicit dependencies, and the boundary check passes everything.
 - With a root `tsconfig.base.json` and an import Nx cannot resolve, Nx 23.3.0 calls `readConfigFile` from the TypeScript API, which TypeScript 7 lacks. It then writes a partial graph and still exits 0, so the script treats that output as a failure. Imports that resolve build the full graph with that file present (checked 2026-10-20), so the boundary check fails only while an import is broken, which typecheck reports too.

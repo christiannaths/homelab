@@ -33,7 +33,7 @@ An instance serves a few trusted people, but not everything is for everyone: dra
   - `server/testing/losing-access.test.ts` and `e2e/tests/losing-access.spec.ts`: lost pages leave devices online and offline, moves and removals included, and unsynced edits are offered back as a Private page.
   - `model/src/access.test.ts`, `model/src/overrides.test.ts`, `model/src/teamspaces.test.ts` and `model/src/guests.test.ts`: inheritance, overrides, most-permissive-wins, teamspace kinds and defaults, and guest limits.
   - `model/src/sharing.test.ts` and `model/src/overrides.convergence.test.ts`: concurrent access changes and moves converge.
-- At 2,272 pages, per-person sync is as fast as whole-workspace sync on the same machine (`e2e/tests/access-scale.spec.ts`).
+- At 2,272 pages, per-person sync is as fast as whole-workspace sync on the same machine (`spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts`).
 - The model follows Notion's help centre ("Sharing & permissions", "Intro to teamspaces", "Who's who in a workspace"), checked item by item in [`research/06-notion-access-verification.md`](../research/06-notion-access-verification.md). The differences it found are applied to the specs.
 
 ## Consequences
