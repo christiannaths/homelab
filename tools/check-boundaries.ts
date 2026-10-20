@@ -109,7 +109,7 @@ const graph: ProjectGraph | undefined = failed
 rmSync(dir, { recursive: true, force: true });
 if (failed) {
   console.error(
-    `nx graph failed, so boundaries cannot be checked:\n${nx.stdout}${nx.stderr}`,
+    `nx graph failed, so boundaries cannot be checked. An import that does not resolve causes this; npm run typecheck names it.\n${nx.stdout}${nx.stderr}`,
   );
   process.exit(1);
 }

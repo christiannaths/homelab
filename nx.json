@@ -11,7 +11,8 @@
   "namedInputs": {
     "sharedGlobals": [
       "{workspaceRoot}/.nvmrc",
-      "{workspaceRoot}/package-lock.json"
+      "{workspaceRoot}/package-lock.json",
+      "{workspaceRoot}/tsconfig.base.json"
     ],
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
