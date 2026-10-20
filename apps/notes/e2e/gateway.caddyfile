@@ -1,6 +1,5 @@
-# The homelab gateway (ADR-PLAT-004): every request to Notes is asked about at VoidAuth first.
-# VoidAuth answers from its session cookie on the parent domain: 200 with Remote-* headers, a
-# redirect to its sign-in page, or a redirect to its "forbidden" page.
+# The homelab gateway (ADR-PLAT-004): every request to Notes is asked about at VoidAuth first, by
+# the sign-in check in packages/gateway/signed-in.caddyfile.
 {
 	# A self-signed CA, since *.home.test has no public certificate. A real install uses its own.
 	local_certs
@@ -13,17 +12,7 @@ auth.{$HOMELAB_DOMAIN} {
 
 notes.{$HOMELAB_DOMAIN} {
 	route {
-		# forward_auth only overwrites the headers VoidAuth sends. It sends no Remote-Name,
-		# Remote-Email or Remote-Groups for a person without one, so the browser's own would
-		# reach Notes.
-		request_header -Remote-User
-		request_header -Remote-Groups
-		request_header -Remote-Name
-		request_header -Remote-Email
-		forward_auth voidauth:3000 {
-			uri /api/authz/forward-auth
-			copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
-		}
+		import /etc/caddy/signed-in.caddyfile
 		reverse_proxy {$NOTES_UPSTREAM}
 	}
 }

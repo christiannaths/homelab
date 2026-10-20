@@ -1,0 +1,11 @@
+{
+  "name": "@homelab/gateway",
+  "private": true,
+  "nx": {
+    "name": "gateway",
+    "tags": [
+      "scope:shared",
+      "platform:any"
+    ]
+  }
+}
