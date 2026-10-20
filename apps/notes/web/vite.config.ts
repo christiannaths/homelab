@@ -1,7 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { tokens } from "./src/tokens.ts";
+import { tokens } from "@homelab/theme/tokens";
 
 // The Notes server's address in development; it serves the API and the sync socket.
 const server = process.env.NOTES_SERVER ?? "http://localhost:3000";

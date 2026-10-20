@@ -43,7 +43,7 @@ A Yjs document reaches a device whole or not at all, and a device may only recei
   - `server/testing/overrides.test.ts`: a page reachable without its parent arrives at the top of Shared with no document or title of the hidden parent.
   - `server/testing/teamspaces.test.ts`, `server/testing/guests.test.ts` and `server/testing/databases.test.ts`: private teamspace names, guests' pages from a teamspace, and single shared rows receive exactly their documents.
   - `model/src/tree.test.ts`, `model/src/sharing.test.ts`, `model/src/overrides.convergence.test.ts` and `model/src/database.convergence.test.ts`: convergence tests for moves, cycles, renames, access changes and cell edits under this split.
-- `e2e/tests/access-scale.spec.ts`: at 2,272 pages, startup and sync stay within the old gate, and grow with the documents a person can open (findings, risk 3).
+- `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts`: at 2,272 pages, startup and sync stay within the old gate, and grow with the documents a person can open (findings, risk 3).
 
 ## Consequences
 

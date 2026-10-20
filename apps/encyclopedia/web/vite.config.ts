@@ -1,7 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { tokens } from "./src/tokens.ts";
+import { tokens } from "@homelab/theme/tokens";
 
 export default defineConfig({
   plugins: [

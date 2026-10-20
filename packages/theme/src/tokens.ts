@@ -1,6 +1,6 @@
-// ADR-NOTE-007: the semantic design tokens, defined once, for light and dark. They feed Mantine's
-// theme, the app's manifest and browser chrome, and BlockNote's `--bn-*` variables once the editor
-// arrives. Plain values, so vite.config.ts can read them too.
+// The homelab look, defined once for light and dark so every app matches (ADR-NOTE-007,
+// ADR-ENCY-006). It feeds Mantine's theme, each app's manifest and browser chrome, and BlockNote's
+// `--bn-*` variables once Notes' editor arrives. Plain values, so Vite configs can read them too.
 export const tokens = {
   font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   radius: "md",

@@ -11,7 +11,7 @@ The riskiest logic (merging, ordering, cycle repair, view computation) is easy t
 
 ## Decision
 
-- The data model is **plain TypeScript with no React or DOM** (`apps/notes/web/src/model/`, plus the doc helpers in `apps/notes/web/src/sync/`). UI components call it and do not re-implement it.
+- The data model is **plain TypeScript with no React or DOM**, in modules of its own beside the Yjs document helpers. UI components call it and do not re-implement it.
 - **Unit tests (Vitest)** cover the model directly, including the convergence tests.
 - **End-to-end tests (Playwright)** run against the production build and real server processes. Each test gets its own server and data directory, so a test can stop and restart the server and take a browser offline. Performance-sensitive paths print timings.
 - What the sandbox cannot automate (Safari and WebKit, iOS install, touch gestures) goes into the PR as manual steps, and stays "not verified" until someone runs them.

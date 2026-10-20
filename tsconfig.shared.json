@@ -1,0 +1,14 @@
+// The compiler options every project shares. Each project's tsconfig.json extends this and adds
+// what its platform needs: module resolution, libs and types.
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    // Node runs .ts files directly by stripping types, so only erasable syntax is allowed.
+    "erasableSyntaxOnly": true
+  }
+}

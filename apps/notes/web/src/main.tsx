@@ -4,7 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { Notes } from "./notes.ts";
-import { cssVariablesResolver, theme } from "./theme.ts";
+import { cssVariablesResolver, theme } from "@homelab/theme";
 
 /** Settles once the service worker can start the app offline, or at once where there is none. */
 function registerServiceWorker(): Promise<unknown> {

@@ -1,7 +1,7 @@
 # ADR-PLAT-002. How do several independent apps share one repo?
 
 - Status: Accepted
-- Date: 2026-10-18
+- Date: 2026-10-20
 - Depends on: [ADR-PLAT-001](ADR-PLAT-001-toolchain.md)
 - Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md), [ADR-PLAT-004](ADR-PLAT-004-sign-in.md), [ADR-PLAT-005](ADR-PLAT-005-app-settings.md), [ADR-PLAT-006](ADR-PLAT-006-code-quality.md)
 
@@ -34,20 +34,21 @@ The repo is growing from one app into a home for several homelab apps. What the 
 ## Evidence
 
 - This repo on Nx 23.3.0 and Node 26.12.0: through `nx run-many`, typecheck, the unit tests and the build pass, and a repeat run is served entirely from the cache. The e2e tests pass as `nx run notes-e2e:e2e`.
-- The Notes image builds from `apps/notes/Dockerfile`, starts, and answers `/api/health`.
+- The first Notes spike's image builds from `spikes/notes-block-editing-collaboration-poc/Dockerfile`, starts, and answers `/api/health`.
 - The boundary script was tested against a planted shared package that imported from an app and was imported by the server across platforms, and it reported both violations.
 - Nx analyses imports in source files only when `pluginsConfig["@nx/js"]` is set, because `@nx/js` is not installed. Without that setting, the graph holds only `package.json` and implicit dependencies, and the boundary check passes everything.
-- With a root `tsconfig.base.json` and an import Nx cannot resolve, Nx 23.3.0 calls `readConfigFile` from the TypeScript API, which TypeScript 7 lacks. It then writes a partial graph and still exits 0, so the script treats that output as a failure.
+- With a root `tsconfig.base.json` or `tsconfig.json`, Nx 23.3.0 reads it through `readConfigFile` from the TypeScript API, which TypeScript 7 lacks, as soon as it resolves an import of a workspace package (checked 2026-10-20). It then writes a partial graph and still exits 0, so the script treats that output as a failure. A root `tsconfig.shared.json` is a name Nx does not look for.
 
 ## Consequences
 
 - Repo-wide commands are `nx run-many -t <target>` (wrapped as `npm run build`, `typecheck`, `test` and `test:e2e`), and one project's are `nx <target> <project>`. CI can use `nx affected` to build and test only what a change touched.
 - A runtime dependency that is not an import, such as the server serving the web build, is declared with `implicitDependencies` so that tasks run in the right order.
-- There must be no root `tsconfig.json` or `tsconfig.base.json`, because Nx then resolves imports through the TypeScript API, which TypeScript 7 does not provide. Shared packages are found through npm workspace links instead of TypeScript `paths`.
+- Every project's `tsconfig.json` extends the root `tsconfig.shared.json` for the compiler options they share. The root has no `tsconfig.base.json` or `tsconfig.json`, because Nx would then read it through the TypeScript API, which TypeScript 7 does not provide. Shared packages are found through npm workspace links instead of TypeScript `paths`.
 - Moving to `@nx/enforce-module-boundaries` is possible once typescript-eslint supports TypeScript 7, and would add per-file errors in editors.
 - Packages use the `@homelab/` scope, after the repo's name.
 
 ## Changelog
 
+- 2026-10-20: Projects share their compiler options through a root `tsconfig.shared.json`, a name Nx does not read, instead of each repeating them.
 - 2026-10-18: A package that a platform ADR requires every app to use starts in `packages/` before a second app exists, so that every app gets the same behaviour from the first ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md), issue #40).
 - 2026-10-16: Accepted. Nx on npm workspaces, with apps in `apps/`, code shared by more than one app in `packages/` once a second app needs it, and module boundaries checked from the Nx project graph.
