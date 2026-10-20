@@ -44,11 +44,6 @@
     "dev": {
       "continuous": true,
       "cache": false
-    },
-    "start": {
-      "dependsOn": ["build", "^build"],
-      "continuous": true,
-      "cache": false
     }
   }
 }

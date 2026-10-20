@@ -41,7 +41,7 @@ In VoidAuth, Notes needs:
 
 ## Running the client
 
-The server serves the client's production build from `apps/notes/web/dist`. `npx nx start notes-server` builds it first.
+The server serves the client's production build from `apps/notes/web/dist`, which `npx nx build notes-web` makes. To try Notes signed in, behind the gateway and VoidAuth, run `npm run dev` from the repository root ([`tools/dev/README.md`](../../../tools/dev/README.md)).
 
 To work on the client with hot reload, run the server, then Vite:
 
