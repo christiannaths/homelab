@@ -2,11 +2,11 @@
 // up the way a homelab admin would: the admin password, a group per app grant, a ProxyAuth domain
 // per app, and one invited account per test person. Running it again only fills in what is missing.
 //
-//   node local/start.ts          build the apps, run everything with its logs until Ctrl+C
+//   node tools/dev/start.ts      build the apps, run everything with its logs until Ctrl+C
 //
 // While it runs, https://login.<domain>:<port>/<username> signs the browser in as that account and
 // opens their app, so trying the apps as each person needs no typing.
-//   node local/start.ts reset    stop the containers and delete their data
+//   node tools/dev/start.ts reset stop the containers and delete their data
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
@@ -15,7 +15,7 @@ import { request } from "node:https";
 import path from "node:path";
 
 const HERE = import.meta.dirname;
-const ROOT = path.join(HERE, "..");
+const ROOT = path.join(HERE, "..", "..");
 const ENV_FILE = path.join(HERE, ".env");
 const CA_FILE = path.join(HERE, "data", "gateway-root-ca.crt");
 
@@ -139,7 +139,7 @@ as in ${LOGIN_URL}/ada/encyclopedia, to open that one instead.`);
   console.log(`
 The certificates come from the gateway's own CA, so the browser warns until you trust it. Trust
 ${path.relative(process.cwd(), CA_FILE)} to test installing the apps and opening them offline
-(local/README.md says how).
+(tools/dev/README.md says how).
 `);
 }
 

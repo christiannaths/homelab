@@ -1,6 +1,6 @@
 # The homelab on your machine
 
-One command starts everything that exists so far, for trying it by hand: the gateway (Caddy), VoidAuth, [Notes](../apps/notes/README.md) and the [Encyclopedia](../apps/encyclopedia/README.md), each on its own hostname under `homelab.localhost`, signed in as one of a few test people.
+One command starts everything that exists so far, for trying it by hand: the gateway (Caddy), VoidAuth, [Notes](../../apps/notes/README.md) and the [Encyclopedia](../../apps/encyclopedia/README.md), each on its own hostname under `homelab.localhost`, signed in as one of a few test people.
 
 It is not an install for real use: the passwords below are in this file, and the certificates come from the gateway's own CA.
 
@@ -16,10 +16,10 @@ It builds both apps' web clients, starts the containers with their logs streamin
 
 Browsers send every name under `.localhost` to this machine, so there is no hosts file to edit.
 
-The first time, also **trust the gateway's CA** (optional, but needed to install the apps and open them offline: browsers register no service worker on a site with a certificate warning). The script saves it as `local/data/gateway-root-ca.crt`. On macOS:
+The first time, also **trust the gateway's CA** (optional, but needed to install the apps and open them offline: browsers register no service worker on a site with a certificate warning). The script saves it as `tools/dev/data/gateway-root-ca.crt`. On macOS:
 
 ```sh
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain local/data/gateway-root-ca.crt
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain tools/dev/data/gateway-root-ca.crt
 ```
 
 Then restart the browser. Firefox keeps its own list: Settings, Privacy & Security, Certificates, View Certificates, Authorities, Import. `npm run dev:reset` makes a new CA, which must be trusted again.
@@ -51,7 +51,7 @@ While `npm run dev` runs, <https://login.homelab.localhost:8443/> signs the brow
 npm run dev:reset   # deletes everything; the next `npm run dev` starts from empty
 ```
 
-Set `GATEWAY_PORT` (default `8443`), `HOMELAB_DOMAIN` (default `homelab.localhost`) or `LOGIN_PORT` (default `8444`, where `start.ts` serves the login links on this machine) to use another port or domain, the same on every run. The Notes server runs from this checkout, so restarting it picks up server changes (`docker compose -f local/compose.yaml restart notes`), and `npm run dev` rebuilds the web clients.
+Set `GATEWAY_PORT` (default `8443`), `HOMELAB_DOMAIN` (default `homelab.localhost`) or `LOGIN_PORT` (default `8444`, where `start.ts` serves the login links on this machine) to use another port or domain, the same on every run. The Notes server runs from this checkout, so restarting it picks up server changes (`docker compose -f tools/dev/compose.yaml restart notes`), and `npm run dev` rebuilds the web clients.
 
 ## Files
 

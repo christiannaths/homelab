@@ -2,7 +2,7 @@
 # the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with `npm run dev`
 # from the repository root, which also builds the apps and sets VoidAuth up (see README.md).
 # Only the gateway publishes a port: Notes trusts the Remote-* headers the gateway sets.
-name: homelab-local
+name: homelab-dev
 services:
   gateway:
     image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
@@ -13,7 +13,7 @@ services:
       - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
       - caddy:/data
       # The Encyclopedia's static build, served by the gateway.
-      - ../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
+      - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
       LOGIN_PORT: ${LOGIN_PORT:-8444}
@@ -42,7 +42,7 @@ services:
     working_dir: /repo
     command: node --no-experimental-webstorage apps/notes/server/src/index.ts
     volumes:
-      - ..:/repo:ro
+      - ../..:/repo:ro
       - notes:/data
     environment:
       VOIDAUTH_URL: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
