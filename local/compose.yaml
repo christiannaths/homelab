@@ -16,6 +16,9 @@ services:
       - ../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
+      LOGIN_PORT: ${LOGIN_PORT:-8444}
+    # The login site's handler runs in start.ts, on this machine rather than in a container.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on: [voidauth, notes]
 
   voidauth:

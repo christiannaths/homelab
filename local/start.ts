@@ -3,9 +3,13 @@
 // per app, and one invited account per test person. Running it again only fills in what is missing.
 //
 //   node local/start.ts          build the apps, run everything with its logs until Ctrl+C
+//
+// While it runs, https://login.<domain>:<port>/<username> signs the browser in as that account and
+// opens their app, so trying the apps as each person needs no typing.
 //   node local/start.ts reset    stop the containers and delete their data
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { createServer } from "node:http";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { request } from "node:https";
 import path from "node:path";
@@ -19,9 +23,15 @@ const DOMAIN = process.env.HOMELAB_DOMAIN ?? "homelab.localhost";
 const PORT = Number(process.env.GATEWAY_PORT ?? 8443);
 const AUTH_HOST = `auth.${DOMAIN}`;
 const AUTH_URL = `https://${AUTH_HOST}:${PORT}`;
+const LOGIN_URL = `https://login.${DOMAIN}:${PORT}`;
+const LOGIN_PORT = Number(process.env.LOGIN_PORT ?? 8444);
 
-/** The instance admin VoidAuth creates on first run. */
-const ADMIN = { username: "auth_admin", password: "violet-quartz-harbour-71" };
+/** The instance admin VoidAuth creates on first run, who VoidAuth lets into every app. */
+const ADMIN = {
+  username: "auth_admin",
+  password: "violet-quartz-harbour-71",
+  groups: ["notes-admins", "encyclopedia"],
+};
 
 /** Each app's VoidAuth groups: being in any of them lets a person into the app. */
 const APPS = [
@@ -97,6 +107,7 @@ async function startHomelab(): Promise<void> {
     mkdirSync(path.dirname(CA_FILE), { recursive: true });
     writeFileSync(CA_FILE, ca);
     await setUpVoidAuth(new Client(ca));
+    serveLoginLinks(ca);
   })().then(printSummary, (error: unknown) =>
     console.error(`\nSetting VoidAuth up failed: ${String(error)}\n`),
   );
@@ -119,10 +130,65 @@ Accounts:
       `  ${person.username.padEnd(10)} ${person.password.padEnd(26)} ${person.gets}`,
     );
   console.log(`
+Open one of these to be signed in as that account, skipping VoidAuth's sign-in page. Add an app,
+as in ${LOGIN_URL}/ada/encyclopedia, to open that one instead.`);
+  for (const account of [ADMIN, ...PEOPLE])
+    console.log(
+      `  ${account.username.padEnd(10)} ${LOGIN_URL}/${account.username}`,
+    );
+  console.log(`
 The certificates come from the gateway's own CA, so the browser warns until you trust it. Trust
 ${path.relative(process.cwd(), CA_FILE)} to test installing the apps and opening them offline
 (local/README.md says how).
 `);
+}
+
+/**
+ * The login site's handler, which the gateway passes `login.<domain>` to. It signs in with the
+ * account's password as a browser would, then hands that browser VoidAuth's session cookie.
+ */
+function serveLoginLinks(ca: string): void {
+  createServer((req, res) => {
+    const [username, appName] = new URL(req.url ?? "/", LOGIN_URL).pathname
+      .split("/")
+      .filter(Boolean);
+    const account = [ADMIN, ...PEOPLE].find(
+      (candidate) => candidate.username === username,
+    );
+    if (!account) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(
+        [ADMIN, ...PEOPLE]
+          .map(
+            (candidate) =>
+              `<p><a href="/${candidate.username}">Sign in as ${candidate.username}</a></p>`,
+          )
+          .join("\n"),
+      );
+      return;
+    }
+    const app =
+      APPS.find((candidate) => candidate.host === `${appName}.${DOMAIN}`) ??
+      APPS.find((candidate) =>
+        candidate.groups.some((group) => account.groups.includes(group)),
+      );
+    const browser = new Client(ca);
+    browser
+      .signIn(account)
+      .then((signedIn) => {
+        if (!signedIn)
+          throw new Error(`VoidAuth refused ${username}'s password`);
+        res.writeHead(302, {
+          "location": app ? `https://${app.host}:${PORT}/` : `${AUTH_URL}/`,
+          "set-cookie": browser.sessionCookies(),
+        });
+        res.end();
+      })
+      .catch((error: unknown) => {
+        res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+        res.end(String(error));
+      });
+  }).listen(LOGIN_PORT, "127.0.0.1");
 }
 
 /** The gateway's root certificate, which it makes on first start. */
@@ -272,6 +338,7 @@ interface Response {
 class Client {
   readonly ca: string;
   private readonly cookies = new Map<string, string>();
+  private readonly setCookies: string[] = [];
 
   constructor(ca: string) {
     this.ca = ca;
@@ -325,6 +392,19 @@ class Client {
     return true;
   }
 
+  /**
+   * VoidAuth's latest session cookie and its signature, as it set them: on the parent domain, so
+   * every app's hostname receives them.
+   */
+  sessionCookies(): string[] {
+    const latest = new Map<string, string>();
+    for (const cookie of this.setCookies) {
+      const name = cookie.slice(0, cookie.indexOf("="));
+      if (name.startsWith("x-voidauth-session")) latest.set(name, cookie);
+    }
+    return [...latest.values()];
+  }
+
   /** Fails with `what` on any status from 300 up. */
   async json(
     what: string,
@@ -363,6 +443,7 @@ class Client {
         },
         (res) => {
           for (const cookie of res.headers["set-cookie"] ?? []) {
+            this.setCookies.push(cookie);
             const [pair = ""] = cookie.split(";");
             const at = pair.indexOf("=");
             this.cookies.set(pair.slice(0, at), pair.slice(at + 1));
