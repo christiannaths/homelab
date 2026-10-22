@@ -15,6 +15,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { connect } from "node:net";
 import path from "node:path";
 import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
 import { ADMIN, PEOPLE, appsUnder } from "./fixtures.ts";
@@ -70,6 +71,26 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     return child;
   };
 
+  // The gateway starts first and alone, so a request that wakes a stopped machine reaches it within
+  // Fly's proxy's few seconds of patience. It holds requests until VoidAuth and Notes are up
+  // (Caddyfile).
+  run(
+    "the gateway",
+    "caddy",
+    ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"],
+    {
+      cwd: "/",
+      env: {
+        SITE_DOMAIN: domain,
+        PORT: String(PORT),
+        VOIDAUTH_UPSTREAM: "127.0.0.1:3000",
+        XDG_DATA_HOME: path.join(DATA_DIR, "caddy"),
+        XDG_CONFIG_HOME: path.join(DATA_DIR, "caddy"),
+      },
+    },
+  );
+  await listening(PORT);
+
   // VoidAuth's image is copied in whole, with the Node it was built for, since its native SQLite
   // module would not load in this image's Node. Its config and db folders link to DATA_DIR.
   const voidauth = run("VoidAuth", "/opt/voidauth/node", ["./dist/index.mjs"], {
@@ -107,22 +128,6 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     },
   );
 
-  run(
-    "the gateway",
-    "caddy",
-    ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"],
-    {
-      cwd: "/",
-      env: {
-        SITE_DOMAIN: domain,
-        PORT: String(PORT),
-        VOIDAUTH_UPSTREAM: "127.0.0.1:3000",
-        XDG_DATA_HOME: path.join(DATA_DIR, "caddy"),
-        XDG_CONFIG_HOME: path.join(DATA_DIR, "caddy"),
-      },
-    },
-  );
-
   const gateway = { url: accountsUrl, port: PORT };
   const stop = async () => {
     const stopping = children.splice(0);
@@ -153,6 +158,22 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   writeFileSync(READY_FILE, new Date().toISOString());
   console.log(`The preview is up at ${accountsUrl}/`);
   return { stop };
+}
+
+/** Waits until something accepts connections on the port, on this machine. */
+async function listening(port: number): Promise<void> {
+  for (let i = 0; i < 100; i++) {
+    const open = await new Promise<boolean>((resolve) => {
+      const socket = connect(port, "127.0.0.1", () => {
+        socket.end();
+        resolve(true);
+      });
+      socket.on("error", () => resolve(false));
+    });
+    if (open) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Nothing listened on port ${port} within 10 seconds`);
 }
 
 /** Deletes everything under DATA_DIR but the folder itself, which may be a volume's mount point. */

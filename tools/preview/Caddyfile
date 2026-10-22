@@ -9,14 +9,25 @@
 	}
 }
 
+# Each upstream starts after the gateway (start.ts), so the gateway holds a request until it
+# answers instead of failing it while the machine wakes.
+(wait-for-upstream) {
+	lb_try_duration 30s
+	lb_try_interval 250ms
+}
+
 http://accounts.{$SITE_DOMAIN}:{$PORT} {
-	reverse_proxy 127.0.0.1:3000
+	reverse_proxy 127.0.0.1:3000 {
+		import wait-for-upstream
+	}
 }
 
 http://notes.{$SITE_DOMAIN}:{$PORT} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
-		reverse_proxy 127.0.0.1:3001
+		reverse_proxy 127.0.0.1:3001 {
+			import wait-for-upstream
+		}
 	}
 }
 
@@ -28,4 +39,10 @@ http://encyclopedia.{$SITE_DOMAIN}:{$PORT} {
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+# Any other name under the preview's wildcard certificate, which a real install has no certificate
+# for and so never serves.
+http://:{$PORT} {
+	respond 404
 }

@@ -14,7 +14,7 @@ Most work on the homelab is done by Claude threads in cloud environments, and th
 - **A preview** is the whole homelab, built from one branch, running on the public internet for trying by hand. Each preview has a name, which is the one input that varies between previews:
   - `pr-<number>` for an open pull request from this repo.
   - `staging` for the one preview that a branch is deployed to only on request.
-- **Hosting is Fly.io**, in the region named by the `FLY_REGION` setting (`dfw`, Dallas, for the maintainer). Each preview is one Fly app with one machine and one volume. The machine stops when idle and starts again on the next request.
+- **Hosting is Fly.io**, in the region named by the `FLY_REGION` setting (`dfw`, Dallas, for the maintainer). Each preview is one Fly app with one machine and one volume. The machine is suspended when idle, keeping its memory, and resumes on the next request. When it has to boot instead, its gateway starts first and holds requests until VoidAuth and the apps answer, so a waking preview is slow rather than failing.
 - **The Fly app** is named after the preview's name and domain, with dots as hyphens (`pr-81-homelab-ops-bz` for `pr-81` under `homelab.ops.bz`), because Fly app names are shared by every Fly user.
 - **Addresses** are `<site>.<name>.<preview domain>`, for example `notes.pr-81.homelab.ops.bz`, with the site `accounts` for VoidAuth and one per app, the same sites as a real install. VoidAuth's session domain is `<name>.<preview domain>`, so signing in to one preview signs in to that preview's apps only, as on a real install.
 - **The preview domain** is a setting (`PREVIEW_DOMAIN`), never a value in the repo. Its DNS is hosted at DNSimple.
@@ -43,7 +43,8 @@ Most work on the homelab is done by Claude threads in cloud environments, and th
 
 ## Evidence
 
-- The decisions were made with the maintainer in the spec for previews, [#76](https://github.com/christiannaths/homelab/issues/76), on 2026-10-20 to 2026-10-22, and rest on Fly's documentation for wildcard certificates, volumes and machines that stop when idle. Nothing has been deployed to Fly yet; the deploy script was run only against stand-ins for `flyctl` and the DNSimple API.
+- The decisions were made with the maintainer in the spec for previews, [#76](https://github.com/christiannaths/homelab/issues/76), on 2026-10-20 to 2026-10-22, and rest on Fly's documentation for wildcard certificates, volumes and machines that suspend when idle.
+- PR #85 deployed its own preview, `pr-85`, on 2026-10-22 through the Preview workflow: the wildcard certificate was issued and each test account got the right apps over HTTPS. Its first wake from a stopped machine answered 502, because Fly's proxy waits about 8 seconds and the gateway listened after 9 and VoidAuth after 14, which is why the gateway now starts first and holds requests.
 - The image test (`tools/preview/preview.test.ts`) runs the image in Docker as Fly would, over plain HTTP with Fly's `X-Forwarded-Proto`, and passes: signing in as each test account opens the right apps, a request with no session goes to VoidAuth's sign-in, forged `Remote-*` headers are ignored, the session cookie is scoped to the preview's domain, accounts, sessions and a Notes document survive a restart, and a reset leaves only the test accounts.
 - The running image used about 450 MB of memory in that test, so each preview's machine has 1 GB.
 

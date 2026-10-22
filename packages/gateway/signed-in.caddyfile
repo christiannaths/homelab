@@ -16,5 +16,8 @@ request_header -Remote-Name
 request_header -Remote-Email
 forward_auth {$VOIDAUTH_UPSTREAM:voidauth:3000} {
 	uri /api/authz/forward-auth
+	# Waits out VoidAuth starting or restarting rather than failing the request at once.
+	lb_try_duration 30s
+	lb_try_interval 250ms
 	copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
 }

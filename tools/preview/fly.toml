@@ -10,11 +10,12 @@ primary_region = "{{REGION}}"
   source = "data"
   destination = "/data"
 
-# Fly's proxy ends TLS and wakes the machine on a request; it stops again once idle.
+# Fly's proxy ends TLS and wakes the machine on a request. Once idle, the machine is suspended
+# (its memory kept, so it resumes running in under a second) rather than stopped.
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 0
 

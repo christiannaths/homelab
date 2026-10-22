@@ -269,6 +269,26 @@ describe("signing in", () => {
 });
 
 describe("the gateway", () => {
+  test("holds a request made while the preview starts until it can answer", async () => {
+    const since = new Date().toISOString();
+    docker("restart", CONTAINER);
+    port = Number(docker("port", CONTAINER, "8080").split(":").at(-1));
+    // Docker accepts and drops connections until the gateway listens; the first answer counts.
+    let reply: Reply | undefined;
+    for (let i = 0; i < 300 && !reply; i++) {
+      reply = await get("accounts", "/api/public/config").catch(
+        () => undefined,
+      );
+      if (!reply) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.equal(reply?.status, 200, reply?.body ?? "no answer");
+    await waitUntilUp(since);
+  });
+
+  test("answers 404 for a site the homelab doesn't have", async () => {
+    assert.equal((await get("login", "/")).status, 404);
+  });
+
   test("sends a request with no session to VoidAuth's sign-in", async () => {
     const reply = await get("notes", "/");
     assert.equal(reply.status, 302);
