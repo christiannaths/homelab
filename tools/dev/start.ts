@@ -23,15 +23,22 @@ const DOMAIN = process.env.HOMELAB_DOMAIN ?? "homelab.localhost";
 const PORT = Number(process.env.GATEWAY_PORT ?? 8443);
 const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${PORT}`;
 
-/** The instance admin VoidAuth creates on first run, who VoidAuth lets into every app. */
+/**
+ * The instance admin VoidAuth creates on first run. VoidAuth lets it into every app, but Home lists
+ * only the apps whose groups it has (ADR-PLAT-004).
+ */
 const ADMIN = {
   username: "auth_admin",
   password: "violet-quartz-harbour-71",
   groups: ["notes-admins", "encyclopedia"],
 };
 
-/** Each app's VoidAuth groups: being in any of them lets a person into the app. */
+/**
+ * Each app's VoidAuth groups, named after its subdomain: being in any of them lets a person into
+ * the app. Home has none, so every account reaches it.
+ */
 const APPS = [
+  { host: `home.${DOMAIN}`, name: "Home", groups: [] },
   { host: `notes.${DOMAIN}`, name: "Notes", groups: ["notes", "notes-admins"] },
   {
     host: `encyclopedia.${DOMAIN}`,
@@ -46,6 +53,7 @@ const PEOPLE: (Person & { gets: string })[] = [
     username: "ada",
     password: "lantern-meadow-copper-48",
     name: "Ada Lovelace",
+    email: "ada@example.com",
     groups: ["notes-admins", "encyclopedia"],
     gets: "Notes as an owner, and the Encyclopedia",
   },
@@ -53,6 +61,7 @@ const PEOPLE: (Person & { gets: string })[] = [
     username: "dana",
     password: "quartz-ember-willow-27",
     name: "Dana Scully",
+    email: "dana@example.com",
     groups: ["notes"],
     gets: "Notes as a member, no Encyclopedia",
   },
@@ -61,7 +70,7 @@ const PEOPLE: (Person & { gets: string })[] = [
     password: "harbour-violet-thistle-93",
     name: "Bob Ross",
     groups: [],
-    gets: "a homelab account but no apps",
+    gets: "a homelab account but no apps: Home only",
   },
 ];
 
@@ -74,10 +83,19 @@ function compose(...args: string[]): string {
 }
 
 async function startHomelab(): Promise<void> {
-  console.log("Building Notes and the Encyclopedia…");
+  console.log("Building Home, Notes and the Encyclopedia…");
   execFileSync(
     "npx",
-    ["nx", "run-many", "-t", "build", "-p", "notes-web", "encyclopedia-web"],
+    [
+      "nx",
+      "run-many",
+      "-t",
+      "build",
+      "-p",
+      "home-web",
+      "notes-web",
+      "encyclopedia-web",
+    ],
     { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] },
   );
 
@@ -116,8 +134,9 @@ function printSummary(): void {
 The homelab is running. Ctrl+C stops it, keeping its data.
 
   Sign-in and admin pages  ${ACCOUNTS_URL}/admin
-  Notes                    https://${APPS[0]?.host}:${PORT}/
-  Encyclopedia             https://${APPS[1]?.host}:${PORT}/
+  Home                     https://${APPS[0]?.host}:${PORT}/
+  Notes                    https://${APPS[1]?.host}:${PORT}/
+  Encyclopedia             https://${APPS[2]?.host}:${PORT}/
 
 Accounts:
   ${ADMIN.username.padEnd(10)} ${ADMIN.password.padEnd(26)} the homelab admin, every app`);

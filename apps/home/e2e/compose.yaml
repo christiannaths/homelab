@@ -1,0 +1,51 @@
+# The homelab around Home for its end-to-end tests, which cross apps: the gateway (Caddy), VoidAuth
+# (the official image unmodified and pinned by digest, ADR-PLAT-004), Notes and the Encyclopedia.
+# Notes runs from this checkout, as in tools/dev/. The Home server runs in the test process on the
+# host, and the gateway reaches it there.
+name: ${COMPOSE_PROJECT_NAME:-home-e2e}
+services:
+  gateway:
+    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
+    ports:
+      - "${GATEWAY_PORT:-8473}:443"
+    volumes:
+      - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ../../../packages/gateway/signed-in.caddyfile:/etc/caddy/signed-in.caddyfile:ro
+      - ../../encyclopedia/web/dist:/srv/encyclopedia:ro
+      - ${DATA_DIR:?set DATA_DIR}/caddy:/data
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      HOME_UPSTREAM: host.docker.internal:${HOME_PORT:-4130}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on: [voidauth, notes]
+
+  voidauth:
+    image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
+    volumes:
+      - ${DATA_DIR:?set DATA_DIR}/voidauth/config:/app/config
+      - ${DATA_DIR:?set DATA_DIR}/voidauth/db:/app/db
+    environment:
+      APP_URL: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8473}
+      # The session cookie goes on the parent domain, so every app's hostname receives it.
+      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
+      DB_ADAPTER: sqlite
+      DEFAULT_REDIRECT: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8473}/
+      # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
+      SIGNUP: "false"
+      # The suite signs many people in from one address; VoidAuth limits per address.
+      API_RATELIMIT: "1000"
+
+  notes:
+    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+    working_dir: /repo
+    command: node --no-experimental-webstorage apps/notes/server/src/index.ts
+    volumes:
+      - ../../..:/repo:ro
+      - ${DATA_DIR:?set DATA_DIR}/notes:/data
+    environment:
+      VOIDAUTH_URL: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8473}
+      PORT: "3000"
+      DATA_DIR: /data

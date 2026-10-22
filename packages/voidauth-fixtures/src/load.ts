@@ -17,12 +17,18 @@ export interface Person {
   password: string;
   /** Null for a person VoidAuth has no name for. */
   name: string | null;
+  /** Leaving it out gives the person no email, as for `name`. */
+  email?: string;
   groups: string[];
 }
 
 export interface Fixtures {
-  /** The instance admin VoidAuth creates on first run, and the password to give it. */
-  admin: { username: string; password: string };
+  /**
+   * The instance admin VoidAuth creates on first run, and the password to give it. VoidAuth puts
+   * it in `auth_admins`, which lets it into every app but lists none in Home: like everyone, it
+   * is given each app's group.
+   */
+  admin: { username: string; password: string; groups?: string[] };
   apps: App[];
   people: Person[];
   /** VoidAuth's log, which holds the first-run link for setting the admin's password. */
@@ -51,7 +57,10 @@ export async function loadFixtures(
   const groupsNow = async () =>
     records(await admin.json("Listing groups", "GET", "/api/admin/groups"));
   let groups = await groupsNow();
-  for (const name of new Set(apps.flatMap((app) => app.groups)))
+  for (const name of new Set([
+    ...apps.flatMap((app) => app.groups),
+    ...(account.groups ?? []),
+  ]))
     if (!groups.some((group) => group.name === name))
       await admin.json(`Adding group ${name}`, "POST", "/api/admin/group", {
         name,
@@ -91,6 +100,13 @@ export async function loadFixtures(
     "/api/admin/users?page=0&pageSize=1000",
   );
   const users = records(isRecord(listed) ? listed.users : undefined);
+  await giveGroups(
+    admin,
+    users,
+    account.username,
+    account.groups ?? [],
+    groups,
+  );
   for (const person of people) {
     if (users.some((user) => user.username === person.username)) continue;
     const invite = await admin.json(
@@ -100,7 +116,7 @@ export async function loadFixtures(
       {
         username: person.username,
         name: person.name,
-        email: null,
+        email: person.email ?? null,
         userExpiresAt: null,
         emailVerified: false,
         mfaRequired: false,
@@ -127,6 +143,53 @@ export async function loadFixtures(
     );
   }
   return admin;
+}
+
+/** Adds the groups an account is missing, keeping the ones it has. */
+async function giveGroups(
+  admin: VoidAuthClient,
+  users: Record<string, unknown>[],
+  username: string,
+  give: string[],
+  groups: Record<string, unknown>[],
+): Promise<void> {
+  const id = users.find((user) => user.username === username)?.id;
+  if (typeof id !== "string")
+    throw new Error(`VoidAuth has no account ${username}`);
+  const user = await admin.json(
+    `Reading ${username}`,
+    "GET",
+    `/api/admin/user/${id}`,
+  );
+  if (!isRecord(user))
+    throw new Error(`Not an account: ${JSON.stringify(user)}`);
+  const has = records(user.groups).map((group) => String(group.name));
+  const wanted = [...new Set([...has, ...give])];
+  if (wanted.length === has.length) return;
+  // VoidAuth's update replaces the whole account, so every field is sent back as it was.
+  await admin.json(
+    `Giving ${username} its groups`,
+    "PATCH",
+    "/api/admin/user",
+    {
+      id,
+      username: user.username,
+      name: user.name ?? null,
+      email: user.email ?? null,
+      expiresAt: user.expiresAt ?? null,
+      // VoidAuth reads its booleans back from SQLite as 0 and 1, and accepts only true and false.
+      emailVerified: Boolean(user.emailVerified),
+      approved: Boolean(user.approved ?? true),
+      mfaRequired: Boolean(user.mfaRequired),
+      groups: groups
+        .filter((group) => wanted.includes(String(group.name)))
+        .map((group) => ({ id: group.id, name: group.name })),
+      customClaims: records(user.customClaims ?? []).map((claim) => ({
+        claim: claim.claim,
+        value: claim.value,
+      })),
+    },
+  );
 }
 
 /** The first-run password link VoidAuth logs: `${APP_URL}/reset_password?id=…&challenge=…`. */

@@ -10,6 +10,13 @@ accounts.{$HOMELAB_DOMAIN} {
 	reverse_proxy voidauth:3000
 }
 
+home.{$HOMELAB_DOMAIN} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		reverse_proxy home:3000
+	}
+}
+
 notes.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile

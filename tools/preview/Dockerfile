@@ -16,7 +16,7 @@ COPY . .
 RUN --mount=type=secret,id=ca-certs \
   if [ -f /run/secrets/ca-certs ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca-certs; fi \
   && npm ci --no-audit --no-fund \
-  && npm run build -w @homelab/notes-web -w @homelab/encyclopedia-web
+  && npm run build -w @homelab/home-web -w @homelab/notes-web -w @homelab/encyclopedia-web
 
 FROM node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
 # VoidAuth's own Node, since its native SQLite module is built for it. Both images are Alpine 3.24.
@@ -27,12 +27,13 @@ COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 
 WORKDIR /repo
 COPY . .
-# Only what runs: the Notes server's dependencies and the preview's own scripts.
+# Only what runs: the Home and Notes servers' dependencies and the preview's own scripts.
 RUN --mount=type=secret,id=ca-certs \
   if [ -f /run/secrets/ca-certs ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca-certs; fi \
   && npm ci --no-audit --no-fund --omit=dev \
-    -w @homelab/notes-server -w @homelab/tools \
+    -w @homelab/home-server -w @homelab/notes-server -w @homelab/tools \
   && npm cache clean --force
+COPY --from=web /repo/apps/home/web/dist apps/home/web/dist
 COPY --from=web /repo/apps/notes/web/dist apps/notes/web/dist
 COPY --from=web /repo/apps/encyclopedia/web/dist /srv/encyclopedia
 COPY tools/preview/Caddyfile /etc/caddy/Caddyfile

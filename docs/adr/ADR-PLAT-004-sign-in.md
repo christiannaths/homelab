@@ -13,7 +13,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 - **VoidAuth holds the homelab account**, at `accounts.<domain>`, where people sign in and manage their account. It runs from its official image, unmodified and pinned by version and digest, on SQLite. The repo contains none of its code (it is AGPL-3.0).
 - **Every app sits behind one gateway that asks VoidAuth about each request** (VoidAuth's ProxyAuth, through the gateway's forward auth):
-  - All apps are hosted under one parent domain (`notes.home.example`, `accounts.home.example`). VoidAuth's session cookie is set on that domain (`SESSION_DOMAIN`), so one sign-in covers every app and one sign-out ends it for all of them.
+  - Each app is served at the root of its own subdomain directly under one parent domain (`notes.home.example`), with VoidAuth at `accounts.` and Home at `home.`. An app on its own origin keeps its offline data, storage and service worker its own, and bundled apps expect to be served at the root of an address, not under a path. VoidAuth's session cookie is set on the parent domain (`SESSION_DOMAIN`), so one sign-in covers every app and one sign-out ends it for all of them.
   - Before passing a request on, the gateway sends it to VoidAuth's `/api/authz/forward-auth`. VoidAuth answers with the person in `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups`, or sends the browser to its sign-in page or its "forbidden" page.
   - The gateway must delete any `Remote-*` headers the browser sent before asking VoidAuth, because VoidAuth leaves out the headers it has no value for.
   - An app's web app manifest (`/manifest.webmanifest`) and its icons (`/icons/*`) skip the check and are readable without signing in, so Home can learn every app's name and icon by itself, before anyone has opened the app. Every app keeps them at these paths, so one rule covers every app, and nothing else about an app is readable signed out. The `Remote-*` headers are deleted on these requests too.
@@ -22,9 +22,11 @@ The homelab runs several apps for the same few people, on a home server reachabl
   - The gateway is Caddy, set up as in [`spikes/voidauth-proxyauth-poc/gateway/gateway.caddyfile`](../../spikes/voidauth-proxyauth-poc/gateway/gateway.caddyfile).
 - **Apps have no sign-in code.** An app reads the person from the gateway's headers on each request and keeps no session of its own. It identifies a person by their VoidAuth username (`Remote-User`), never by email.
 - **The homelab admin grants apps through VoidAuth groups:**
-  - Each app is a ProxyAuth domain in VoidAuth (`notes.home.example/*`), open to two groups: `<app>` lets a person in, and `<app>-admins` lets them in as the app's admin.
+  - Each app is a ProxyAuth domain in VoidAuth (`notes.home.example/*`), open to two groups named after its subdomain: `<app>` lets a person in, and `<app>-admins` lets them in as the app's admin.
   - VoidAuth refuses everyone else before the request reaches the app, and members of `auth_admins` reach every app.
   - The app decides what its levels mean, from `Remote-Groups`.
+  - A person's apps are the apps named by their groups, so granting a group is all it takes to list an app for them. `auth_admins` names no app, so membership of it alone lists nothing: the homelab admin is given each app's group like everyone else.
+- **Home is open to every account.** Its ProxyAuth domain has no groups, so every signed-in person reaches it. It lists each person's apps from their groups and from each app's manifest, which it reads itself, so an app shows up before anyone has opened it and apps never report themselves to Home.
 - **Signing out is VoidAuth's `/logout` page.** An app's sign-out sends the browser there. After the person confirms, every app in that browser is signed out on its next request, and other browsers stay signed in.
 - **Registration is closed** (`SIGNUP=false`). An account is created only through a VoidAuth invite link, and each link works once. The invite carries the groups, and so the apps, the admin grants.
 - **VoidAuth and the invite service form one app, `apps/accounts/`** ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)), with VoidAuth's compose setup and the invite service as its packages.
@@ -46,6 +48,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 ## Evidence
 
 - `packages/gateway/test/signed-in.test.ts` runs the sign-in check in Caddy 2.10.2: the manifest and icons pass with forged `Remote-*` headers deleted, and every other path, including `/icons/../index.html` and its encoded forms, goes to sign in. The preview image test reads Notes' and the Encyclopedia's manifests and icons signed out (PR for issue #86).
+- Home's server tests (`apps/home/server/test/`) and the Home end-to-end suite (`apps/home/e2e/`), in Chromium through Caddy 2.10.2 and VoidAuth 1.16.0: an account with no groups sees only Home, `-admins` groups count, groups with no manifest are skipped, and the homelab admin sees only the apps it was given (PR for issue #87).
 - The ProxyAuth spike ([`spikes/voidauth-proxyauth-poc/FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68): 9 tests in Chromium through Caddy 2.10.2 and VoidAuth 1.16.0 pass. They cover:
   - one sign-in opening every app the admin granted, and a refusal from an app outside the person's groups
   - removing a person from a group taking effect on their next request
@@ -59,7 +62,8 @@ The homelab runs several apps for the same few people, on a home server reachabl
 ## Consequences
 
 - An app trusts whoever sends it the headers, so it must never be reachable except through the gateway. Its tests send the headers themselves.
-- Adding an app means a site in the gateway and a ProxyAuth domain with its two groups in VoidAuth. A hostname without a ProxyAuth domain is refused, but a ProxyAuth domain without groups lets in every signed-in person.
+- Adding an app means a site in the gateway, its manifest and icons at the fixed paths, and a ProxyAuth domain with its two groups, named after its subdomain, in VoidAuth. Nothing changes in Home. A hostname without a ProxyAuth domain is refused, but a ProxyAuth domain without groups lets in every signed-in person, as Home's does.
+- Home reaches each app's manifest through the gateway at the app's public address, so the gateway must answer Home there, or be named to Home by an internal address (`GATEWAY_URL`).
 - VoidAuth's admin pages can rename a username, and an app then sees a new person. Admins must not rename people.
 - VoidAuth must be running for any app request to succeed, including on devices already signed in. An offline-first app keeps working from what it kept on the device.
 - An app learns of a sign-out on its next request. An open WebSocket stays open until it reconnects, and an app opened offline shows what it kept until it is next online.
@@ -72,6 +76,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Changelog
 
+- 2026-10-22: Each app is on its own subdomain directly under the parent domain, its VoidAuth groups are named after that subdomain, and Home, open to every account, lists each person's apps from those groups and the apps' manifests. `auth_admins` alone lists no app. Home needs a rule for finding apps that adding an app does not change (issue #87, spec #75).
 - 2026-10-22: An app's manifest and icons are readable without signing in, so that Home can read each app's name and icon itself, and the manifest's `homelab` member says whether the app opens offline (issue #86, spec #75).
 - 2026-10-22: VoidAuth is served at `accounts.<domain>`, named for what people do there (sign in and manage their account), instead of `auth.<domain>`. The maintainer asked that nothing be called `auth`, in the thread that built previews (PR #85).
 - 2026-10-19: Every app sits behind one gateway that asks VoidAuth about each request, and apps read the person from its headers instead of being OIDC clients with their own device sessions. As OIDC clients, apps could not learn of a sign-out made elsewhere, so signing out once did not sign the browser out of every app ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68). The admin now grants each app and its level through VoidAuth groups, which replaces the first `auth_admins` member becoming an app's first owner.

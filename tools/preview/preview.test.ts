@@ -259,6 +259,26 @@ describe("signing in", () => {
     assert.equal(await encyclopedia(admin.cookie), "in");
   });
 
+  test("Home lists each account's apps, from their manifests, to every account", async () => {
+    const apps = async (username: string) => {
+      const reply = await get("home", "/api/me", {
+        cookie: (await signIn(username)).cookie,
+      });
+      assert.equal(reply.status, 200, `${username}: ${reply.body}`);
+      const listed = pick(reply.body, "apps");
+      assert.ok(Array.isArray(listed), reply.body);
+      return listed.map((app) => pick(JSON.stringify(app), "name"));
+    };
+    assert.deepEqual(await apps("ada"), ["Encyclopedia", "Home", "Notes"]);
+    assert.deepEqual(await apps("dana"), ["Home", "Notes"]);
+    assert.deepEqual(await apps("bob"), ["Home"]);
+    assert.deepEqual(await apps(ADMIN.username), [
+      "Encyclopedia",
+      "Home",
+      "Notes",
+    ]);
+  });
+
   test("VoidAuth's session is scoped to the preview's domain", async () => {
     const { cookies } = await signIn("dana");
     const session = cookies.find((cookie) =>

@@ -6,6 +6,7 @@ Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app i
 
 | App | What it is |
 | --- | --- |
+| [`home`](apps/home/README.md) | **Home**: the apps each person can use, as tiles, open to every homelab account |
 | [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace (starting fresh) |
 | [`encyclopedia`](apps/encyclopedia/README.md) | **Encyclopedia**: a read-only copy of Wikipedia, already populated, with saved lists that work offline (docs only) |
 
@@ -15,7 +16,7 @@ Ideas that have been talked through but not committed to. Nothing here is planne
 
 | Idea | What it would be | Notes |
 | --- | --- | --- |
-| **Home page** | Where people land after signing in: the apps each person can use, plus a search across all of them | Built once and shared by every app. |
+| **Search across apps** | One search on Home that finds things in every app | Home exists; the search does not. |
 | **Library** | The things a household saves from elsewhere and reads later: ebooks, and read-later web pages kept offline in full | Pocket is a loose reference for read-later. It would link to Encyclopedia, and a "send to Notes" action would clip a page into Notes. |
 | **Photos and videos** | The household's shared library of photos and home videos | Definitely wanted. Immich is the candidate to bundle. |
 | **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. Likely bundles Sonarr, Radarr and Jellyfin, with a small household request page built on top. Also worth a look: [a TorBox and Stremio how-to guide](https://arnav.au/2026/05/16/torbox-stremio-how-to-guide/). |

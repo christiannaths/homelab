@@ -1,11 +1,13 @@
 // Who is signed in, as the homelab gateway says: it asks VoidAuth about every request and copies
 // VoidAuth's answer into these headers, after deleting any the browser sent (ADR-PLAT-004). Only
-// the gateway reaches Notes, so the headers are trusted as they are.
+// the gateway reaches an app, so the headers are trusted as they are.
 
 /** The person on a request that came through the gateway. */
 export interface GatewayIdentity {
+  /** The VoidAuth username, which identifies the person. */
   username: string;
   name: string | null;
+  email: string | null;
   groups: string[];
 }
 
@@ -16,6 +18,7 @@ export function identityFrom(headers: Headers): GatewayIdentity | undefined {
   return {
     username,
     name: decoded(headers.get("remote-name")),
+    email: decoded(headers.get("remote-email")),
     groups: (headers.get("remote-groups") ?? "")
       .split(",")
       .map((group) => decoded(group.trim()))

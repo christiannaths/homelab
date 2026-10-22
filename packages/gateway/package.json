@@ -9,6 +9,9 @@
       "platform:any"
     ]
   },
+  "exports": {
+    ".": "./src/identity.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "e2e": "node --test \"test/*.test.ts\""
