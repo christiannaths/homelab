@@ -14,6 +14,17 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## How work is closed: one PR per spec
+
+This tracker closes work through pull requests, one per spec.
+
+- A spec and all its tickets ship as **one PR against `main`**, from one branch (`feat/<spec#>-<slug>`, or the session's assigned `claude/*` branch).
+- Open it as a **draft** once the first ticket's commit is pushed. Its body lists every ticket as a checklist and ends with `Closes #<spec>` plus `Closes #<ticket>` for each ticket, so the merge closes them all.
+- Each ticket lands as commits on that branch, subject prefixed with the ticket number (`feat(#87): …`). Never open a PR per ticket, and never a PR into another feature branch: the preview workflow deploys every PR whatever its base, and GitHub only acts on `Closes` when a PR merges into `main`.
+- Every push updates the PR's preview deployment, so the preview always shows the spec built so far.
+- Mark the PR ready when every ticket is ticked and `/code-review` has run over the whole branch.
+- Work not from a spec (a bug, a lone ticket) is still one PR per issue.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
