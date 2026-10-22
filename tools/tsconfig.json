@@ -5,5 +5,5 @@
     "moduleResolution": "NodeNext",
     "types": ["node"]
   },
-  "include": ["*.ts", "dev/*.ts"]
+  "include": ["*.ts", "dev/*.ts", "login-links/*.ts"]
 }

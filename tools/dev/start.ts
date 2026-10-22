@@ -3,9 +3,10 @@
 //
 //   node tools/dev/start.ts      build the apps, run everything with its logs until Ctrl+C
 //
-// While it runs, https://login.<domain>:<port>/<username> signs the browser in as that account and
-// opens their app, so trying the apps as each person needs no typing.
 //   node tools/dev/start.ts reset stop the containers and delete their data
+//
+// While it runs, https://login.<domain>:<port>/<username> signs the browser in as that account and
+// opens their app (tools/login-links/).
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
@@ -16,6 +17,7 @@ import {
   VoidAuthClient,
   type Person,
 } from "@homelab/voidauth-fixtures";
+import { loginLinks } from "../login-links/login-links.ts";
 
 const HERE = import.meta.dirname;
 const ROOT = path.join(HERE, "..", "..");
@@ -107,7 +109,15 @@ async function startHomelab(): Promise<void> {
       people: PEOPLE,
       readLog: () => compose("logs", "voidauth"),
     });
-    serveLoginLinks(ca);
+    createServer(
+      loginLinks({
+        domain: DOMAIN,
+        port: PORT,
+        voidauth: { url: AUTH_URL, ca },
+        accounts: [ADMIN, ...PEOPLE],
+        apps: APPS,
+      }),
+    ).listen(LOGIN_PORT, "127.0.0.1");
   })().then(printSummary, (error: unknown) =>
     console.error(
       `\nSetting VoidAuth up failed: ${String(error)}\nIf it keeps failing, \`npm run dev:reset\` starts over.\n`,
@@ -143,54 +153,6 @@ The certificates come from the gateway's own CA, so the browser warns until you 
 ${path.relative(process.cwd(), CA_FILE)} to test installing the apps and opening them offline
 (tools/dev/README.md says how).
 `);
-}
-
-/**
- * The login site's handler, which the gateway passes `login.<domain>` to. It signs in with the
- * account's password as a browser would, then hands that browser VoidAuth's session cookie.
- */
-function serveLoginLinks(ca: string): void {
-  createServer((req, res) => {
-    const [username, appName] = new URL(req.url ?? "/", LOGIN_URL).pathname
-      .split("/")
-      .filter(Boolean);
-    const account = [ADMIN, ...PEOPLE].find(
-      (candidate) => candidate.username === username,
-    );
-    if (!account) {
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(
-        [ADMIN, ...PEOPLE]
-          .map(
-            (candidate) =>
-              `<p><a href="/${candidate.username}">Sign in as ${candidate.username}</a></p>`,
-          )
-          .join("\n"),
-      );
-      return;
-    }
-    const app =
-      APPS.find((candidate) => candidate.host === `${appName}.${DOMAIN}`) ??
-      APPS.find((candidate) =>
-        candidate.groups.some((group) => account.groups.includes(group)),
-      );
-    const browser = new VoidAuthClient({ url: AUTH_URL, ca });
-    browser
-      .signIn(account)
-      .then((signedIn) => {
-        if (!signedIn)
-          throw new Error(`VoidAuth refused ${username}'s password`);
-        res.writeHead(302, {
-          "location": app ? `https://${app.host}:${PORT}/` : `${AUTH_URL}/`,
-          "set-cookie": browser.sessionCookies(),
-        });
-        res.end();
-      })
-      .catch((error: unknown) => {
-        res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-        res.end(String(error));
-      });
-  }).listen(LOGIN_PORT, "127.0.0.1");
 }
 
 /** The gateway's root certificate, which it makes on first start. */

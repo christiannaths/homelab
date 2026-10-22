@@ -43,7 +43,7 @@ VoidAuth offers to set up a passkey after a password sign-in; **Skip** is fine.
 
 ### Sign in as someone in one click
 
-While `npm run dev` runs, <https://login.homelab.localhost:8443/> signs the browser in as an account and opens that person's app, skipping VoidAuth's sign-in page: `/ada`, `/dana`, `/bob` or `/auth_admin`. Add an app to open that one instead, as in `/ada/encyclopedia`. Opening another link switches the browser to that account. Behind it, `start.ts` signs in with the account's password as a browser would and hands over VoidAuth's session cookie; a real install has no such site.
+While `npm run dev` runs, <https://login.homelab.localhost:8443/> signs the browser in as an account and opens that person's app, skipping VoidAuth's sign-in page: `/ada`, `/dana`, `/bob` or `/auth_admin`. Add an app to open that one instead, as in `/ada/encyclopedia`. Opening another link switches the browser to that account. Behind it, `start.ts` serves the handler in [`tools/login-links/`](../login-links/login-links.ts), which signs in with the account's password as a browser would and hands over VoidAuth's session cookie; a real install has no such site.
 
 ## Start over
 
@@ -57,4 +57,4 @@ Set `GATEWAY_PORT` (default `8443`), `HOMELAB_DOMAIN` (default `homelab.localhos
 
 - `compose.yaml`: the containers. Only the gateway publishes a port, since Notes trusts the `Remote-*` headers the gateway sets.
 - `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check in [`packages/gateway/signed-in.caddyfile`](../../packages/gateway/signed-in.caddyfile), and the login site goes to `start.ts`.
-- `start.ts`: what `npm run dev` and `npm run dev:reset` run, and the login links' handler.
+- `start.ts`: what `npm run dev` and `npm run dev:reset` run. It also serves the login links.
