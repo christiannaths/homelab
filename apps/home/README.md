@@ -17,4 +17,4 @@ Nothing changes in Home. An app shows up for everyone with **App access** to it 
 - it is served at `<app>.<parent domain>`, with its manifest at `/manifest.webmanifest` and its icons under `/icons/`;
 - its VoidAuth groups are `<app>` and, if it has an admin level, `<app>-admins`, and its ProxyAuth domain is open to them.
 
-Its manifest's `homelab` member says whether it opens offline: `"homelab": { "opens_offline": true }`.
+Its manifest's `homelab` member says whether it opens offline: `"homelab": { "opens_offline": true }`. Without it, the app's tile and its App switcher entry are greyed out while the device is offline.

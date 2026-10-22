@@ -28,7 +28,10 @@ export function manifestReader({ url, caFile }: GatewayAddress): ReadManifest {
         redirect: "manual",
         signal: AbortSignal.timeout(TIMEOUT_MS),
       }).catch(() => undefined);
-      return response?.ok ? parsed(await response.text()) : undefined;
+      if (!response?.ok) return undefined;
+      // A body cut short or past the timeout is no manifest, not an error for whoever asked.
+      const text = await response.text().catch(() => undefined);
+      return text === undefined ? undefined : parsed(text);
     }
     // A CA file the gateway has not written yet is tried again on the next read.
     const ca = caFile ? await readFile(caFile, "utf8").catch(() => "") : "";
@@ -48,6 +51,9 @@ export function manifestReader({ url, caFile }: GatewayAddress): ReadManifest {
         res.setEncoding("utf8");
         res.on("data", (chunk: string) => (body += chunk));
         res.on("end", () => resolve(res.statusCode === 200 ? body : undefined));
+        // A body cut short closes without ending; resolving again after "end" does nothing.
+        res.on("close", () => resolve(undefined));
+        res.on("error", () => resolve(undefined));
       };
       const req =
         url.protocol === "https:"

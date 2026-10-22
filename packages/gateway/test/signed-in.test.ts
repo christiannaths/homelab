@@ -44,6 +44,7 @@ function startVoidAuth(): Promise<number> {
 interface Reply {
   status: number;
   location: string | undefined;
+  allowOrigin: string | string[] | undefined;
   /** What the app received: the path and the Remote-* headers. */
   seen: unknown;
 }
@@ -65,6 +66,7 @@ function get(route: string, headers: Record<string, string> = {}) {
           resolve({
             status: res.statusCode ?? 0,
             location: res.headers.location,
+            allowOrigin: res.headers["access-control-allow-origin"],
             seen: res.statusCode === 200 ? JSON.parse(body) : undefined,
           }),
         );
@@ -181,6 +183,12 @@ describe("signed out", () => {
         route,
       );
     }
+  });
+
+  test("lets any page read an icon with CORS, and nothing else", async () => {
+    assert.equal((await get("/icons/icon-192.png")).allowOrigin, "*");
+    assert.equal((await get("/manifest.webmanifest")).allowOrigin, undefined);
+    assert.equal((await get("/")).allowOrigin, undefined);
   });
 
   test("sends every other path to sign in, including ones that climb out of /icons/", async () => {

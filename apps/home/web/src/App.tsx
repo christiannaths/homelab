@@ -84,7 +84,12 @@ export function App({ home }: { home: Home }) {
           >
             {view.me.apps.map((app) => (
               <li key={app.id}>
-                <Tile app={app} />
+                <Tile
+                  app={app}
+                  // As in the App switcher: an app that doesn't open offline would only show a
+                  // "no connection" page.
+                  unavailable={!view.online && !app.opensOffline}
+                />
               </li>
             ))}
           </SimpleGrid>
@@ -95,13 +100,15 @@ export function App({ home }: { home: Home }) {
   return null;
 }
 
-function Tile({ app }: { app: HomelabApp }) {
+function Tile({ app, unavailable }: { app: HomelabApp; unavailable: boolean }) {
   return (
     <Anchor
-      href={app.url}
+      href={unavailable ? undefined : app.url}
+      aria-disabled={unavailable || undefined}
       underline="never"
-      c="inherit"
+      c={unavailable ? "dimmed" : "inherit"}
       display="block"
+      style={unavailable ? { cursor: "default", opacity: 0.5 } : undefined}
     >
       <Paper
         withBorder
@@ -116,6 +123,8 @@ function Tile({ app }: { app: HomelabApp }) {
             <Image
               src={app.icon}
               alt=""
+              // With CORS, which the gateway allows for icons, so Home's service worker keeps it.
+              crossOrigin="anonymous"
               w={64}
               h={64}
               radius="lg"

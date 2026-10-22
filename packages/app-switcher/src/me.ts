@@ -78,6 +78,7 @@ export async function ask(home: string): Promise<Answer> {
       credentials: "include",
       cache: "no-store",
       redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
     });
   } catch {
     return { status: "unreachable" };

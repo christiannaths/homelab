@@ -55,7 +55,7 @@ The switcher renders in its own shadow DOM, so the app's styles and its own don'
 
 The switcher keeps Home's last answer in the app's `localStorage` (`homelab.switcher`) and shows it when the device is offline or Home can't be reached. While the device is offline, apps whose manifest doesn't mark them as opening offline are greyed out and can't be opened, and Sign out is greyed out with **Needs a connection**. It asks Home again on every load and when the device comes back online, so apps granted or removed meanwhile show up then. A signed-out answer clears what it kept.
 
-The service-worker routes in [`src/caching.ts`](src/caching.ts) keep the script (network first, falling back to the last good copy) and the other apps' icons (from the copy kept, refreshed in the background).
+The service-worker routes in [`src/caching.ts`](src/caching.ts) keep the script (network first, falling back to the last good copy) and the other apps' icons (from the copy kept, refreshed in the background). Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
 
 ## Building and testing
 

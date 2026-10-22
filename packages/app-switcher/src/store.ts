@@ -27,7 +27,12 @@ function keep(me: Me | undefined): void {
   }
 }
 
-let state: State = { status: "asking" };
+// The kept answer shows at once, and Home's answer replaces it, so a connection that hangs
+// instead of failing still shows the switcher.
+const first = kept();
+let state: State = first
+  ? { status: "signed-in", me: first }
+  : { status: "asking" };
 let asking: Promise<void> | undefined;
 const listeners = new Set<() => void>();
 

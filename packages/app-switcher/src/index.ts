@@ -52,5 +52,7 @@ navigator.serviceWorker?.addEventListener("controllerchange", () => {
       () => undefined,
     );
   for (const icon of icons)
-    void fetch(icon, { mode: "no-cors" }).catch(() => undefined);
+    void fetch(icon, { mode: "cors", credentials: "same-origin" }).catch(
+      () => undefined,
+    );
 });

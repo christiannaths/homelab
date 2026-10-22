@@ -33,14 +33,13 @@ export const switcherCaching = [
   },
   {
     // The other apps' icons in the menu; the app's own are in its precache already. They load
-    // without CORS, so their answers are opaque and kept whatever they were, until the next
-    // online load replaces them.
+    // with CORS, which the gateway allows for icons, so only good answers are kept.
     urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
       !sameOrigin && url.pathname.startsWith("/icons/"),
     handler: "StaleWhileRevalidate" as const,
     options: {
       cacheName: "homelab-switcher-icons",
-      cacheableResponse: { statuses: [0, 200] },
+      cacheableResponse: { statuses: [200] },
       expiration: { maxEntries: 50 },
     },
   },

@@ -119,6 +119,20 @@ describe("the App switcher offline", () => {
     );
   });
 
+  it("greys out the same app's tile in Home", async () => {
+    await page.goto(HOME_URL);
+    const tiles = page.getByRole("list", { name: "Your apps" });
+    const vault = tiles.getByRole("link", { name: "Vault" });
+    await tiles.waitFor();
+    expect(await vault.count()).toBe(0);
+    expect(
+      await tiles.locator('[aria-disabled="true"]').textContent(),
+    ).toContain("Vault");
+    expect(
+      await tiles.getByRole("link", { name: "Notes" }).getAttribute("href"),
+    ).toBe(`${NOTES_URL}/`);
+  });
+
   it("greys out Sign out, which needs a connection", async () => {
     await page.goto(HOME_URL);
     await menuItems(page);

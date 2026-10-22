@@ -94,6 +94,10 @@ export class HomelabSwitcher extends HTMLElement {
 
   #render({ person, apps, signOutUrl }: Me, offline: boolean): void {
     const wasOpen = this.#panel ? !this.#panel.hidden : false;
+    // A re-render (an answer from Home, going on or off line) keeps focus where the person left it.
+    const focused = this.#items.findIndex(
+      (item) => item === this.#shadow.activeElement,
+    );
     const name = person.name ?? person.username;
 
     const button = element(
@@ -133,7 +137,7 @@ export class HomelabSwitcher extends HTMLElement {
           "aria-current": here ? "page" : undefined,
         },
         app.icon
-          ? element("img", { src: app.icon, alt: "" })
+          ? element("img", { src: app.icon, alt: "", crossorigin: "anonymous" })
           : element("span", { class: "no-icon" }),
         element("span", { class: "label" }, app.name),
         ...(here ? [element("span", { class: "note" }, "Current")] : []),
@@ -182,7 +186,8 @@ export class HomelabSwitcher extends HTMLElement {
     this.#button = button;
     this.#panel = panel;
     this.#root.replaceChildren(button, panel);
-    if (wasOpen) this.#open(0);
+    if (wasOpen)
+      this.#open(Math.min(Math.max(focused, 0), this.#items.length - 1));
   }
 
   #toggle(): void {
