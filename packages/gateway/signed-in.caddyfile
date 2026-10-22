@@ -8,13 +8,18 @@
 # Remote-Groups for a person without one, so the browser's own would reach the app: they are
 # deleted first.
 #
+# An app's web app manifest and the icons in /icons/ skip the check, so Home can read every app's
+# name and icon without a person's session. Every app keeps them at these paths. Caddy matches
+# the cleaned path, so /icons/../ goes through the check like any other path.
+#
 # VoidAuth is the `voidauth` container unless VOIDAUTH_UPSTREAM names another address, as in a
 # preview, where it runs in the same container as the gateway.
 request_header -Remote-User
 request_header -Remote-Groups
 request_header -Remote-Name
 request_header -Remote-Email
-forward_auth {$VOIDAUTH_UPSTREAM:voidauth:3000} {
+@needs-sign-in not path /manifest.webmanifest /icons/*
+forward_auth @needs-sign-in {$VOIDAUTH_UPSTREAM:voidauth:3000} {
 	uri /api/authz/forward-auth
 	# Waits out VoidAuth starting or restarting rather than failing the request at once.
 	lb_try_duration 30s

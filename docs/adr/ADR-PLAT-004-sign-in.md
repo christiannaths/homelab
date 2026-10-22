@@ -16,6 +16,8 @@ The homelab runs several apps for the same few people, on a home server reachabl
   - All apps are hosted under one parent domain (`notes.home.example`, `accounts.home.example`). VoidAuth's session cookie is set on that domain (`SESSION_DOMAIN`), so one sign-in covers every app and one sign-out ends it for all of them.
   - Before passing a request on, the gateway sends it to VoidAuth's `/api/authz/forward-auth`. VoidAuth answers with the person in `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups`, or sends the browser to its sign-in page or its "forbidden" page.
   - The gateway must delete any `Remote-*` headers the browser sent before asking VoidAuth, because VoidAuth leaves out the headers it has no value for.
+  - An app's web app manifest (`/manifest.webmanifest`) and its icons (`/icons/*`) skip the check and are readable without signing in, so Home can learn every app's name and icon by itself, before anyone has opened the app. Every app keeps them at these paths, so one rule covers every app, and nothing else about an app is readable signed out. The `Remote-*` headers are deleted on these requests too.
+  - An app's manifest marks it as opening offline with the homelab member `"homelab": { "opens_offline": true }`. An app without it counts as not opening offline.
   - Only the gateway reaches the apps: no app publishes a port of its own.
   - The gateway is Caddy, set up as in [`spikes/voidauth-proxyauth-poc/gateway/gateway.caddyfile`](../../spikes/voidauth-proxyauth-poc/gateway/gateway.caddyfile).
 - **Apps have no sign-in code.** An app reads the person from the gateway's headers on each request and keeps no session of its own. It identifies a person by their VoidAuth username (`Remote-User`), never by email.
@@ -43,6 +45,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Evidence
 
+- `packages/gateway/test/signed-in.test.ts` runs the sign-in check in Caddy 2.10.2: the manifest and icons pass with forged `Remote-*` headers deleted, and every other path, including `/icons/../index.html` and its encoded forms, goes to sign in. The preview image test reads Notes' and the Encyclopedia's manifests and icons signed out (PR for issue #86).
 - The ProxyAuth spike ([`spikes/voidauth-proxyauth-poc/FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68): 9 tests in Chromium through Caddy 2.10.2 and VoidAuth 1.16.0 pass. They cover:
   - one sign-in opening every app the admin granted, and a refusal from an app outside the person's groups
   - removing a person from a group taking effect on their next request
@@ -64,10 +67,12 @@ The homelab runs several apps for the same few people, on a home server reachabl
 - Only browsers can use the apps: without a cookie, VoidAuth accepts only a username and password in `Authorization`, and it has no tokens for other clients.
 - VoidAuth has no API tokens, so the invite service signs in as an admin the way VoidAuth's web interface does. That interface is not a stable API: each VoidAuth upgrade is tested against the invite service before it is taken.
 - Password resets, password rules and sign-in rate limiting belong to VoidAuth. An app has no password screens.
+- An app keeps nothing at `/manifest.webmanifest` or under `/icons/` that is not meant for everyone, since those paths are public. A bundled app's site maps those two paths to its own manifest and icons when one is added.
 - Not yet tested: Traefik or nginx as the gateway, real certificates, passkeys and MFA, and VoidAuth upgrades.
 
 ## Changelog
 
+- 2026-10-22: An app's manifest and icons are readable without signing in, so that Home can read each app's name and icon itself, and the manifest's `homelab` member says whether the app opens offline (issue #86, spec #75).
 - 2026-10-22: VoidAuth is served at `accounts.<domain>`, named for what people do there (sign in and manage their account), instead of `auth.<domain>`. The maintainer asked that nothing be called `auth`, in the thread that built previews (PR #85).
 - 2026-10-19: Every app sits behind one gateway that asks VoidAuth about each request, and apps read the person from its headers instead of being OIDC clients with their own device sessions. As OIDC clients, apps could not learn of a sign-out made elsewhere, so signing out once did not sign the browser out of every app ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68). The admin now grants each app and its level through VoidAuth groups, which replaces the first `auth_admins` member becoming an app's first owner.
 - 2026-10-17: Accepted. VoidAuth was the one sign-in, with each app an OIDC client keyed by `sub` and keeping its own members, roles and device sessions. The first `auth_admins` member to sign in to an app became its first owner.

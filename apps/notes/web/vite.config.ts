@@ -3,6 +3,13 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { tokens } from "@homelab/theme/tokens";
 
+declare module "vite-plugin-pwa" {
+  interface ManifestOptions {
+    /** Homelab's own manifest member, which Home reads (ADR-PLAT-004). */
+    homelab?: { opens_offline?: boolean };
+  }
+}
+
 // The Notes server's address in development; it serves the API and the sync socket.
 const server = process.env.NOTES_SERVER ?? "http://localhost:3000";
 
@@ -27,7 +34,7 @@ export default defineConfig({
       // for the sign-in page.
       injectRegister: false,
       registerType: "autoUpdate",
-      includeAssets: ["icon.svg", "apple-touch-icon.png"],
+      includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
       manifest: {
         name: "Notes",
         short_name: "Notes",
@@ -36,11 +43,12 @@ export default defineConfig({
         start_url: "/",
         background_color: tokens.surface.light,
         theme_color: tokens.surface.light,
+        homelab: { opens_offline: true },
         icons: [
-          { src: "icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
           {
-            src: "icon-512.png",
+            src: "icons/icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",

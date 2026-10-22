@@ -298,6 +298,22 @@ describe("the gateway", () => {
     );
   });
 
+  test("lets anyone read each app's manifest and its icons, and nothing else", async () => {
+    for (const site of ["notes", "encyclopedia"]) {
+      const manifest = await get(site, "/manifest.webmanifest");
+      assert.equal(manifest.status, 200, site);
+      assert.equal(pick(manifest.body, "homelab", "opens_offline"), true, site);
+      const icons = pick(manifest.body, "icons");
+      assert.ok(Array.isArray(icons) && icons.length > 0, manifest.body);
+      for (const icon of icons) {
+        const src = String(pick(JSON.stringify(icon), "src"));
+        assert.equal((await get(site, `/${src}`)).status, 200, src);
+      }
+      for (const route of ["/", "/index.html", "/sw.js", "/icons/../"])
+        assert.equal((await get(site, route)).status, 302, `${site} ${route}`);
+    }
+  });
+
   test("ignores Remote-* headers sent by the client", async () => {
     const forged = {
       "remote-user": "ada",
