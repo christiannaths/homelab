@@ -29,11 +29,11 @@ certificate="*.$domain"
 # Exits when Fly can't be asked, rather than taking that for an app that doesn't exist.
 app_exists() {
   local apps
-  apps=$(flyctl apps list --org "$FLY_ORG" --quiet) || {
+  apps=$(flyctl apps list --org "$FLY_ORG" --json) || {
     echo "Listing the Fly organization's apps failed." >&2
     exit 1
   }
-  grep -qxF "$app" <<<"$apps"
+  jq -e --arg app "$app" 'any(.[]; .Name == $app)' <<<"$apps" >/dev/null
 }
 
 # ── DNSimple ──────────────────────────────────────────────────────────────
@@ -81,7 +81,10 @@ deploy() {
   if ! app_exists; then
     echo "Creating the Fly app $app…"
     flyctl apps create "$app" --org "$FLY_ORG"
-    # VoidAuth encrypts its secrets with this key, so it is made once per preview and kept.
+  fi
+  # VoidAuth encrypts its secrets with this key, so it is made once per preview and kept. It is
+  # checked apart from the app, since a run cancelled between the two leaves an app without it.
+  if ! flyctl secrets list --app "$app" --json | jq -e 'any(.[]; .name == "STORAGE_KEY")' >/dev/null; then
     # Read from stdin, so it never appears in a command line or the public workflow log.
     flyctl secrets import --app "$app" --stage <<<"STORAGE_KEY=$(openssl rand -hex 24)"
   fi
