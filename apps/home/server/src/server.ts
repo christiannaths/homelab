@@ -63,8 +63,9 @@ export async function startServer({
 
   // Apps ask from their own pages, with the homelab's cookie, so the answer names their origin.
   // A GET with no custom headers needs no preflight, which the gateway could not let through:
-  // a preflight carries no cookie.
-  app.use("/api/*", async (c, next) => {
+  // a preflight carries no cookie. The switcher's script is loaded the same way, so an app's
+  // service worker can tell a failed load from a good one before keeping it.
+  const allowHomelabApps = async (c: Context, next: () => Promise<void>) => {
     await next();
     const origin = c.req.header("origin");
     c.header("vary", "Origin", { append: true });
@@ -72,7 +73,9 @@ export async function startServer({
       c.header("access-control-allow-origin", origin);
       c.header("access-control-allow-credentials", "true");
     }
-  });
+  };
+  app.use("/api/*", allowHomelabApps);
+  app.use("/switcher.js", allowHomelabApps);
 
   app.get("/api/health", (c) => c.json({ ok: true }));
 

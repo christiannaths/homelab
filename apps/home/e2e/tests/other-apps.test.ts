@@ -97,8 +97,8 @@ for (const app of APPS)
               (await fetch("/not-cached", { redirect: "manual" })).type,
           ),
         ).toBe("opaqueredirect");
-        await tab.waitForLoadState("networkidle");
-        expect(await userIcon(tab).count()).toBe(0);
+        // The switcher's kept copy loads, and hides once Home's answer says signed out.
+        await expect.poll(() => userIcon(tab).count()).toBe(0);
       } else {
         await onVoidAuthSignIn(tab);
       }

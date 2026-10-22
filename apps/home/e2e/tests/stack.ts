@@ -1,10 +1,13 @@
 // The homelab around Home (compose.yaml) and the people the tests sign in as. A browser reaches
 // everything through the gateway on GATEWAY_PORT, as a browser on the home network would.
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { connect } from "node:tls";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { startServer, type HomeServer } from "@homelab/home-server";
+import { VoidAuthClient } from "@homelab/voidauth-fixtures";
 import { chromium, type Browser, type Page } from "playwright";
 
 const run = promisify(execFile);
@@ -27,6 +30,7 @@ export const ACCOUNTS_URL = appUrl("accounts");
 export const HOME_URL = appUrl("home");
 export const NOTES_URL = appUrl("notes");
 export const ENCYCLOPEDIA_URL = appUrl("encyclopedia");
+export const VAULT_URL = appUrl("vault");
 /** VoidAuth's session cookie, on the parent domain. */
 export const VOIDAUTH_SESSION_COOKIE = "x-voidauth-session";
 
@@ -70,7 +74,22 @@ export const BOB: Account = {
   name: "Bob Ross",
   groups: [],
 };
-export const PEOPLE = [ADA, DANA, BOB];
+/** Has an app that doesn't open offline, the Vault stand-in in gateway.caddyfile. */
+export const GRACE: Account = {
+  username: "grace",
+  password: "copper-thistle-lantern-65",
+  name: "Grace Hopper",
+  email: "grace@example.com",
+  groups: ["notes", "encyclopedia", "vault"],
+};
+/** Has their groups changed by the tests, as an admin granting and removing apps. */
+export const HEDY: Account = {
+  username: "hedy",
+  password: "willow-harbour-ember-52",
+  name: "Hedy Lamarr",
+  groups: ["notes"],
+};
+export const PEOPLE = [ADA, DANA, BOB, GRACE, HEDY];
 export const APPS = [
   { name: "Home", host: `home.${DOMAIN}`, groups: [] },
   { name: "Notes", host: `notes.${DOMAIN}`, groups: ["notes", "notes-admins"] },
@@ -79,6 +98,7 @@ export const APPS = [
     host: `encyclopedia.${DOMAIN}`,
     groups: ["encyclopedia"],
   },
+  { name: "Vault", host: `vault.${DOMAIN}`, groups: ["vault"] },
 ];
 
 export async function compose(
@@ -112,6 +132,17 @@ export function startHome(dataDir: string): Promise<HomeServer> {
     clientDir: CLIENT_DIR,
     switcherScript: SWITCHER_SCRIPT,
   });
+}
+
+/** VoidAuth's API signed in as the homelab admin, for granting and removing apps. */
+export async function signInAsAdmin(dataDir: string): Promise<VoidAuthClient> {
+  const admin = new VoidAuthClient({
+    url: ACCOUNTS_URL,
+    ca: await readFile(gatewayCaFile(dataDir), "utf8"),
+  });
+  if (!(await admin.signIn(ADMIN)))
+    throw new Error(`Can't sign in to VoidAuth as ${ADMIN.username}`);
+  return admin;
 }
 
 /** `gatewayCaSpki` is the hash of the gateway's CA key, which global setup provides. */
@@ -176,6 +207,48 @@ export async function waitUntilOfflineReady(page: Page): Promise<void> {
     await navigator.serviceWorker.ready;
   });
 }
+
+/**
+ * Takes the device off the network: the browser says it is offline, and the gateway is stopped,
+ * since Playwright's offline mode still lets service workers through to the network.
+ */
+export async function goOffline(
+  page: Page,
+  composeEnv: Record<string, string>,
+): Promise<void> {
+  await page.context().setOffline(true);
+  await compose(composeEnv, "stop", "gateway");
+}
+
+/** Puts the device back on the network, once the gateway answers again. */
+export async function goOnline(
+  page: Page,
+  composeEnv: Record<string, string>,
+): Promise<void> {
+  await compose(composeEnv, "start", "gateway");
+  for (let i = 0; !(await gatewayAnswers()); i++) {
+    if (i === 60) throw new Error("The gateway didn't come back");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  await page.context().setOffline(false);
+}
+
+// Docker takes connections on the port as soon as the container starts; a TLS handshake waits for
+// Caddy itself. Its certificate is checked by the browser, not here.
+const gatewayAnswers = () =>
+  new Promise<boolean>((resolve) => {
+    const socket = connect({
+      host: "127.0.0.1",
+      port: GATEWAY_PORT,
+      servername: `accounts.${DOMAIN}`,
+      rejectUnauthorized: false,
+    })
+      .once("secureConnect", () => {
+        socket.destroy();
+        resolve(true);
+      })
+      .once("error", () => resolve(false));
+  });
 
 /** Answers Yes on VoidAuth's "sign out?" page, which the browser must be on or on its way to. */
 export async function confirmSignOut(page: Page): Promise<void> {

@@ -43,6 +43,7 @@ export class HomelabSwitcher extends HTMLElement {
   readonly #shadow = this.attachShadow({ mode: "open" });
   readonly #root = element("div", { class: "root" });
   #me: Me | undefined;
+  #offline = false;
   #button: HTMLButtonElement | undefined;
   #panel: HTMLDivElement | undefined;
   #items: HTMLElement[] = [];
@@ -80,15 +81,18 @@ export class HomelabSwitcher extends HTMLElement {
   #show(): void {
     const state = current();
     const me = state.status === "signed-in" ? state.me : undefined;
+    // Offline is as the browser says: Home being unreachable alone greys nothing out.
+    const offline = !navigator.onLine;
     // Signed out, the switcher shows nothing and leaves signing in to the app.
     this.hidden = !me;
-    if (me === this.#me) return;
+    if (me === this.#me && offline === this.#offline) return;
     this.#me = me;
-    if (me) this.#render(me);
+    this.#offline = offline;
+    if (me) this.#render(me, offline);
     else this.#root.replaceChildren();
   }
 
-  #render({ person, apps, signOutUrl }: Me): void {
+  #render({ person, apps, signOutUrl }: Me, offline: boolean): void {
     const wasOpen = this.#panel ? !this.#panel.hidden : false;
     const name = person.name ?? person.username;
 
@@ -116,13 +120,16 @@ export class HomelabSwitcher extends HTMLElement {
 
     const items = menuOrder(apps).map((app) => {
       const here = new URL(app.url).origin === location.origin;
+      // An app that doesn't open offline would only show a "no connection" page.
+      const unavailable = offline && !here && !app.opensOffline;
       return element(
         "a",
         {
           "class": "item",
           "role": "menuitem",
           "tabindex": "-1",
-          "href": app.url,
+          "href": unavailable ? undefined : app.url,
+          "aria-disabled": unavailable ? "true" : undefined,
           "aria-current": here ? "page" : undefined,
         },
         app.icon
@@ -132,10 +139,20 @@ export class HomelabSwitcher extends HTMLElement {
         ...(here ? [element("span", { class: "note" }, "Current")] : []),
       );
     });
+    // Signing out happens at VoidAuth, which needs a connection.
     const signOut = element(
       "a",
-      { class: "item", role: "menuitem", tabindex: "-1", href: signOutUrl },
+      {
+        "class": "item",
+        "role": "menuitem",
+        "tabindex": "-1",
+        "href": offline ? undefined : signOutUrl,
+        "aria-disabled": offline ? "true" : undefined,
+      },
       element("span", { class: "label" }, "Sign out"),
+      ...(offline
+        ? [element("span", { class: "note" }, "Needs a connection")]
+        : []),
     );
     this.#items = [...items, signOut];
 

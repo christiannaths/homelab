@@ -24,6 +24,8 @@ declare module "vitest" {
   export interface ProvidedContext {
     gatewayCaSpki: string;
     dataDir: string;
+    /** compose()'s environment, for tests that stop and start a service. */
+    composeEnv: Record<string, string>;
   }
 }
 
@@ -68,6 +70,7 @@ export default async function setup(project: TestProject) {
       spkiHash(await gatewayFile(join(pki, "intermediate.crt"))),
     );
     project.provide("dataDir", dataDir);
+    project.provide("composeEnv", env);
     await loadFixtures(
       new VoidAuthClient({
         url: ACCOUNTS_URL,

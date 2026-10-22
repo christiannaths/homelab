@@ -32,3 +32,13 @@ encyclopedia.{$HOMELAB_DOMAIN} {
 		file_server
 	}
 }
+
+# A stand-in for a bundled app such as Vaultwarden: its manifest doesn't say it opens offline.
+vault.{$HOMELAB_DOMAIN} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		header /manifest.webmanifest Content-Type application/manifest+json
+		respond /manifest.webmanifest `{"name": "Vault", "icons": []}`
+		respond "Vault"
+	}
+}

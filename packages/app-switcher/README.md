@@ -9,9 +9,22 @@ One script tag, at the end of `<body>`:
 ```html
 <script
   src="/_homelab/switcher.js"
+  crossorigin="use-credentials"
   data-placement="element"
 ></script>
 ```
+
+`crossorigin="use-credentials"` lets the app's service worker see Home's answer, so it keeps only a good copy. An offline-first app also adds the switcher's routes to its Workbox config, so the switcher shows when the app opens offline:
+
+```ts
+import { switcherCaching } from "@homelab/app-switcher/caching";
+
+VitePWA({
+  workbox: { clientsClaim: true, runtimeCaching: switcherCaching /* … */ },
+});
+```
+
+`clientsClaim` lets the service worker keep the script and icons on the very first visit.
 
 Every app's gateway site answers `/_homelab/switcher.js` (in [`signed-in.caddyfile`](../gateway/signed-in.caddyfile)) by sending the browser on to Home's copy, at `home.` beside the app.
 
@@ -38,10 +51,16 @@ The switcher renders in its own shadow DOM, so the app's styles and its own don'
 - The menu: the name and email, then Home, then the person's other apps by name, with the app in use marked **Current**, then **Sign out**, which goes to VoidAuth's sign-out page and so signs the homelab account out of every app.
 - It closes on Escape, a click outside or Tab. The arrow keys, Home and End move through it.
 
+## Offline
+
+The switcher keeps Home's last answer in the app's `localStorage` (`homelab.switcher`) and shows it when the device is offline or Home can't be reached. While the device is offline, apps whose manifest doesn't mark them as opening offline are greyed out and can't be opened, and Sign out is greyed out with **Needs a connection**. It asks Home again on every load and when the device comes back online, so apps granted or removed meanwhile show up then. A signed-out answer clears what it kept.
+
+The service-worker routes in [`src/caching.ts`](src/caching.ts) keep the script (network first, falling back to the last good copy) and the other apps' icons (from the copy kept, refreshed in the background).
+
 ## Building and testing
 
 ```sh
 npx nx build app-switcher   # dist/switcher.js, which Home's server serves
 npx nx test app-switcher    # initials and colours
-npx nx e2e home-e2e         # the switcher in a real browser, through the gateway
+npx nx e2e home-e2e         # the switcher in a real browser, through the gateway, online and off
 ```
