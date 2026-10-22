@@ -7,7 +7,7 @@
 #   tools/preview/preview.sh reset <name>    wipe its data and start it fresh
 #   tools/preview/preview.sh remove <name>   destroy it with its volume, certificate and DNS records
 #
-# Needs flyctl, curl and jq, and FLY_API_TOKEN, FLY_ORG, FLY_REGION, PREVIEW_DOMAIN, DNSIMPLE_TOKEN
+# Needs flyctl (as `flyctl`, the name every install provides), curl and jq, and FLY_API_TOKEN, FLY_ORG, FLY_REGION, PREVIEW_DOMAIN, DNSIMPLE_TOKEN
 # and DNSIMPLE_ACCOUNT_ID in the environment.
 set -euo pipefail
 
@@ -26,18 +26,14 @@ domain="$name.$PREVIEW_DOMAIN"
 app="$name-${PREVIEW_DOMAIN//./-}"
 certificate="*.$domain"
 
-# Fly's GitHub action installs the CLI as flyctl only.
-if ! command -v fly >/dev/null; then fly() { flyctl "$@"; }; fi
-
-# Called as a condition, where set -e is off, so a failed listing must stop the script itself
-# rather than read as "no such app".
+# Exits when Fly can't be asked, rather than taking that for an app that doesn't exist.
 app_exists() {
   local apps
-  apps=$(fly apps list --org "$FLY_ORG" --json) || {
+  apps=$(flyctl apps list --org "$FLY_ORG" --quiet) || {
     echo "Listing the Fly organization's apps failed." >&2
     exit 1
   }
-  jq -e --arg app "$app" 'any(.[]; .Name == $app or .name == $app)' <<<"$apps" >/dev/null
+  grep -qxF "$app" <<<"$apps"
 }
 
 # ── DNSimple ──────────────────────────────────────────────────────────────
@@ -65,13 +61,15 @@ delete_records() { # zone name [type]
   done
 }
 
+# Makes the record the only one with its name, since a CNAME can't share a name with another.
 set_record() { # zone name type content
   # Left alone when already right, so a redeploy never takes the address away for a moment.
-  if dnsimple GET "/zones/$1/records?name=$(jq -rn --arg n "$2" '$n|@uri')&type=$3" |
-    jq -e --arg content "$4" '.data | length == 1 and .[0].content == $content' >/dev/null; then
+  if dnsimple GET "/zones/$1/records?name=$(jq -rn --arg n "$2" '$n|@uri')&per_page=100" |
+    jq -e --arg type "$3" --arg content "$4" \
+      '.data | length == 1 and .[0].type == $type and .[0].content == $content' >/dev/null; then
     return
   fi
-  delete_records "$1" "$2" "$3"
+  delete_records "$1" "$2"
   dnsimple POST "/zones/$1/records" "$(jq -n --arg name "$2" --arg type "$3" --arg content "$4" \
     '{name: $name, type: $type, content: $content, ttl: 60}')" >/dev/null
   echo "DNS: $3 ${2:-@}.$1 → $4"
@@ -82,63 +80,57 @@ set_record() { # zone name type content
 deploy() {
   if ! app_exists; then
     echo "Creating the Fly app $app…"
-    fly apps create "$app" --org "$FLY_ORG"
+    flyctl apps create "$app" --org "$FLY_ORG"
     # VoidAuth encrypts its secrets with this key, so it is made once per preview and kept.
     # Read from stdin, so it never appears in a command line or the public workflow log.
-    fly secrets import --app "$app" --stage <<<"STORAGE_KEY=$(openssl rand -hex 24)"
+    flyctl secrets import --app "$app" --stage <<<"STORAGE_KEY=$(openssl rand -hex 24)"
   fi
-  if ! fly volumes list --app "$app" --json | jq -e 'length > 0' >/dev/null; then
-    fly volumes create data --app "$app" --region "$FLY_REGION" --size 1 --yes
+  if ! flyctl volumes list --app "$app" --json | jq -e 'length > 0' >/dev/null; then
+    flyctl volumes create data --app "$app" --region "$FLY_REGION" --size 1 --yes
   fi
 
-  config=$(mktemp --suffix .toml)
+  config="$(mktemp -d)/fly.toml"
   sed -e "s/{{APP}}/$app/" -e "s/{{REGION}}/$FLY_REGION/" \
     -e "s/{{NAME}}/$name/" -e "s/{{DOMAIN}}/$PREVIEW_DOMAIN/" \
     "$root/tools/preview/fly.toml" >"$config"
-  fly deploy "$root" --config "$config" --dockerfile "$root/tools/preview/Dockerfile" \
+  flyctl deploy "$root" --config "$config" --dockerfile "$root/tools/preview/Dockerfile" \
     --app "$app" --remote-only --ha=false --yes
 
-  # Addresses: a shared IPv4 costs nothing, and the IPv6 address is the app's own.
-  local ips v4 v6
-  ips=$(fly ips list --app "$app" --json)
-  if ! jq -e 'any(.[]; (.Type // .type) == "v6")' <<<"$ips" >/dev/null; then
-    fly ips allocate-v6 --app "$app" >/dev/null
+  # A new app gets its addresses on its first deploy; these are for one that lost them.
+  if flyctl ips list --app "$app" --json | jq -e 'length == 0' >/dev/null; then
+    flyctl ips allocate-v6 --app "$app"
+    flyctl ips allocate-v4 --shared --app "$app"
   fi
-  if ! jq -e 'any(.[]; (.Type // .type) | test("v4"))' <<<"$ips" >/dev/null; then
-    fly ips allocate-v4 --shared --app "$app" --yes >/dev/null
-  fi
-  ips=$(fly ips list --app "$app" --json)
-  v4=$(jq -r '[.[] | select((.Type // .type) | test("v4")) | (.Address // .address)][0]' <<<"$ips")
-  v6=$(jq -r '[.[] | select((.Type // .type) == "v6") | (.Address // .address)][0]' <<<"$ips")
 
-  if ! fly certs show "$certificate" --app "$app" >/dev/null 2>&1; then
-    fly certs add "$certificate" --app "$app" >/dev/null
-  fi
   local cert target zone_name
-  cert=$(fly certs show "$certificate" --app "$app" --json)
-  target=$(jq -r '.DNSValidationTarget // .dnsValidationTarget // empty' <<<"$cert")
+  if ! flyctl certs list --app "$app" --json | jq -e --arg cert "$certificate" 'any(.. | strings; . == $cert)' >/dev/null; then
+    flyctl certs add "$certificate" --app "$app" >/dev/null
+  fi
+  # The CNAME target Fly validates the wildcard through, read without relying on the JSON's
+  # layout, which changed between flyctl versions.
+  cert=$(flyctl certs check "$certificate" --app "$app" --json)
+  target=$(jq -r '[.. | strings | select(test("\\.flydns\\.net\\.?$"))][0] // empty' <<<"$cert")
   if [[ -z "$target" ]]; then
-    echo "Fly gave no DNS validation target for $certificate:" >&2
+    echo "Fly gave no flydns.net validation target for $certificate:" >&2
     echo "$cert" >&2
     exit 1
   fi
 
   zone_name=$(zone)
-  set_record "$zone_name" "$(relative "*.$domain" "$zone_name")" A "$v4"
-  set_record "$zone_name" "$(relative "*.$domain" "$zone_name")" AAAA "$v6"
-  set_record "$zone_name" "$(relative "_acme-challenge.$domain" "$zone_name")" CNAME "$target"
+  set_record "$zone_name" "$(relative "*.$domain" "$zone_name")" CNAME "$app.fly.dev"
+  set_record "$zone_name" "$(relative "_acme-challenge.$domain" "$zone_name")" CNAME "${target%.}"
 
+  # Done once a browser would accept the certificate, whatever Fly's status field is called.
   echo "Waiting for the certificate for $certificate…"
   for _ in $(seq 1 60); do
-    cert=$(fly certs check "$certificate" --app "$app" --json 2>/dev/null || true)
-    if jq -e '(.ClientStatus // .clientStatus // "") | test("^ready$"; "i")' <<<"$cert" >/dev/null 2>&1; then
+    if curl -fsS --max-time 30 -o /dev/null "https://login.$domain/" 2>/dev/null; then
       echo "The preview is at https://login.$domain/"
       return
     fi
     sleep 10
   done
-  echo "The certificate for $certificate was not issued within 10 minutes:" >&2
-  echo "$cert" >&2
+  echo "https://login.$domain/ did not answer with a valid certificate within 10 minutes:" >&2
+  flyctl certs check "$certificate" --app "$app" >&2 || true
   exit 1
 }
 
@@ -149,15 +141,15 @@ reset() {
   fi
   # A stopped machine has nothing to reset; starting it runs the preview first.
   local machine
-  machine=$(fly machines list --app "$app" --json | jq -r '.[0].id // empty')
+  machine=$(flyctl machines list --app "$app" --json | jq -r '.[0].id // empty')
   if [[ -z "$machine" ]]; then
     echo "The preview $name has no machine; deploy it first." >&2
     exit 1
   fi
-  fly machines start "$machine" --app "$app" >/dev/null 2>&1 || true
+  flyctl machines start "$machine" --app "$app" >/dev/null 2>&1 || true
   local ready=""
   for _ in $(seq 1 30); do
-    if fly ssh console --app "$app" --machine "$machine" --command "test -f /data/ready" >/dev/null 2>&1; then
+    if flyctl ssh console --app "$app" --machine "$machine" --command "test -f /data/ready" >/dev/null 2>&1; then
       ready=yes
       break
     fi
@@ -167,7 +159,7 @@ reset() {
     echo "The preview $name did not come up within 150 seconds, so it was not reset." >&2
     exit 1
   fi
-  fly ssh console --app "$app" --machine "$machine" --command "node tools/preview/start.ts reset"
+  flyctl ssh console --app "$app" --machine "$machine" --command "node /repo/tools/preview/start.ts reset"
 }
 
 remove() {
@@ -177,7 +169,7 @@ remove() {
   fi
   if app_exists; then
     # Destroying the app destroys its machine, volume and certificate too.
-    fly apps destroy "$app" --yes
+    flyctl apps destroy "$app" --yes
   else
     echo "There is no Fly app $app; removing any DNS records left."
   fi
