@@ -15,8 +15,6 @@ export interface ServerOptions {
   dataDir: string;
   /** 0 picks a free port. */
   port: number;
-  /** VoidAuth's address, whose `/logout` page signs the homelab account out (ADR-PLAT-004). */
-  voidauthUrl: string;
   /** The web client's build (apps/notes/web/dist). Without it, only the API is served. */
   clientDir?: string;
 }
@@ -31,16 +29,10 @@ interface SyncEnv {
   Variables: { sync: SyncContext };
 }
 
-export async function startServer({
-  dataDir,
-  port,
-  voidauthUrl,
-  clientDir,
-}: ServerOptions) {
+export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
   const db = openDatabase(dataDir);
   const documents = new DocumentStore(db);
   const people = new People(db);
-  const signOutUrl = new URL("/logout", voidauthUrl).href;
 
   const hocuspocus = new Hocuspocus<SyncContext>({
     debounce: 1000,
@@ -89,9 +81,6 @@ export async function startServer({
     if (!person) return c.json({ error: "signed_out" }, 401);
     return c.json({ person });
   });
-
-  // Signing out of Notes is signing out of the homelab account, which signs out every app.
-  app.get("/api/sign-out", (c) => c.redirect(signOutUrl, 302));
 
   app.get(
     "/sync",

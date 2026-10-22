@@ -28,7 +28,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
   - A person's apps are the apps named by their groups, so granting a group is all it takes to list an app for them. `auth_admins` names no app, so membership of it alone lists nothing: the homelab admin is given each app's group like everyone else.
 - **Home is open to every account.** Its ProxyAuth domain has no groups, so every signed-in person reaches it. It lists each person's apps from their groups and from each app's manifest, which it reads itself, so an app shows up before anyone has opened it and apps never report themselves to Home.
 - **The App switcher comes from Home.** It is one standalone script, built from `packages/app-switcher`, that Home serves at `/switcher.js`. Every app's site in the gateway answers `/_homelab/switcher.js` with a redirect to it, at `home.` beside the app, so an app adds it with one script tag and updating Home updates it in every app. It asks Home's `/api/me` for the person and their apps, a cross-origin request that Home allows, with credentials, only for apps under the parent domain. It renders in its own shadow DOM.
-- **Signing out is VoidAuth's `/logout` page.** An app's sign-out sends the browser there. After the person confirms, every app in that browser is signed out on its next request, and other browsers stay signed in.
+- **Signing out is VoidAuth's `/logout` page**, which the App switcher's Sign out opens. Apps have no sign-out of their own. After the person confirms, every app in that browser is signed out on its next request, and other browsers stay signed in.
 - **Registration is closed** (`SIGNUP=false`). An account is created only through a VoidAuth invite link, and each link works once. The invite carries the groups, and so the apps, the admin grants.
 - **VoidAuth and the invite service form one app, `apps/accounts/`** ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)), with VoidAuth's compose setup and the invite service as its packages.
 - **The invite service** is the only holder of VoidAuth's admin credentials:
@@ -78,6 +78,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Changelog
 
+- 2026-10-22: Signing out is the App switcher's Sign out in every app, and Notes' own sign-out is removed (issue #89, spec #75).
 - 2026-10-22: Every app gets the App switcher from Home, through `/_homelab/switcher.js` on its gateway site, so switching apps and signing out work the same in every app (issue #88, spec #75).
 - 2026-10-22: Each app is on its own subdomain directly under the parent domain, its VoidAuth groups are named after that subdomain, and Home, open to every account, lists each person's apps from those groups and the apps' manifests. `auth_admins` alone lists no app. Home needs a rule for finding apps that adding an app does not change (issue #87, spec #75).
 - 2026-10-22: An app's manifest and icons are readable without signing in, so that Home can read each app's name and icon itself, and the manifest's `homelab` member says whether the app opens offline (issue #86, spec #75).

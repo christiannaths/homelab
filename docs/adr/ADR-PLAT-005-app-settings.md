@@ -14,7 +14,7 @@ The homelab's apps are for anyone to install, each with their own settings: wher
 - **Settings belong to the installer.** No deployment's settings or secrets are committed to the repo.
 - **Environment variables are the only source of settings.** Each app asks for as few as it can and derives or defaults the rest, for example a data directory of `/data`.
 - **Every setting can also come from a file.** For a setting `NAME`, the app reads `NAME_FILE` as the path to a file holding the value, as Docker and Kubernetes secrets provide. Setting both `NAME` and `NAME_FILE` is an error. One trailing newline is trimmed from the file's contents.
-- **Names are plain**, with no app prefix (`PORT`, `DATA_DIR`, `VOIDAUTH_URL`), because each app runs in its own container. A setting shared by several apps means the same thing in each.
+- **Names are plain**, with no app prefix (`PORT`, `DATA_DIR`, `HOMELAB_URL`), because each app runs in its own container. A setting shared by several apps means the same thing in each.
 - **Settings are read once, at startup, and never at build time.** One image serves every installer. A web client gets any setting it needs from its server at runtime.
 - **A bad configuration stops the app.** Before serving anything, the app checks every setting and, if any is missing or invalid, exits with one message listing every problem. The message names settings and rules and must never contain a setting's value.
 - **Zod checks the settings**, through the shared package `@homelab/settings` (`scope:shared`, `platform:node`). The package resolves `NAME_FILE`, runs the app's Zod schema and produces the startup message. Every app's server must read its settings through it.
@@ -35,7 +35,7 @@ The homelab's apps are for anyone to install, each with their own settings: wher
 - [`research/settings-from-environment.md`](../research/settings-from-environment.md): each library tested on Node 26.12.0 against these requirements, including their startup messages for the same bad settings.
 - Zod 4.6.7 installs as one package with no dependencies of its own, and `z.prettifyError` reports every failing setting by name without its value.
 - On Nx 23.3.0, a `.env` file in a project's folder is loaded into every task Nx runs for that project, tests included.
-- The Notes server already reads plain-named settings (`PORT`, `DATA_DIR`, `VOIDAUTH_URL`) directly from `process.env`, and moves to `@homelab/settings` once it exists.
+- The Notes server already reads plain-named settings (`PORT`, `DATA_DIR`) directly from `process.env`, and moves to `@homelab/settings` once it exists.
 
 ## Consequences
 

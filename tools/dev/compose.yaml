@@ -59,7 +59,6 @@ services:
       - ../..:/repo:ro
       - notes:/data
     environment:
-      VOIDAUTH_URL: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
       PORT: "3000"
       DATA_DIR: /data
 

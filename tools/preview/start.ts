@@ -132,7 +132,6 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     {
       cwd: ROOT,
       env: {
-        VOIDAUTH_URL: accountsUrl,
         PORT: "3001",
         DATA_DIR: path.join(DATA_DIR, "notes"),
       },

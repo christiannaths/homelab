@@ -6,7 +6,7 @@ The Notes server ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md))
 
 - People in VoidAuth's `notes-admins` or `auth_admins` group are owners, and people in `notes` are members. VoidAuth turns everyone else away before Notes sees them.
 - Until the access rules are built ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)), only owners open documents.
-- It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in.
+- It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in, with the [App switcher](../../../packages/app-switcher/README.md) in its header. Signing out is the switcher's: Notes has no sign-out of its own.
 
 ## Routes
 
@@ -15,7 +15,6 @@ The Notes server ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md))
 | `GET /api/health` | `{ ok: true }` |
 | `GET /api/session` | `{ person }`, the person the gateway signed in. 401 for a request that did not come through the gateway |
 | `GET /api/sign-in` | Redirects to `/`. The client loads it as a page, so a signed-out browser meets the gateway, which sends it to VoidAuth's sign-in page and back |
-| `GET /api/sign-out` | Redirects to VoidAuth's `/logout` page, which signs the browser out of every homelab app |
 | `GET /sync` | The Hocuspocus WebSocket. 401 before the upgrade for a request that did not come through the gateway |
 | `GET /*` | The web client's files, and its app shell for any other path outside `/api` and `/sync` |
 
@@ -25,7 +24,6 @@ Environment variables, for now read directly (issue #40):
 
 | Variable | Default |  |
 | --- | --- | --- |
-| `VOIDAUTH_URL` | required | VoidAuth's address, its `APP_URL` |
 | `PORT` | `3000` |  |
 | `DATA_DIR` | `apps/notes/server/data` | Holds `notes.sqlite`. Backing it up backs up the instance |
 
@@ -46,7 +44,7 @@ The server serves the client's production build from `apps/notes/web/dist`, whic
 To work on the client with hot reload, run the server, then Vite:
 
 ```sh
-VOIDAUTH_URL=… npx nx dev notes-server
+npx nx dev notes-server
 npx nx dev notes-web   # http://localhost:5173, proxying /api and /sync to the server on port 3000
 ```
 

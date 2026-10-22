@@ -1,6 +1,7 @@
 // The Notes app in a real Chromium, behind the homelab gateway and the real VoidAuth image:
-// signing in with the homelab account, signing out of every app at once, and starting offline
-// (issue #47, ADR-PLAT-004).
+// signing in with the homelab account, signing out of it, and starting offline (issue #47,
+// ADR-PLAT-004). Notes has no sign-out of its own: the App switcher's Sign out, which these tests
+// stand in for with VoidAuth's own sign-out page, is tested in Home's suite.
 import type { NotesServer } from "@homelab/notes-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
@@ -43,6 +44,13 @@ function sessionFrom(page: Page, headers: Record<string, string> = {}) {
       body: (await response.json()) as unknown,
     };
   }, headers);
+}
+
+/** Signs the homelab account out on VoidAuth's own page, as the App switcher's Sign out does. */
+async function signOut(page: Page): Promise<void> {
+  await page.goto(`${ACCOUNTS_URL}/logout`);
+  await confirmSignOut(page);
+  await onVoidAuthSignIn(page);
 }
 
 /** Whether a sync socket opens from a Notes page. */
@@ -136,12 +144,18 @@ describe("signing in with the homelab account", () => {
 });
 
 describe("signing out", () => {
-  it("signs out of the homelab account, so opening Notes again asks for the password", async () => {
+  it("has no Sign out button of its own", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
-    await page.getByRole("button", { name: "Sign out" }).click();
-    await confirmSignOut(page);
-    await onVoidAuthSignIn(page);
+    expect(await page.getByRole("button", { name: "Sign out" }).count()).toBe(
+      0,
+    );
+  });
+
+  it("signs out with the homelab account, so opening Notes again asks for the password", async () => {
+    const page = await newDevice(browser);
+    await signIn(page, ADA);
+    await signOut(page);
 
     await page.goto(NOTES_URL);
     await onVoidAuthSignIn(page);
@@ -152,9 +166,7 @@ describe("signing out", () => {
     const other = await newDevice(browser);
     await signIn(page, ADA);
     await signIn(other, ADA);
-    await page.getByRole("button", { name: "Sign out" }).click();
-    await confirmSignOut(page);
-    await onVoidAuthSignIn(page);
+    await signOut(page);
 
     await other.reload();
     await other.getByText(`Signed in as ${ADA.name}`).waitFor();
@@ -223,8 +235,9 @@ describe("offline", () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     await waitUntilOfflineReady(page);
-    await page.getByRole("button", { name: "Sign out" }).click();
-    await confirmSignOut(page);
+    await signOut(page);
+    // Opened online once more, Notes learns of the sign-out and forgets the person.
+    await page.goto(NOTES_URL);
     await onVoidAuthSignIn(page);
 
     await page.context().setOffline(true);
@@ -250,33 +263,5 @@ describe("offline", () => {
     expect(
       await page.evaluate(() => localStorage.getItem("notes.person")),
     ).toBe(null);
-  });
-});
-
-describe("signing out offline", () => {
-  const SIGNED_OUT_HERE =
-    "Signed out here. Other apps finish signing out next time Notes is online.";
-
-  it("signs out on the device at once, and finishes on the next online start", async () => {
-    const page = await newDevice(browser);
-    await signIn(page, ADA);
-    await waitUntilOfflineReady(page);
-    await page.context().setOffline(true);
-    await page.reload();
-    await page.getByText("Offline", { exact: true }).waitFor();
-
-    await page.getByRole("button", { name: "Sign out" }).click();
-    await page.getByText(SIGNED_OUT_HERE).waitFor();
-    await page.reload();
-    await page.getByText(SIGNED_OUT_HERE).waitFor();
-    expect(await page.getByText("Signed in as").count()).toBe(0);
-
-    await page.context().setOffline(false);
-    await page.reload();
-    await confirmSignOut(page);
-    await onVoidAuthSignIn(page);
-
-    await page.goto(NOTES_URL);
-    await onVoidAuthSignIn(page);
   });
 });

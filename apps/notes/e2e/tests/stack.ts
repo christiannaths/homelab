@@ -82,7 +82,6 @@ export function startNotes(): Promise<NotesServer> {
   return startServer({
     dataDir: mkdtempSync(path.join(tmpdir(), "notes-e2e-")),
     port: NOTES_PORT,
-    voidauthUrl: ACCOUNTS_URL,
     clientDir: CLIENT_DIR,
   });
 }
