@@ -19,6 +19,7 @@ Each topic has exactly one ADR, and it always states the current decision. When 
 | [ADR-PLAT-005](ADR-PLAT-005-app-settings.md) | How does an app get its settings from the person installing it? | Environment variables only, each also readable from a `_FILE`, checked by Zod at startup through `@homelab/settings` | Accepted |
 | [ADR-PLAT-006](ADR-PLAT-006-code-quality.md) | How is code kept consistently formatted and free of common mistakes? | Prettier formats, Oxlint, markdownlint, Stylelint and ls-lint lint, in `npm run check` and a pre-commit hook | Accepted |
 | [ADR-PLAT-007](ADR-PLAT-007-licensing.md) | How is the homelab's code licensed? | MIT for the repo; an app may carry its own licence when a dependency requires it | Accepted |
+| [ADR-PLAT-008](ADR-PLAT-008-work-previews.md) | How is work seen running before it merges? | Each open pull request, and a staging branch on request, gets its own whole homelab on Fly.io under a preview domain, with open test accounts | Accepted |
 
 ## Not decided yet
 
