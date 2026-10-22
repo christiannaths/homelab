@@ -11,6 +11,8 @@ export interface App {
 
 export interface Me {
   person: { username: string; name: string | null; email: string | null };
+  /** VoidAuth's own pages, where the person changes their name, password and passkeys. */
+  accountUrl: string;
   signOutUrl: string;
   apps: App[];
 }
@@ -29,8 +31,12 @@ const stringOrNull = (value: unknown): string | null =>
 
 export function parseMe(value: unknown): Me | undefined {
   if (!isRecord(value) || !isRecord(value.person)) return undefined;
-  const { person, signOutUrl, apps } = value;
-  if (typeof person.username !== "string" || typeof signOutUrl !== "string")
+  const { person, accountUrl, signOutUrl, apps } = value;
+  if (
+    typeof person.username !== "string" ||
+    typeof accountUrl !== "string" ||
+    typeof signOutUrl !== "string"
+  )
     return undefined;
   if (!Array.isArray(apps)) return undefined;
   return {
@@ -39,6 +45,7 @@ export function parseMe(value: unknown): Me | undefined {
       name: stringOrNull(person.name),
       email: stringOrNull(person.email),
     },
+    accountUrl,
     signOutUrl,
     apps: apps.filter(isRecord).flatMap((app) =>
       typeof app.id === "string" &&
@@ -81,10 +88,31 @@ export async function ask(home: string): Promise<Answer> {
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    return { status: "unreachable" };
+    // From another app's page the redirect fails too, as it carries no CORS headers, so Home
+    // being up is what tells a signed-out browser from one that can't reach Home.
+    return (await reachable(home))
+      ? { status: "signed-out" }
+      : { status: "unreachable" };
   }
   if (response.type === "opaqueredirect") return { status: "signed-out" };
   if (!response.ok) return { status: "unreachable" };
   const me = parseMe(await response.json().catch(() => undefined));
   return me ? { status: "signed-in", me } : { status: "unreachable" };
+}
+
+/**
+ * Whether Home answers at all: its manifest needs no sign-in. The query keeps the app's service
+ * worker from answering with its own copy.
+ */
+async function reachable(home: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${home}/manifest.webmanifest?reachable`, {
+      credentials: "omit",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }

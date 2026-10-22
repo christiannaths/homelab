@@ -92,7 +92,10 @@ export class HomelabSwitcher extends HTMLElement {
     else this.#root.replaceChildren();
   }
 
-  #render({ person, apps, signOutUrl }: Me, offline: boolean): void {
+  #render(
+    { person, apps, accountUrl, signOutUrl }: Me,
+    offline: boolean,
+  ): void {
     const wasOpen = this.#panel ? !this.#panel.hidden : false;
     // A re-render (an answer from Home, going on or off line) keeps focus where the person left it.
     const focused = this.#items.findIndex(
@@ -143,28 +146,32 @@ export class HomelabSwitcher extends HTMLElement {
         ...(here ? [element("span", { class: "note" }, "Current")] : []),
       );
     });
-    // Signing out happens at VoidAuth, which needs a connection.
-    const signOut = element(
-      "a",
-      {
-        "class": "item",
-        "role": "menuitem",
-        "tabindex": "-1",
-        "href": offline ? undefined : signOutUrl,
-        "aria-disabled": offline ? "true" : undefined,
-      },
-      element("span", { class: "label" }, "Sign out"),
-      ...(offline
-        ? [element("span", { class: "note" }, "Needs a connection")]
-        : []),
-    );
-    this.#items = [...items, signOut];
+    // The account's pages and signing out are VoidAuth's, which needs a connection.
+    const atVoidAuth = (label: string, href: string) =>
+      element(
+        "a",
+        {
+          "class": "item",
+          "role": "menuitem",
+          "tabindex": "-1",
+          "href": offline ? undefined : href,
+          "aria-disabled": offline ? "true" : undefined,
+        },
+        element("span", { class: "label" }, label),
+        ...(offline
+          ? [element("span", { class: "note" }, "Needs a connection")]
+          : []),
+      );
+    const account = atVoidAuth("Account settings", accountUrl);
+    const signOut = atVoidAuth("Sign out", signOutUrl);
+    this.#items = [...items, account, signOut];
 
     const menu = element(
       "div",
       { "id": "menu", "role": "menu", "aria-label": "Apps and sign out" },
       ...items,
       element("div", { class: "separator", role: "separator" }),
+      account,
       signOut,
     );
     menu.addEventListener("keydown", (event) => this.#onMenuKey(event));

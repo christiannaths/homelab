@@ -14,7 +14,7 @@ Answers who is signed in and which apps they have, for Home's tiles and every ap
 | Route |  |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }` |
-| `GET /api/me` | `{ person: { username, name, email }, signOutUrl, apps: [{ id, url, name, icon, opensOffline }] }`, apps sorted by name. 401 for a request that did not come through the gateway |
+| `GET /api/me` | `{ person: { username, name, email }, accountUrl, signOutUrl, apps: [{ id, url, name, icon, opensOffline }] }`, apps sorted by name. 401 for a request that did not come through the gateway |
 | `GET /switcher.js` | The [App switcher](../../../packages/app-switcher/README.md)'s script, revalidated on every load. Every app's `/_homelab/switcher.js` redirects here. Readable by apps under the parent domain with credentials, as `/api/me` is, so their service workers can keep a copy |
 | `GET /api/sign-in` | Redirects to `/`. The client loads it as a page, so a signed-out browser meets the gateway, which sends it to VoidAuth's sign-in page and back |
 | `GET /*` | The web client's files, and its app shell for any other path |

@@ -100,7 +100,10 @@ describe("the App switcher offline", () => {
       expect(await menuItems(page)).toEqual(
         ["Home", "Encyclopedia", "Notes", "Vault"]
           .map((name) => (name === app.name ? `${name}Current` : name))
-          .concat("Sign outNeeds a connection"),
+          .concat(
+            "Account settingsNeeds a connection",
+            "Sign outNeeds a connection",
+          ),
       );
       await expect.poll(() => iconsLoaded(page)).toBe(true);
     });
@@ -162,6 +165,7 @@ describe("the App switcher catching up", () => {
       expect(await menuItems(page)).toEqual([
         "HomeCurrent",
         "Notes",
+        "Account settings",
         "Sign out",
       ]);
 
@@ -175,6 +179,7 @@ describe("the App switcher catching up", () => {
         "HomeCurrent",
         "Encyclopedia",
         "Notes",
+        "Account settings",
         "Sign out",
       ]);
 
@@ -186,7 +191,12 @@ describe("the App switcher catching up", () => {
       await page.context().setOffline(false);
       await expect
         .poll(() => menuItems(page))
-        .toEqual(["HomeCurrent", "Encyclopedia", "Sign out"]);
+        .toEqual([
+          "HomeCurrent",
+          "Encyclopedia",
+          "Account settings",
+          "Sign out",
+        ]);
     } finally {
       await page.context().close();
       await changeGroups(admin, HEDY.username, () => HEDY.groups);
@@ -207,6 +217,7 @@ describe("the App switcher catching up", () => {
           "Encyclopedia",
           "NotesCurrent",
           "Vault",
+          "Account settings",
           "Sign out",
         ]);
       } finally {

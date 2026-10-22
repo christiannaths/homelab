@@ -185,9 +185,9 @@ describe("signed out", () => {
     }
   });
 
-  test("lets any page read an icon with CORS, and nothing else", async () => {
+  test("lets any page read the manifest and icons with CORS, and nothing else", async () => {
     assert.equal((await get("/icons/icon-192.png")).allowOrigin, "*");
-    assert.equal((await get("/manifest.webmanifest")).allowOrigin, undefined);
+    assert.equal((await get("/manifest.webmanifest")).allowOrigin, "*");
     assert.equal((await get("/")).allowOrigin, undefined);
   });
 

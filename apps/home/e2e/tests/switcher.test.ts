@@ -5,6 +5,7 @@ import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
+  ACCOUNTS_URL,
   ADA,
   ADMIN,
   confirmSignOut,
@@ -75,6 +76,7 @@ describe("the menu", () => {
       "HomeCurrent",
       "Encyclopedia",
       "Notes",
+      "Account settings",
       "Sign out",
     ]);
     expect(
@@ -87,13 +89,19 @@ describe("the menu", () => {
   it("leaves out apps the person has no access to", async () => {
     const page = await newDevice(browser);
     await signIn(page, DANA);
-    expect(await menuItems(page)).toEqual(["HomeCurrent", "Notes", "Sign out"]);
+    expect(await menuItems(page)).toEqual([
+      "HomeCurrent",
+      "Notes",
+      "Account settings",
+      "Sign out",
+    ]);
 
     const admin = await newDevice(browser);
     await signIn(admin, ADMIN);
     expect(await menuItems(admin)).toEqual([
       "HomeCurrent",
       "Encyclopedia",
+      "Account settings",
       "Sign out",
     ]);
   });
@@ -104,6 +112,17 @@ describe("the menu", () => {
     await userIcon(page).click();
     await page.getByRole("menuitem", { name: "Encyclopedia" }).click();
     await page.waitForURL(`${ENCYCLOPEDIA_URL}/`);
+  });
+
+  it("opens the person's account settings on VoidAuth", async () => {
+    const page = await newDevice(browser);
+    await signIn(page, ADA);
+    await userIcon(page).click();
+    await page.getByRole("menuitem", { name: "Account settings" }).click();
+    // VoidAuth's own page for the signed-in account, not its sign-in page.
+    await page.waitForURL(`${ACCOUNTS_URL}/`);
+    await page.waitForLoadState("networkidle");
+    expect(new URL(page.url()).pathname).toBe("/");
   });
 
   it("signs the homelab account out of every app", async () => {

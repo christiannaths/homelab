@@ -131,6 +131,7 @@ describe("who is signed in", () => {
         name: "Ada Lovelace",
         email: "ada@example.com",
       },
+      accountUrl: "https://accounts.home.test/",
       signOutUrl: "https://accounts.home.test/logout",
       apps: [ENCYCLOPEDIA_APP, HOME_APP, NOTES_APP],
     });

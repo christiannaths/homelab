@@ -40,7 +40,8 @@ export async function startServer({
 }: ServerOptions) {
   const homelab = new URL(homelabUrl);
   const apps = new AppDirectory(homelab, readManifest);
-  const signOutUrl = new URL("/logout", apps.urlOf("accounts")).href;
+  const accountUrl = apps.urlOf("accounts").href;
+  const signOutUrl = new URL("/logout", accountUrl).href;
 
   /** Any app under the parent domain, on its scheme and port, may read the answer. */
   const isHomelabApp = (origin: string): boolean => {
@@ -94,6 +95,7 @@ export async function startServer({
         name: identity.name,
         email: identity.email,
       },
+      accountUrl,
       signOutUrl,
       apps: await apps.appsFor(identity.groups),
     });

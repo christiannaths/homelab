@@ -27,9 +27,11 @@ forward_auth @needs-sign-in {$VOIDAUTH_UPSTREAM:voidauth:3000} {
 	copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
 }
 
-# Icons are public, and readable from every other app's page, so the App switcher and Home can
-# keep them for offline with CORS (packages/app-switcher/src/caching.ts).
-header /icons/* Access-Control-Allow-Origin "*"
+# The manifest and icons are public, and readable from every other app's page: the App switcher
+# and Home keep icons for offline with CORS (packages/app-switcher/src/caching.ts), and the
+# switcher reads Home's manifest to tell a signed-out browser from one that can't reach Home.
+@homelab-public path /manifest.webmanifest /icons/*
+header @homelab-public Access-Control-Allow-Origin "*"
 
 # Every app's page loads the App switcher from its own address, and the gateway sends it on to
 # Home's one copy, so updating Home updates the switcher in every app. Home is `home.` beside the
