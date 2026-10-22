@@ -18,7 +18,7 @@ export const GATEWAY_PORT = 8463;
 /** Where the Notes server listens on this machine; only the gateway is meant to reach it. */
 export const NOTES_PORT = 4120;
 export const DOMAIN = "home.test";
-export const AUTH_URL = `https://auth.${DOMAIN}:${GATEWAY_PORT}`;
+export const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${GATEWAY_PORT}`;
 export const NOTES_URL = `https://notes.${DOMAIN}:${GATEWAY_PORT}`;
 /** VoidAuth's session cookie, on the parent domain. */
 export const VOIDAUTH_SESSION_COOKIE = "x-voidauth-session";
@@ -82,7 +82,7 @@ export function startNotes(): Promise<NotesServer> {
   return startServer({
     dataDir: mkdtempSync(path.join(tmpdir(), "notes-e2e-")),
     port: NOTES_PORT,
-    voidauthUrl: AUTH_URL,
+    voidauthUrl: ACCOUNTS_URL,
     clientDir: CLIENT_DIR,
   });
 }
@@ -112,7 +112,7 @@ export async function newDevice(browser: Browser): Promise<Page> {
 /** Resolves once the page has arrived on VoidAuth's sign-in page. */
 export function onVoidAuthSignIn(page: Page): Promise<void> {
   return page.waitForURL(
-    (url) => url.origin === AUTH_URL && url.pathname === "/login",
+    (url) => url.origin === ACCOUNTS_URL && url.pathname === "/login",
   );
 }
 
@@ -153,7 +153,7 @@ export async function waitUntilOfflineReady(page: Page): Promise<void> {
 /** Answers Yes on VoidAuth's "sign out?" page, which the browser must be on or on its way to. */
 export async function confirmSignOut(page: Page): Promise<void> {
   await page.waitForURL(
-    (url) => url.origin === AUTH_URL && url.pathname.startsWith("/logout"),
+    (url) => url.origin === ACCOUNTS_URL && url.pathname.startsWith("/logout"),
   );
   await page.getByRole("button", { name: "Yes", exact: true }).click();
 }

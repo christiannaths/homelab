@@ -11,13 +11,18 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test \"*.test.ts\""
+    "test": "node --test \"*.test.ts\"",
+    "e2e": "node --test \"preview/*.test.ts\""
   },
   "dependencies": {
     "@homelab/voidauth-fixtures": "*"
   },
   "devDependencies": {
+    "@hocuspocus/provider": "^4.7.1",
     "@types/node": "^26.6.5",
-    "typescript": "^7.0.2"
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2",
+    "ws": "^8.22.0",
+    "yjs": "^13.6.33"
   }
 }

@@ -1,0 +1,48 @@
+# The preview's gateway (ADR-PLAT-008): the homelab gateway of tools/dev/gateway.caddyfile, but over
+# plain HTTP, since Fly's proxy ends TLS in front of it. It trusts that proxy's X-Forwarded-Proto,
+# so VoidAuth and the apps still see https.
+{
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+# Each upstream starts after the gateway (start.ts), so the gateway holds a request until it
+# answers instead of failing it while the machine wakes.
+(wait-for-upstream) {
+	lb_try_duration 30s
+	lb_try_interval 250ms
+}
+
+http://accounts.{$SITE_DOMAIN}:{$PORT} {
+	reverse_proxy 127.0.0.1:3000 {
+		import wait-for-upstream
+	}
+}
+
+http://notes.{$SITE_DOMAIN}:{$PORT} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		reverse_proxy 127.0.0.1:3001 {
+			import wait-for-upstream
+		}
+	}
+}
+
+# The Encyclopedia's static build, with its own service worker. Unknown paths get index.html.
+http://encyclopedia.{$SITE_DOMAIN}:{$PORT} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		root * /srv/encyclopedia
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Any other name under the preview's wildcard certificate, which a real install has no certificate
+# for and so never serves.
+http://:{$PORT} {
+	respond 404
+}

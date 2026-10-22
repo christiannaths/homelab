@@ -1,0 +1,25 @@
+# The Fly app of one preview (ADR-PLAT-008). preview.sh fills in the {{…}} values for each preview.
+app = "{{APP}}"
+primary_region = "{{REGION}}"
+
+[env]
+  PREVIEW_NAME = "{{NAME}}"
+  PREVIEW_DOMAIN = "{{DOMAIN}}"
+
+[[mounts]]
+  source = "data"
+  destination = "/data"
+
+# Fly's proxy ends TLS and wakes the machine on a request. Once idle, the machine is suspended
+# (its memory kept, so it resumes running in under a second) rather than stopped.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+# VoidAuth, Notes and the gateway use about 450 MB together, measured in the image test.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

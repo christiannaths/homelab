@@ -1,12 +1,19 @@
-import { request } from "node:https";
+import { request as httpRequest, type IncomingMessage } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { stringField } from "./json.ts";
 
 /** Where VoidAuth is reached: through a gateway on this machine, without DNS. */
 export interface VoidAuthAddress {
-  /** VoidAuth's public address, such as `https://auth.homelab.localhost:8443`. */
+  /** VoidAuth's public address, such as `https://accounts.homelab.localhost:8443`. */
   url: string;
-  /** The certificate of the CA that signs the gateway's certificates, in PEM. */
-  ca: string;
+  /**
+   * The certificate of the CA that signs the gateway's certificates, in PEM. Without it, the
+   * gateway is one that a proxy in front of it ends TLS for, as in a preview: it is reached over
+   * plain HTTP on `port`, and told the request came over HTTPS as that proxy would.
+   */
+  ca?: string;
+  /** The port the gateway listens on, when it is not the one in `url`. */
+  port?: number;
 }
 
 interface Response {
@@ -112,37 +119,42 @@ export class VoidAuthClient {
       headers.cookie = [...this.#cookies]
         .map(([name, value]) => `${name}=${value}`)
         .join("; ");
+    const { ca, port } = this.address;
+    if (ca === undefined) headers["x-forwarded-proto"] = "https";
+    // The gateway is on this machine; its hostname need not resolve.
+    const options = {
+      host: "127.0.0.1",
+      port: port ?? (this.#origin.port || 443),
+      method,
+      path: route,
+      headers,
+    };
     return new Promise((resolve, reject) => {
-      const req = request(
-        {
-          // The gateway is on this machine; its hostname need not resolve.
-          host: "127.0.0.1",
-          port: this.#origin.port || 443,
-          servername: this.#origin.hostname,
-          ca: this.address.ca,
-          method,
-          path: route,
-          headers,
-        },
-        (res) => {
-          for (const cookie of res.headers["set-cookie"] ?? []) {
-            this.#setCookies.push(cookie);
-            const [pair = ""] = cookie.split(";");
-            const at = pair.indexOf("=");
-            this.#cookies.set(pair.slice(0, at), pair.slice(at + 1));
-          }
-          let text = "";
-          res.setEncoding("utf8");
-          res.on("data", (chunk: string) => (text += chunk));
-          res.on("end", () =>
-            resolve({
-              status: res.statusCode ?? 0,
-              location: res.headers.location,
-              text,
-            }),
-          );
-        },
-      );
+      const onResponse = (res: IncomingMessage) => {
+        for (const cookie of res.headers["set-cookie"] ?? []) {
+          this.#setCookies.push(cookie);
+          const [pair = ""] = cookie.split(";");
+          const at = pair.indexOf("=");
+          this.#cookies.set(pair.slice(0, at), pair.slice(at + 1));
+        }
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => (text += chunk));
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            location: res.headers.location,
+            text,
+          }),
+        );
+      };
+      const req =
+        ca === undefined
+          ? httpRequest(options, onResponse)
+          : httpsRequest(
+              { ...options, servername: this.#origin.hostname, ca },
+              onResponse,
+            );
       req.on("error", reject);
       req.end(payload);
     });

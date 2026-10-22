@@ -1,9 +1,9 @@
 # ADR-PLAT-004. How do people sign in to the homelab's apps?
 
 - Status: Accepted
-- Date: 2026-10-19
+- Date: 2026-10-22
 - Depends on: [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)
-- Dependency of: [ADR-ENCY-004](../../apps/encyclopedia/docs/adr/ADR-ENCY-004-identity.md), [ADR-NOTE-004](../../apps/notes/docs/adr/ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-009](../../apps/notes/docs/adr/ADR-NOTE-009-identity.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md)
+- Dependency of: [ADR-ENCY-004](../../apps/encyclopedia/docs/adr/ADR-ENCY-004-identity.md), [ADR-NOTE-004](../../apps/notes/docs/adr/ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-009](../../apps/notes/docs/adr/ADR-NOTE-009-identity.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md), [ADR-PLAT-008](ADR-PLAT-008-work-previews.md)
 
 ## Context
 
@@ -11,9 +11,9 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Decision
 
-- **VoidAuth holds the homelab account.** It runs from its official image, unmodified and pinned by version and digest, on SQLite. The repo contains none of its code (it is AGPL-3.0).
+- **VoidAuth holds the homelab account**, at `accounts.<domain>`, where people sign in and manage their account. It runs from its official image, unmodified and pinned by version and digest, on SQLite. The repo contains none of its code (it is AGPL-3.0).
 - **Every app sits behind one gateway that asks VoidAuth about each request** (VoidAuth's ProxyAuth, through the gateway's forward auth):
-  - All apps are hosted under one parent domain (`notes.home.example`, `auth.home.example`). VoidAuth's session cookie is set on that domain (`SESSION_DOMAIN`), so one sign-in covers every app and one sign-out ends it for all of them.
+  - All apps are hosted under one parent domain (`notes.home.example`, `accounts.home.example`). VoidAuth's session cookie is set on that domain (`SESSION_DOMAIN`), so one sign-in covers every app and one sign-out ends it for all of them.
   - Before passing a request on, the gateway sends it to VoidAuth's `/api/authz/forward-auth`. VoidAuth answers with the person in `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups`, or sends the browser to its sign-in page or its "forbidden" page.
   - The gateway must delete any `Remote-*` headers the browser sent before asking VoidAuth, because VoidAuth leaves out the headers it has no value for.
   - Only the gateway reaches the apps: no app publishes a port of its own.
@@ -68,5 +68,6 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Changelog
 
+- 2026-10-22: VoidAuth is served at `accounts.<domain>`, named for what people do there (sign in and manage their account), instead of `auth.<domain>`. The maintainer asked that nothing be called `auth`, in the thread that built previews (PR #85).
 - 2026-10-19: Every app sits behind one gateway that asks VoidAuth about each request, and apps read the person from its headers instead of being OIDC clients with their own device sessions. As OIDC clients, apps could not learn of a sign-out made elsewhere, so signing out once did not sign the browser out of every app ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68). The admin now grants each app and its level through VoidAuth groups, which replaces the first `auth_admins` member becoming an app's first owner.
 - 2026-10-17: Accepted. VoidAuth was the one sign-in, with each app an OIDC client keyed by `sub` and keeping its own members, roles and device sessions. The first `auth_admins` member to sign in to an app became its first owner.

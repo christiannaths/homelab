@@ -30,7 +30,7 @@ Then restart the browser. Firefox keeps its own list: Settings, Privacy & Securi
 | --- | --- |
 | <https://notes.homelab.localhost:8443/> | Notes |
 | <https://encyclopedia.homelab.localhost:8443/> | The Encyclopedia |
-| <https://auth.homelab.localhost:8443/> | VoidAuth: signing in, your account, and the admin pages (`/admin`) |
+| <https://accounts.homelab.localhost:8443/> | VoidAuth: signing in, your account, and the admin pages (`/admin`) |
 
 | Username | Password | Gets |
 | --- | --- | --- |
@@ -39,11 +39,7 @@ Then restart the browser. Firefox keeps its own list: Settings, Privacy & Securi
 | `dana` | `quartz-ember-willow-27` | Notes as a member, no Encyclopedia |
 | `bob` | `harbour-violet-thistle-93` | A homelab account but no apps |
 
-VoidAuth offers to set up a passkey after a password sign-in; **Skip** is fine.
-
-### Sign in as someone in one click
-
-While `npm run dev` runs, <https://login.homelab.localhost:8443/> signs the browser in as an account and opens that person's app, skipping VoidAuth's sign-in page: `/ada`, `/dana`, `/bob` or `/auth_admin`. Add an app to open that one instead, as in `/ada/encyclopedia`. Opening another link switches the browser to that account. Behind it, `start.ts` signs in with the account's password as a browser would and hands over VoidAuth's session cookie; a real install has no such site.
+Opening an app sends you to VoidAuth's sign-in page, as on a real install. VoidAuth offers to set up a passkey after a password sign-in; **Skip** is fine. To switch accounts, sign out from VoidAuth's account page.
 
 ## Start over
 
@@ -51,10 +47,10 @@ While `npm run dev` runs, <https://login.homelab.localhost:8443/> signs the brow
 npm run dev:reset   # deletes everything; the next `npm run dev` starts from empty
 ```
 
-Set `GATEWAY_PORT` (default `8443`), `HOMELAB_DOMAIN` (default `homelab.localhost`) or `LOGIN_PORT` (default `8444`, where `start.ts` serves the login links on this machine) to use another port or domain, the same on every run. The Notes server runs from this checkout, so restarting it picks up server changes (`docker compose -f tools/dev/compose.yaml restart notes`), and `npm run dev` rebuilds the web clients.
+Set `GATEWAY_PORT` (default `8443`) or `HOMELAB_DOMAIN` (default `homelab.localhost`) to use another port or domain, the same on every run. The Notes server runs from this checkout, so restarting it picks up server changes (`docker compose -f tools/dev/compose.yaml restart notes`), and `npm run dev` rebuilds the web clients.
 
 ## Files
 
 - `compose.yaml`: the containers. Only the gateway publishes a port, since Notes trusts the `Remote-*` headers the gateway sets.
-- `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check in [`packages/gateway/signed-in.caddyfile`](../../packages/gateway/signed-in.caddyfile), and the login site goes to `start.ts`.
-- `start.ts`: what `npm run dev` and `npm run dev:reset` run, and the login links' handler.
+- `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check in [`packages/gateway/signed-in.caddyfile`](../../packages/gateway/signed-in.caddyfile).
+- `start.ts`: what `npm run dev` and `npm run dev:reset` run.

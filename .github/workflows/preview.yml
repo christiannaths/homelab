@@ -1,0 +1,92 @@
+# A preview for every pull request from this repo (ADR-PLAT-008): each push tests the preview image,
+# then deploys it as pr-<number> and keeps one comment on the pull request up to date with its
+# links. Closing or merging the pull request removes the preview. Pull requests from forks get no
+# secrets, so they get no preview. Until tools/preview/setup.sh has set the repository's settings,
+# only the image test runs.
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+# A newer push, or closing the pull request, cancels a deploy still running for an older commit.
+concurrency:
+  group: preview-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NAME: pr-${{ github.event.pull_request.number }}
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  FLY_ORG: ${{ vars.FLY_ORG }}
+  FLY_REGION: ${{ vars.FLY_REGION }}
+  PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+  DNSIMPLE_TOKEN: ${{ secrets.DNSIMPLE_TOKEN }}
+  DNSIMPLE_ACCOUNT_ID: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Test the preview image
+        run: npm run e2e -w @homelab/tools
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: vars.PREVIEW_DOMAIN != ''
+      - name: Deploy the preview
+        if: vars.PREVIEW_DOMAIN != ''
+        run: tools/preview/preview.sh deploy "$NAME"
+      - name: Write the comment
+        if: vars.PREVIEW_DOMAIN != ''
+        run: |
+          node tools/preview/comment.ts "$NAME" "$PREVIEW_DOMAIN" "${{ github.event.pull_request.head.sha }}" > "$RUNNER_TEMP/comment.md"
+          cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Post the comment
+        if: vars.PREVIEW_DOMAIN != ''
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("node:fs");
+            const body = fs.readFileSync(`${process.env.RUNNER_TEMP}/comment.md`, "utf8");
+            const marker = body.split("\n")[0];
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((comment) => comment.body?.startsWith(marker));
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
+
+  remove:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && vars.PREVIEW_DOMAIN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Remove the preview
+        run: tools/preview/preview.sh remove "$NAME"
+      - name: Say so on the pull request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { execFileSync } = require("node:child_process");
+            const body = execFileSync("node", ["tools/preview/comment.ts", process.env.NAME, process.env.PREVIEW_DOMAIN, "--removed"], { encoding: "utf8" });
+            const marker = body.split("\n")[0];
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((comment) => comment.body?.startsWith(marker));
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
