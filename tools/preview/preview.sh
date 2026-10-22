@@ -126,13 +126,13 @@ deploy() {
   # Done once a browser would accept the certificate, whatever Fly's status field is called.
   echo "Waiting for the certificate for $certificate…"
   for _ in $(seq 1 60); do
-    if curl -fsS --max-time 30 -o /dev/null "https://login.$domain/" 2>/dev/null; then
-      echo "The preview is at https://login.$domain/"
+    if curl -fsS --max-time 30 -o /dev/null "https://accounts.$domain/api/public/config" 2>/dev/null; then
+      echo "The preview is at https://accounts.$domain/"
       return
     fi
     sleep 10
   done
-  echo "https://login.$domain/ did not answer with a valid certificate within 10 minutes:" >&2
+  echo "https://accounts.$domain/ did not answer with a valid certificate within 10 minutes:" >&2
   flyctl certs check "$certificate" --app "$app" >&2 || true
   exit 1
 }

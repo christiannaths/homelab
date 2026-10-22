@@ -4,12 +4,8 @@
 //   node tools/dev/start.ts      build the apps, run everything with its logs until Ctrl+C
 //
 //   node tools/dev/start.ts reset stop the containers and delete their data
-//
-// While it runs, https://login.<domain>:<port>/<username> signs the browser in as that account and
-// opens their app (tools/login-links/).
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { createServer } from "node:http";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -17,7 +13,6 @@ import {
   VoidAuthClient,
   type Person,
 } from "@homelab/voidauth-fixtures";
-import { loginLinks } from "../login-links/login-links.ts";
 
 const HERE = import.meta.dirname;
 const ROOT = path.join(HERE, "..", "..");
@@ -26,9 +21,7 @@ const CA_FILE = path.join(HERE, "data", "gateway-root-ca.crt");
 
 const DOMAIN = process.env.HOMELAB_DOMAIN ?? "homelab.localhost";
 const PORT = Number(process.env.GATEWAY_PORT ?? 8443);
-const AUTH_URL = `https://auth.${DOMAIN}:${PORT}`;
-const LOGIN_URL = `https://login.${DOMAIN}:${PORT}`;
-const LOGIN_PORT = Number(process.env.LOGIN_PORT ?? 8444);
+const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${PORT}`;
 
 /** The instance admin VoidAuth creates on first run, who VoidAuth lets into every app. */
 const ADMIN = {
@@ -103,21 +96,12 @@ async function startHomelab(): Promise<void> {
     const ca = await gatewayCa();
     mkdirSync(path.dirname(CA_FILE), { recursive: true });
     writeFileSync(CA_FILE, ca);
-    await loadFixtures(new VoidAuthClient({ url: AUTH_URL, ca }), {
+    await loadFixtures(new VoidAuthClient({ url: ACCOUNTS_URL, ca }), {
       admin: ADMIN,
       apps: APPS,
       people: PEOPLE,
       readLog: () => compose("logs", "voidauth"),
     });
-    createServer(
-      loginLinks({
-        domain: DOMAIN,
-        port: PORT,
-        voidauth: { url: AUTH_URL, ca },
-        accounts: [ADMIN, ...PEOPLE],
-        apps: APPS,
-      }),
-    ).listen(LOGIN_PORT, "127.0.0.1");
   })().then(printSummary, (error: unknown) =>
     console.error(
       `\nSetting VoidAuth up failed: ${String(error)}\nIf it keeps failing, \`npm run dev:reset\` starts over.\n`,
@@ -131,7 +115,7 @@ function printSummary(): void {
   console.log(`
 The homelab is running. Ctrl+C stops it, keeping its data.
 
-  Sign-in and admin pages  ${AUTH_URL}/admin
+  Sign-in and admin pages  ${ACCOUNTS_URL}/admin
   Notes                    https://${APPS[0]?.host}:${PORT}/
   Encyclopedia             https://${APPS[1]?.host}:${PORT}/
 
@@ -140,13 +124,6 @@ Accounts:
   for (const person of PEOPLE)
     console.log(
       `  ${person.username.padEnd(10)} ${person.password.padEnd(26)} ${person.gets}`,
-    );
-  console.log(`
-Open one of these to be signed in as that account, skipping VoidAuth's sign-in page. Add an app,
-as in ${LOGIN_URL}/ada/encyclopedia, to open that one instead.`);
-  for (const account of [ADMIN, ...PEOPLE])
-    console.log(
-      `  ${account.username.padEnd(10)} ${LOGIN_URL}/${account.username}`,
     );
   console.log(`
 The certificates come from the gateway's own CA, so the browser warns until you trust it. Trust

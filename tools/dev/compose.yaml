@@ -17,9 +17,6 @@ services:
       - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
-      LOGIN_PORT: ${LOGIN_PORT:-8444}
-    # The login site's handler runs in start.ts, on this machine rather than in a container.
-    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on: [voidauth, notes]
 
   voidauth:
@@ -28,12 +25,12 @@ services:
       - voidauth-config:/app/config
       - voidauth-db:/app/db
     environment:
-      APP_URL: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
+      APP_URL: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
       # The session cookie goes on the parent domain, so every app's hostname receives it.
       SESSION_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
       STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
       DB_ADAPTER: sqlite
-      DEFAULT_REDIRECT: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}/
+      DEFAULT_REDIRECT: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}/
       # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
       SIGNUP: "false"
 
@@ -46,7 +43,7 @@ services:
       - ../..:/repo:ro
       - notes:/data
     environment:
-      VOIDAUTH_URL: https://auth.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
+      VOIDAUTH_URL: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
       PORT: "3000"
       DATA_DIR: /data
 

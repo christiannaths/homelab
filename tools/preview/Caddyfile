@@ -9,7 +9,7 @@
 	}
 }
 
-http://auth.{$SITE_DOMAIN}:{$PORT} {
+http://accounts.{$SITE_DOMAIN}:{$PORT} {
 	reverse_proxy 127.0.0.1:3000
 }
 
@@ -28,10 +28,4 @@ http://encyclopedia.{$SITE_DOMAIN}:{$PORT} {
 		try_files {path} /index.html
 		file_server
 	}
-}
-
-# Only in previews and tools/dev, never in a real install: signs the browser in as a test account
-# in one click (tools/login-links/).
-http://login.{$SITE_DOMAIN}:{$PORT} {
-	reverse_proxy 127.0.0.1:3002
 }

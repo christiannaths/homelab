@@ -1,12 +1,11 @@
 // The preview image's entrypoint (ADR-PLAT-008): runs the whole homelab in one container, since Fly
 // mounts a volume into only one container per machine. It starts VoidAuth, the Notes server, the
-// login links and the gateway, with all their data under DATA_DIR, then loads the test accounts.
+// the gateway, with all their data under DATA_DIR, then loads the test accounts.
 // Loading again on a later start only fills in what is missing, so data survives restarts.
 //
 //   node tools/preview/start.ts         run the preview until stopped
 //   node tools/preview/start.ts reset   wipe the running preview's data and start it fresh
 import { spawn, type ChildProcess } from "node:child_process";
-import { createServer, type Server } from "node:http";
 import {
   existsSync,
   mkdirSync,
@@ -18,7 +17,6 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
-import { loginLinks } from "../login-links/login-links.ts";
 import { ADMIN, PEOPLE, appsUnder } from "./fixtures.ts";
 
 const ROOT = path.join(import.meta.dirname, "..", "..");
@@ -46,7 +44,7 @@ interface Running {
 /** Starts every service and loads the test accounts. Fails when a service won't come up. */
 async function startPreview(onExit: (name: string) => void): Promise<Running> {
   const domain = `${setting("PREVIEW_NAME")}.${setting("PREVIEW_DOMAIN")}`;
-  const authUrl = `https://auth.${domain}`;
+  const accountsUrl = `https://accounts.${domain}`;
   const apps = appsUnder(domain);
   for (const dir of ["voidauth/config", "voidauth/db", "notes", "caddy"])
     mkdirSync(path.join(DATA_DIR, dir), { recursive: true });
@@ -77,13 +75,13 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   const voidauth = run("VoidAuth", "/opt/voidauth/node", ["./dist/index.mjs"], {
     cwd: "/app",
     env: {
-      APP_URL: authUrl,
+      APP_URL: accountsUrl,
       // The session cookie goes on the preview's domain, so its apps share it and no other
       // preview's do.
       SESSION_DOMAIN: domain,
       STORAGE_KEY: setting("STORAGE_KEY"),
       DB_ADAPTER: "sqlite",
-      DEFAULT_REDIRECT: `${authUrl}/`,
+      DEFAULT_REDIRECT: `${accountsUrl}/`,
       // Registration is closed: accounts come only from invite links (ADR-PLAT-004).
       SIGNUP: "false",
       APP_PORT: "3000",
@@ -102,7 +100,7 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     {
       cwd: ROOT,
       env: {
-        VOIDAUTH_URL: authUrl,
+        VOIDAUTH_URL: accountsUrl,
         PORT: "3001",
         DATA_DIR: path.join(DATA_DIR, "notes"),
       },
@@ -125,11 +123,9 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     },
   );
 
-  const gateway = { url: authUrl, port: PORT };
-  let login: Server | undefined;
+  const gateway = { url: accountsUrl, port: PORT };
   const stop = async () => {
     const stopping = children.splice(0);
-    login?.close();
     await Promise.all(
       stopping.map(
         ({ child }) =>
@@ -150,21 +146,12 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
       people: PEOPLE,
       readLog: () => voidauthLog,
     });
-    login = createServer(
-      loginLinks({
-        domain,
-        port: 443,
-        voidauth: gateway,
-        accounts: [ADMIN, ...PEOPLE],
-        apps,
-      }),
-    ).listen(3002, "127.0.0.1");
   } catch (error) {
     await stop();
     throw error;
   }
   writeFileSync(READY_FILE, new Date().toISOString());
-  console.log(`The preview is up at https://login.${domain}/`);
+  console.log(`The preview is up at ${accountsUrl}/`);
   return { stop };
 }
 

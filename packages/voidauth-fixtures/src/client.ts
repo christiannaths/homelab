@@ -4,7 +4,7 @@ import { stringField } from "./json.ts";
 
 /** Where VoidAuth is reached: through a gateway on this machine, without DNS. */
 export interface VoidAuthAddress {
-  /** VoidAuth's public address, such as `https://auth.homelab.localhost:8443`. */
+  /** VoidAuth's public address, such as `https://accounts.homelab.localhost:8443`. */
   url: string;
   /**
    * The certificate of the CA that signs the gateway's certificates, in PEM. Without it, the

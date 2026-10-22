@@ -6,7 +6,7 @@ import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
   ADA,
-  AUTH_URL,
+  ACCOUNTS_URL,
   BOB,
   confirmSignOut,
   DANA,
@@ -92,10 +92,10 @@ describe("signing in with the homelab account", () => {
 
   it("opens with no password after signing in on the homelab's own page", async () => {
     const page = await newDevice(browser);
-    await page.goto(`${AUTH_URL}/`);
+    await page.goto(`${ACCOUNTS_URL}/`);
     await onVoidAuthSignIn(page);
     await typePassword(page, ADA);
-    await page.waitForURL(`${AUTH_URL}/`);
+    await page.waitForURL(`${ACCOUNTS_URL}/`);
 
     await page.goto(NOTES_URL);
     await page.getByText(`Signed in as ${ADA.name}`).waitFor();
@@ -107,7 +107,7 @@ describe("signing in with the homelab account", () => {
     await onVoidAuthSignIn(page);
     await typePassword(page, BOB);
     await page.waitForURL(
-      (url) => url.origin === AUTH_URL && url.pathname === "/forbidden",
+      (url) => url.origin === ACCOUNTS_URL && url.pathname === "/forbidden",
     );
   });
 
@@ -164,7 +164,7 @@ describe("signing out", () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     const homelab = await page.context().newPage();
-    await homelab.goto(`${AUTH_URL}/logout`);
+    await homelab.goto(`${ACCOUNTS_URL}/logout`);
     await confirmSignOut(homelab);
     await onVoidAuthSignIn(homelab);
 

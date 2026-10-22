@@ -1,5 +1,5 @@
 // Prints the Markdown that the preview workflows post on a pull request and in a run's summary:
-// the preview's addresses, the commit it runs, and its test accounts with their login links.
+// the preview's addresses, the commit it runs, and its test accounts.
 //
 //   node tools/preview/comment.ts <name> <preview domain> <commit>
 //   node tools/preview/comment.ts <name> <preview domain> --removed
@@ -27,18 +27,18 @@ The preview \`${name}\` was removed when this pull request closed. Reopening it 
   console.log(`${MARKER}
 ### Preview
 
-This pull request runs at **https://login.${domain}/**, on commit \`${commit}\`. It wakes in a few seconds when opened after a quiet spell.
+This pull request runs on commit \`${commit}\`. It wakes in a few seconds when opened after a quiet spell.
 
 | App | Address |
 | --- | --- |
 ${APPS.map((app) => `| ${app.name} | https://${app.site}.${domain}/ |`).join("\n")}
-| Sign-in and admin pages | https://auth.${domain}/admin |
+| Accounts and admin pages | https://accounts.${domain}/ |
 
-Each link signs you in as that test account and opens their app. Add an app to open that one instead, as in https://login.${domain}/ada/encyclopedia. The passwords are public: anyone can sign in, so put nothing real here.
+Opening an app asks you to sign in on the accounts page, as on a real install. The passwords are public: anyone can sign in, so put nothing real here.
 
-| Account | Login link | Password | Gets |
-| --- | --- | --- | --- |
-${accounts.map((account) => `| \`${account.username}\` | https://login.${domain}/${account.username} | \`${account.password}\` | ${account.gets} |`).join("\n")}
+| Account | Password | Gets |
+| --- | --- | --- |
+${accounts.map((account) => `| \`${account.username}\` | \`${account.password}\` | ${account.gets} |`).join("\n")}
 
 Accounts and data are kept across pushes. The **Reset preview** workflow wipes them.`);
 }

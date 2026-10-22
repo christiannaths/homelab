@@ -6,7 +6,7 @@
 	skip_install_trust
 }
 
-auth.{$HOMELAB_DOMAIN} {
+accounts.{$HOMELAB_DOMAIN} {
 	reverse_proxy voidauth:3000
 }
 
@@ -25,10 +25,4 @@ encyclopedia.{$HOMELAB_DOMAIN} {
 		try_files {path} /index.html
 		file_server
 	}
-}
-
-# Only here, never in a real install: signs the browser in as a test account in one click. The
-# handler is in start.ts, which serves it on this machine while `npm run dev` runs.
-login.{$HOMELAB_DOMAIN} {
-	reverse_proxy host.docker.internal:{$LOGIN_PORT}
 }

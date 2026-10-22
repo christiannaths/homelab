@@ -11,6 +11,7 @@ import {
 } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
+import { VoidAuthClient } from "@homelab/voidauth-fixtures";
 import { ADMIN, PEOPLE } from "./fixtures.ts";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
@@ -103,18 +104,27 @@ function get(
   });
 }
 
-/** Opens a login link, returning where it sends the browser and the cookie header it signs in with. */
-async function login(link: string): Promise<{
-  location: string | undefined;
+/**
+ * Signs in on VoidAuth's sign-in page as a browser does, through the gateway, and returns the
+ * session cookies it sets and the cookie header that carries them.
+ */
+async function signIn(username: string): Promise<{
   cookie: string;
   cookies: string[];
 }> {
-  const reply = await get("login", link);
-  assert.equal(reply.status, 302, `${link}: ${reply.body}`);
+  const account = [ADMIN, ...PEOPLE].find(
+    (candidate) => candidate.username === username,
+  );
+  assert.ok(account, `no test account ${username}`);
+  const browser = new VoidAuthClient({
+    url: `https://accounts.${DOMAIN}`,
+    port,
+  });
+  assert.ok(await browser.signIn(account), `VoidAuth refused ${username}`);
+  const cookies = browser.sessionCookies();
   return {
-    location: reply.location,
-    cookies: reply.cookies,
-    cookie: reply.cookies.map((cookie) => cookie.split(";")[0]).join("; "),
+    cookies,
+    cookie: cookies.map((cookie) => cookie.split(";")[0]).join("; "),
   };
 }
 
@@ -230,41 +240,27 @@ after(() => {
   });
 });
 
-describe("login links", () => {
-  test("each account opens its own app, with what its groups give it", async () => {
-    const ada = await login("/ada");
-    assert.equal(ada.location, `https://notes.${DOMAIN}/`);
+describe("signing in", () => {
+  test("each account gets what its groups give it", async () => {
+    const ada = await signIn("ada");
     assert.equal(await notesSession(ada.cookie), "owner");
     assert.equal(await encyclopedia(ada.cookie), "in");
 
-    const dana = await login("/dana");
-    assert.equal(dana.location, `https://notes.${DOMAIN}/`);
+    const dana = await signIn("dana");
     assert.equal(await notesSession(dana.cookie), "member");
     assert.equal(await encyclopedia(dana.cookie), "/forbidden");
 
-    const bob = await login("/bob");
-    assert.equal(bob.location, `https://auth.${DOMAIN}/`);
+    const bob = await signIn("bob");
     assert.match(await notesSession(bob.cookie), /^302 .*\/forbidden/);
     assert.equal(await encyclopedia(bob.cookie), "/forbidden");
 
-    const admin = await login(`/${ADMIN.username}`);
+    const admin = await signIn(ADMIN.username);
     assert.equal(await notesSession(admin.cookie), "owner");
     assert.equal(await encyclopedia(admin.cookie), "in");
   });
 
-  test("naming an app opens that app", async () => {
-    const ada = await login("/ada/encyclopedia");
-    assert.equal(ada.location, `https://encyclopedia.${DOMAIN}/`);
-  });
-
-  test("the login site lists every account", async () => {
-    const page = await get("login", "/");
-    for (const account of [ADMIN, ...PEOPLE])
-      assert.match(page.body, new RegExp(`href="/${account.username}"`));
-  });
-
   test("VoidAuth's session is scoped to the preview's domain", async () => {
-    const { cookies } = await login("/dana");
+    const { cookies } = await signIn("dana");
     const session = cookies.find((cookie) =>
       cookie.startsWith("x-voidauth-session="),
     );
@@ -278,7 +274,7 @@ describe("the gateway", () => {
     assert.equal(reply.status, 302);
     assert.match(
       reply.location ?? "",
-      new RegExp(`^https://auth\\.${DOMAIN}/`),
+      new RegExp(`^https://accounts\\.${DOMAIN}/`),
     );
   });
 
@@ -291,7 +287,7 @@ describe("the gateway", () => {
     const signedOut = await get("notes", "/api/session", forged);
     assert.equal(signedOut.status, 302);
 
-    const dana = await login("/dana");
+    const dana = await signIn("dana");
     assert.equal(
       await notesSession(dana.cookie),
       "member",
@@ -308,7 +304,7 @@ describe("the gateway", () => {
 
 describe("data", () => {
   test("accounts, sessions and Notes survive a restart on the same volume", async () => {
-    const ada = await login("/ada");
+    const ada = await signIn("ada");
     const written = await openDocument(ada.cookie, "preview-test");
     written.text.insert(0, "kept across restarts");
     // Notes writes a changed document after a second's debounce, and on shutdown.
@@ -321,11 +317,11 @@ describe("data", () => {
     const reread = await openDocument(ada.cookie, "preview-test");
     assert.equal(reread.text.toString(), "kept across restarts");
     reread.close();
-    assert.equal(await notesSession((await login("/dana")).cookie), "member");
+    assert.equal(await notesSession((await signIn("dana")).cookie), "member");
   });
 
   test("reset leaves only the test accounts and no Notes data", async () => {
-    const ada = await login("/ada");
+    const ada = await signIn("ada");
     const written = await openDocument(ada.cookie, "preview-test-reset");
     written.text.insert(0, "gone after a reset");
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -335,18 +331,22 @@ describe("data", () => {
 
     assert.match(
       await notesSession(ada.cookie),
-      /^302 https:\/\/auth\./,
+      /^302 https:\/\/accounts\./,
       "the old session is gone",
     );
-    const fresh = await login("/ada");
+    const fresh = await signIn("ada");
     assert.equal(await notesSession(fresh.cookie), "owner");
     const reread = await openDocument(fresh.cookie, "preview-test-reset");
     assert.equal(reread.text.toString(), "");
     reread.close();
-    const admin = await login(`/${ADMIN.username}`);
-    const users = await get("auth", "/api/admin/users?page=0&pageSize=1000", {
-      cookie: admin.cookie,
-    });
+    const admin = await signIn(ADMIN.username);
+    const users = await get(
+      "accounts",
+      "/api/admin/users?page=0&pageSize=1000",
+      {
+        cookie: admin.cookie,
+      },
+    );
     const listed = pick(users.body, "users");
     assert.ok(Array.isArray(listed), users.body);
     assert.deepEqual(

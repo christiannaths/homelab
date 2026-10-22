@@ -6,7 +6,7 @@
 	skip_install_trust
 }
 
-auth.{$HOMELAB_DOMAIN} {
+accounts.{$HOMELAB_DOMAIN} {
 	reverse_proxy voidauth:3000
 }
 

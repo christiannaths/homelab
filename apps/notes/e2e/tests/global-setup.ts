@@ -9,7 +9,7 @@ import type { TestProject } from "vitest/node";
 import {
   ACCOUNTS,
   ADMIN,
-  AUTH_URL,
+  ACCOUNTS_URL,
   DOMAIN,
   GATEWAY_PORT,
   NOTES_GROUPS,
@@ -48,7 +48,7 @@ export default async function setup(project: TestProject) {
     );
     await loadFixtures(
       new VoidAuthClient({
-        url: AUTH_URL,
+        url: ACCOUNTS_URL,
         ca: await gatewayFile(join(pki, "root.crt")),
       }),
       {
