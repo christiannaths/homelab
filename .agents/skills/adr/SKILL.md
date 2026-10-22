@@ -7,6 +7,10 @@ description: Write or edit this repo's Architecture Decision Records (ADRs). Use
 
 An ADR records a **durable, foundational decision**: one that other decisions build on and that holds for the life of the app. Each problem has **one living ADR** that always states the current decision; when the decision changes, its ADR is rewritten in place and its Changelog says why. Short-lived constraints, such as a dependency version pin, live in issues.
 
+## When
+
+An ADR changes in the same PR as the code that makes its decision true, so the ADRs always describe what is built. A spec lists the ADRs its build will edit, and when it is split into tickets, each ticket names the ADRs its own PR edits. ADRs are not written ahead of the code during design.
+
 ## Steps
 
 1. **Find the problem's ADR.** Read the index README in each ADR folder (`ls docs/adr apps/*/docs/adr`). An existing ADR whose problem covers the change is the one to edit; a new problem gets a new ADR.
