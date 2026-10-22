@@ -12,4 +12,25 @@ export const tokens = {
     light: "0 1px 2px rgb(15 15 15 / 10%)",
     medium: "0 4px 12px rgb(15 15 15 / 15%)",
   },
+  // For the App switcher, which renders without Mantine, in Mantine's default gray scheme.
+  text: { light: "#212529", dark: "#c9c9c9" },
+  dimmed: { light: "#868e96", dark: "#828282" },
+  border: { light: "#dee2e6", dark: "#424242" },
+  hover: { light: "#f1f3f5", dark: "#2e2e2e" },
+  /**
+   * User icons' colours, each dark enough for white initials (at least 4.5:1). The App switcher
+   * picks one from the username, so a person's icon is the same colour in every app.
+   */
+  avatar: [
+    "#b91c1c",
+    "#c2410c",
+    "#a16207",
+    "#4d7c0f",
+    "#15803d",
+    "#0f766e",
+    "#0369a1",
+    "#1d4ed8",
+    "#6d28d9",
+    "#be185d",
+  ],
 } as const;

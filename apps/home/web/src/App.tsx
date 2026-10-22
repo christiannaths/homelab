@@ -10,13 +10,16 @@ import {
   Text,
   ThemeIcon,
   Title,
+  useComputedColorScheme,
 } from "@mantine/core";
+import type { SwitcherTheme } from "@homelab/app-switcher/react";
 import { useSyncExternalStore } from "react";
 import type { App as HomelabApp } from "./api.ts";
 import type { Home } from "./home.ts";
 
 export function App({ home }: { home: Home }) {
   const view = useSyncExternalStore(home.subscribe, () => home.view);
+  const scheme: SwitcherTheme = useComputedColorScheme("light");
   switch (view.screen) {
     case "needs-connection":
       return (
@@ -48,21 +51,27 @@ export function App({ home }: { home: Home }) {
           maw={960}
           mx="auto"
         >
-          <Group gap="sm">
-            <Title
-              order={1}
-              size="h3"
-            >
-              Home
-            </Title>
-            {!view.online && (
-              <Badge
-                color="gray"
-                variant="light"
+          <Group
+            justify="space-between"
+            component="header"
+          >
+            <Group gap="sm">
+              <Title
+                order={1}
+                size="h3"
               >
-                Offline
-              </Badge>
-            )}
+                Home
+              </Title>
+              {!view.online && (
+                <Badge
+                  color="gray"
+                  variant="light"
+                >
+                  Offline
+                </Badge>
+              )}
+            </Group>
+            <homelab-switcher theme={scheme} />
           </Group>
           <SimpleGrid
             component="ul"

@@ -27,6 +27,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
   - The app decides what its levels mean, from `Remote-Groups`.
   - A person's apps are the apps named by their groups, so granting a group is all it takes to list an app for them. `auth_admins` names no app, so membership of it alone lists nothing: the homelab admin is given each app's group like everyone else.
 - **Home is open to every account.** Its ProxyAuth domain has no groups, so every signed-in person reaches it. It lists each person's apps from their groups and from each app's manifest, which it reads itself, so an app shows up before anyone has opened it and apps never report themselves to Home.
+- **The App switcher comes from Home.** It is one standalone script, built from `packages/app-switcher`, that Home serves at `/switcher.js`. Every app's site in the gateway answers `/_homelab/switcher.js` with a redirect to it, at `home.` beside the app, so an app adds it with one script tag and updating Home updates it in every app. It asks Home's `/api/me` for the person and their apps, a cross-origin request that Home allows, with credentials, only for apps under the parent domain. It renders in its own shadow DOM.
 - **Signing out is VoidAuth's `/logout` page.** An app's sign-out sends the browser there. After the person confirms, every app in that browser is signed out on its next request, and other browsers stay signed in.
 - **Registration is closed** (`SIGNUP=false`). An account is created only through a VoidAuth invite link, and each link works once. The invite carries the groups, and so the apps, the admin grants.
 - **VoidAuth and the invite service form one app, `apps/accounts/`** ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)), with VoidAuth's compose setup and the invite service as its packages.
@@ -49,6 +50,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 - `packages/gateway/test/signed-in.test.ts` runs the sign-in check in Caddy 2.10.2: the manifest and icons pass with forged `Remote-*` headers deleted, and every other path, including `/icons/../index.html` and its encoded forms, goes to sign in. The preview image test reads Notes' and the Encyclopedia's manifests and icons signed out (PR for issue #86).
 - Home's server tests (`apps/home/server/test/`) and the Home end-to-end suite (`apps/home/e2e/`), in Chromium through Caddy 2.10.2 and VoidAuth 1.16.0: an account with no groups sees only Home, `-admins` groups count, groups with no manifest are skipped, and the homelab admin sees only the apps it was given (PR for issue #87).
+- The Home end-to-end suite's switcher tests: the user icon's initials and colour, the menu's contents and order, signing out of Home, Notes and the Encyclopedia from it, the keyboard, and its placement, themes and style isolation; `packages/gateway/test/signed-in.test.ts` checks the redirect to Home (PR for issue #88).
 - The ProxyAuth spike ([`spikes/voidauth-proxyauth-poc/FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68): 9 tests in Chromium through Caddy 2.10.2 and VoidAuth 1.16.0 pass. They cover:
   - one sign-in opening every app the admin granted, and a refusal from an app outside the person's groups
   - removing a person from a group taking effect on their next request
@@ -76,6 +78,7 @@ The homelab runs several apps for the same few people, on a home server reachabl
 
 ## Changelog
 
+- 2026-10-22: Every app gets the App switcher from Home, through `/_homelab/switcher.js` on its gateway site, so switching apps and signing out work the same in every app (issue #88, spec #75).
 - 2026-10-22: Each app is on its own subdomain directly under the parent domain, its VoidAuth groups are named after that subdomain, and Home, open to every account, lists each person's apps from those groups and the apps' manifests. `auth_admins` alone lists no app. Home needs a rule for finding apps that adding an app does not change (issue #87, spec #75).
 - 2026-10-22: An app's manifest and icons are readable without signing in, so that Home can read each app's name and icon itself, and the manifest's `homelab` member says whether the app opens offline (issue #86, spec #75).
 - 2026-10-22: VoidAuth is served at `accounts.<domain>`, named for what people do there (sign in and manage their account), instead of `auth.<domain>`. The maintainer asked that nothing be called `auth`, in the thread that built previews (PR #85).

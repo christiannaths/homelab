@@ -147,6 +147,26 @@ describe("signed in", () => {
   });
 });
 
+describe("the App switcher's script", () => {
+  test("is sent on to Home beside the app, once signed in", async () => {
+    const reply = await get("/_homelab/switcher.js", { cookie: "session=ada" });
+    assert.equal(reply.status, 302);
+    assert.equal(reply.location, "https://home.home.test/switcher.js");
+  });
+
+  test("keeps the port the browser used", async () => {
+    const reply = await get("/_homelab/switcher.js", {
+      cookie: "session=ada",
+      host: "app.home.test:8443",
+    });
+    assert.equal(reply.location, "https://home.home.test:8443/switcher.js");
+  });
+
+  test("goes to sign in first when signed out", async () => {
+    assert.equal((await get("/_homelab/switcher.js")).location, SIGN_IN);
+  });
+});
+
 describe("signed out", () => {
   test("lets an app's manifest and icons through, with no Remote-* headers", async () => {
     for (const route of [

@@ -11,6 +11,12 @@ const run = promisify(execFile);
 const COMPOSE_FILE = fileURLToPath(new URL("../compose.yaml", import.meta.url));
 /** The client's production build: the service worker exists only there. */
 const CLIENT_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
+const SWITCHER_SCRIPT = fileURLToPath(
+  new URL(
+    "../../../../packages/app-switcher/dist/switcher.js",
+    import.meta.url,
+  ),
+);
 
 export const GATEWAY_PORT = 8473;
 /** Where the Home server listens on this machine; only the gateway is meant to reach it. */
@@ -104,6 +110,7 @@ export function startHome(dataDir: string): Promise<HomeServer> {
       caFile: gatewayCaFile(dataDir),
     },
     clientDir: CLIENT_DIR,
+    switcherScript: SWITCHER_SCRIPT,
   });
 }
 
@@ -168,4 +175,27 @@ export async function waitUntilOfflineReady(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
+}
+
+/** Answers Yes on VoidAuth's "sign out?" page, which the browser must be on or on its way to. */
+export async function confirmSignOut(page: Page): Promise<void> {
+  await page.waitForURL(
+    (url) => url.origin === ACCOUNTS_URL && url.pathname.startsWith("/logout"),
+  );
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+}
+
+/** The App switcher's user icon on the page, whose menu it opens. */
+export const userIcon = (page: Page) =>
+  page.getByRole("button", { name: /: apps and sign out$/ });
+
+/** The names of the items in the App switcher's menu, opening it first. */
+export async function menuItems(page: Page): Promise<string[]> {
+  const menu = page.getByRole("menu", { name: "Apps and sign out" });
+  if (!(await menu.isVisible())) await userIcon(page).click();
+  return menu
+    .getByRole("menuitem")
+    .evaluateAll((items) =>
+      items.map((item) => item.textContent?.trim() ?? ""),
+    );
 }
