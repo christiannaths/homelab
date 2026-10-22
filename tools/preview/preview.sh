@@ -26,8 +26,18 @@ domain="$name.$PREVIEW_DOMAIN"
 app="$name-${PREVIEW_DOMAIN//./-}"
 certificate="*.$domain"
 
+# Fly's GitHub action installs the CLI as flyctl only.
+if ! command -v fly >/dev/null; then fly() { flyctl "$@"; }; fi
+
+# Called as a condition, where set -e is off, so a failed listing must stop the script itself
+# rather than read as "no such app".
 app_exists() {
-  fly apps list --org "$FLY_ORG" --json | jq -e --arg app "$app" 'any(.[]; .Name == $app or .name == $app)' >/dev/null
+  local apps
+  apps=$(fly apps list --org "$FLY_ORG" --json) || {
+    echo "Listing the Fly organization's apps failed." >&2
+    exit 1
+  }
+  jq -e --arg app "$app" 'any(.[]; .Name == $app or .name == $app)' <<<"$apps" >/dev/null
 }
 
 # ── DNSimple ──────────────────────────────────────────────────────────────
@@ -75,7 +85,7 @@ deploy() {
     fly apps create "$app" --org "$FLY_ORG"
     # VoidAuth encrypts its secrets with this key, so it is made once per preview and kept.
     # Read from stdin, so it never appears in a command line or the public workflow log.
-    echo "STORAGE_KEY=$(openssl rand -hex 24)" | fly secrets import --app "$app" --stage
+    fly secrets import --app "$app" --stage <<<"STORAGE_KEY=$(openssl rand -hex 24)"
   fi
   if ! fly volumes list --app "$app" --json | jq -e 'length > 0' >/dev/null; then
     fly volumes create data --app "$app" --region "$FLY_REGION" --size 1 --yes
