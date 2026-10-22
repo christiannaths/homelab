@@ -39,7 +39,10 @@ async function open(page: Page, url: string): Promise<void> {
   await userIcon(page).waitFor();
 }
 
-const APPS = [{ name: "Notes", url: NOTES_URL }];
+const APPS = [
+  { name: "Notes", url: NOTES_URL },
+  { name: "Encyclopedia", url: ENCYCLOPEDIA_URL },
+];
 
 for (const app of APPS)
   describe(`the App switcher in ${app.name}`, () => {
@@ -77,9 +80,26 @@ for (const app of APPS)
       await confirmSignOut(page);
       await onVoidAuthSignIn(page);
 
-      for (const url of [HOME_URL, NOTES_URL, ENCYCLOPEDIA_URL]) {
+      for (const url of [HOME_URL, NOTES_URL]) {
         const tab = await page.context().newPage();
         await tab.goto(url);
+        await onVoidAuthSignIn(tab);
+      }
+      // Once it has been opened, the Encyclopedia's title page opens from its service worker
+      // without asking anyone, as it keeps nothing private yet. The gateway then turns its
+      // requests away, and the switcher hides.
+      const tab = await page.context().newPage();
+      await tab.goto(ENCYCLOPEDIA_URL);
+      if (new URL(tab.url()).origin === ENCYCLOPEDIA_URL) {
+        expect(
+          await tab.evaluate(
+            async () =>
+              (await fetch("/not-cached", { redirect: "manual" })).type,
+          ),
+        ).toBe("opaqueredirect");
+        await tab.waitForLoadState("networkidle");
+        expect(await userIcon(tab).count()).toBe(0);
+      } else {
         await onVoidAuthSignIn(tab);
       }
     });
