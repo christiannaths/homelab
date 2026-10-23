@@ -192,7 +192,12 @@ describe("joining with an invite", () => {
       password: "helix-photo-fifty-one",
     });
     expect(signedIn.status).toBe(303);
-    expect(await peoplePage()).not.toContain("rosalind@example.com");
+    const people = await peoplePage();
+    const pending = people.slice(
+      people.indexOf("<h2>Pending invites</h2>"),
+      people.indexOf("<h2>Everyone</h2>"),
+    );
+    expect(pending).not.toContain("rosalind@example.com");
   });
 
   it("works only for the invite's email, whatever the form sends", async () => {

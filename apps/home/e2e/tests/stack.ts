@@ -80,7 +80,21 @@ export const HEDY: Account = {
   name: "Hedy Lamarr",
   apps: { notes: "member" },
 };
-export const PEOPLE = [ADMIN, ADA, DANA, BOB, GRACE, HEDY];
+/** Has their App access, homelab admin switch and sessions changed on the People page. */
+export const KATHERINE: Account = {
+  email: "katherine@example.com",
+  password: "orbit-trajectory-ember-62",
+  name: "Katherine Johnson",
+  apps: { notes: "member" },
+};
+/** Has their account removed on the People page. */
+export const MARGARET: Account = {
+  email: "margaret@example.com",
+  password: "apollo-guidance-lantern-69",
+  name: "Margaret Hamilton",
+  apps: { notes: "member" },
+};
+export const PEOPLE = [ADMIN, ADA, DANA, BOB, GRACE, HEDY, KATHERINE, MARGARET];
 
 export async function compose(
   env: Record<string, string>,

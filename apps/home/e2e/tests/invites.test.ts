@@ -35,13 +35,18 @@ async function makeInvite(
   apps: Record<string, "member" | "admin">,
 ): Promise<string> {
   await admin.goto(`${ACCOUNTS_URL}/people`);
-  await admin.getByLabel("Email").fill(email);
+  const form = admin.getByRole("form", { name: "Invite someone" });
+  await form.getByLabel("Email").fill(email);
   for (const [app, level] of Object.entries(apps))
-    await admin.getByLabel(app, { exact: true }).selectOption(level);
-  await admin.getByRole("button", { name: "Make invite" }).click();
+    await form.getByLabel(app, { exact: true }).selectOption(level);
+  await form.getByRole("button", { name: "Make invite" }).click();
   await admin.getByRole("heading", { name: `Invite for ${email}` }).waitFor();
   return admin.getByLabel("Invite link").inputValue();
 }
+
+/** The People page's list of pending invites, which is gone when there are none. */
+const pendingInvites = () =>
+  admin.getByRole("list", { name: "Pending invites" });
 
 /** The "can't be used" page, at the link on a device of its own. */
 async function cantBeUsed(link: string): Promise<void> {
@@ -56,7 +61,7 @@ describe("an invite", () => {
   it("lets the invited person join with the email fixed, signed in on their account page, and open their apps", async () => {
     const link = await makeInvite("ida@example.com", { Notes: "member" });
     expect(new URL(link).origin).toBe(ACCOUNTS_URL);
-    const pending = admin.getByRole("list", { name: "Pending invites" });
+    const pending = pendingInvites();
     await pending.getByText("ida@example.com").waitFor();
     await pending.getByText("Notes (Member)").waitFor();
 
@@ -85,7 +90,7 @@ describe("an invite", () => {
 
     await admin.goto(`${ACCOUNTS_URL}/people`);
     await admin.getByRole("heading", { name: "Pending invites" }).waitFor();
-    expect(await admin.getByText("ida@example.com").count()).toBe(0);
+    expect(await pendingInvites().getByText("ida@example.com").count()).toBe(0);
   });
 
   it("can't be used again once someone has joined with it", async () => {
@@ -110,7 +115,9 @@ describe("an invite", () => {
       .click();
     await admin.waitForURL(`${ACCOUNTS_URL}/people`);
     await admin.getByRole("heading", { name: "Pending invites" }).waitFor();
-    expect(await admin.getByText("cecilia@example.com").count()).toBe(0);
+    expect(
+      await pendingInvites().getByText("cecilia@example.com").count(),
+    ).toBe(0);
 
     await cantBeUsed(link);
   });

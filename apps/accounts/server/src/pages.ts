@@ -66,6 +66,10 @@ li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .app a { flex: 1; text-decoration: none; font-weight: 500; }
 .app img, .app .icon { width: 2rem; height: 2rem; border-radius: 0.5rem; }
 .app .icon { background: var(--hover); }
+.person { display: grid; gap: 0.75rem; padding: 1rem 0; }
+.person h3, .person p { margin: 0; }
+.person ul { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .dimmed { color: var(--dimmed); }
 [role="alert"] { color: var(--error); }
 [role="alert"]:empty { display: none; }
@@ -190,9 +194,22 @@ export interface PendingInvite {
   expiresAt: Date;
 }
 
+/** A person with an account, as the People page lists them. */
+export interface PersonEntry {
+  id: string;
+  name: string;
+  email: string;
+  homelabAdmin: boolean;
+  /** Their App access, each app named as its manifest names it. */
+  apps: { id: string; name: string; icon: string | null; level: Level }[];
+}
+
 export interface PeopleView {
   installed: InstalledApp[];
+  people: PersonEntry[];
   invites: PendingInvite[];
+  /** Why the last action was refused. */
+  error?: string;
   /** The invite just made, whose link is shown this once. */
   made?: { email: string; link: string };
   /** What the invite form sent, shown again with its error. */
@@ -201,18 +218,23 @@ export interface PeopleView {
 
 export function peoplePage({
   installed,
+  people,
   invites,
+  error = "",
   made,
   inviteForm,
 }: PeopleView): string {
-  const choices = installed
-    .toSorted((a, b) => a.name.localeCompare(b.name))
-    .map((app) => {
-      const chosen = inviteForm?.grants[app.id] ?? "";
+  const byName = installed.toSorted((a, b) => a.name.localeCompare(b.name));
+  const choices = (grants: Record<string, string>) =>
+    byName.map((app) => {
+      const chosen = grants[app.id] ?? "";
       const option = (value: string, label: string) =>
         `<option value="${value}"${chosen === value ? " selected" : ""}>${label}</option>`;
       return `<label>${escape(app.name)} <select name="app-${escape(app.id)}" aria-label="${escape(app.name)}">${option("", "No access")}${option("member", LEVEL_NAMES.member)}${option("admin", LEVEL_NAMES.admin)}</select></label>`;
     });
+  const everyone = people
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map((person) => personEntry(person, choices));
   const pending = invites.map(
     (invite) => `<li>
   <strong>${escape(invite.email)}</strong>
@@ -231,17 +253,56 @@ export function peoplePage({
     "People",
     `<h1>People</h1>
 <p><a href="/">Your account</a></p>
+<p role="alert">${escape(error)}</p>
 ${newInvite}
 <h2>Invite someone</h2>
-<form method="post" action="/people/invites">
+<form method="post" action="/people/invites" aria-label="Invite someone">
   <label>Email <input name="email" type="email" value="${escape(inviteForm?.email ?? "")}" required></label>
-  ${choices.join("\n  ")}
+  ${choices(inviteForm?.grants ?? {}).join("\n  ")}
   <p role="alert">${escape(inviteForm?.error ?? "")}</p>
   <button>Make invite</button>
 </form>
 <h2>Pending invites</h2>
-${pending.length ? `<ul aria-label="Pending invites">${pending.join("")}</ul>` : '<p class="dimmed">No pending invites.</p>'}`,
+${pending.length ? `<ul aria-label="Pending invites">${pending.join("")}</ul>` : '<p class="dimmed">No pending invites.</p>'}
+<h2>Everyone</h2>
+<ul aria-label="People">${everyone.join("")}</ul>`,
   );
+}
+
+function personEntry(
+  person: PersonEntry,
+  choices: (grants: Record<string, string>) => string[],
+): string {
+  const grants = Object.fromEntries(
+    person.apps.map((app) => [app.id, app.level]),
+  );
+  const apps = person.apps
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map(
+      (app) => `<li class="app">
+  ${app.icon ? `<img src="${escape(app.icon)}" alt="">` : '<span class="icon"></span>'}
+  <span>${escape(app.name)}</span>
+  <span class="dimmed">${LEVEL_NAMES[app.level]}</span>
+</li>`,
+    );
+  const action = (what: string) =>
+    `/people/${encodeURIComponent(person.id)}/${what}`;
+  const who = escape(person.email);
+  return `<li class="person">
+<h3>${escape(person.name)}</h3>
+<p class="dimmed">${who}</p>
+${person.homelabAdmin ? "<p>Homelab admin</p>" : ""}
+${apps.length ? `<ul aria-label="Apps of ${who}">${apps.join("")}</ul>` : '<p class="dimmed">No apps</p>'}
+<form method="post" action="${action("apps")}" aria-label="App access for ${who}">
+  ${choices(grants).join("\n  ")}
+  <button>Save apps</button>
+</form>
+<div class="actions">
+<form method="post" action="${action("homelab-admin")}" aria-label="Homelab admin for ${who}"><input type="hidden" name="homelab-admin" value="${person.homelabAdmin ? "off" : "on"}"><button>${person.homelabAdmin ? "Stop being a homelab admin" : "Make homelab admin"}</button></form>
+<form method="post" action="${action("sign-out")}" aria-label="Sign out ${who} everywhere"><button>Sign out everywhere</button></form>
+<form method="post" action="${action("remove")}" aria-label="Remove ${who}"><button>Remove account</button></form>
+</div>
+</li>`;
 }
 
 function appsGranted(apps: PendingInvite["apps"]): string {

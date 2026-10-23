@@ -140,3 +140,24 @@ export function askGateway(
     },
   });
 }
+
+/** Posts a form as the browser does from one of the accounts site's own pages. */
+export function submitForm(
+  accounts: Accounts,
+  to: string,
+  cookie: string,
+  fields: Record<string, string> | [string, string][] = {},
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  return request(accounts, to, {
+    method: "POST",
+    headers: {
+      cookie,
+      "origin": ACCOUNTS,
+      "sec-fetch-site": "same-origin",
+      "content-type": "application/x-www-form-urlencoded",
+      ...headers,
+    },
+    body: new URLSearchParams(fields),
+  });
+}
