@@ -363,6 +363,20 @@ describe("signing in", () => {
     assert.match(session ?? "", new RegExp(`; domain=${DOMAIN};`, "i"));
   });
 
+  test("the account page shows each app with its icon, from the app's manifest", async () => {
+    const { cookie } = await signIn(ADA);
+    const reply = await get("accounts", "/", { cookie });
+    assert.equal(reply.status, 200);
+    for (const site of ["notes", "encyclopedia"])
+      assert.match(
+        reply.body,
+        new RegExp(
+          `<img src="https://${site}\\.${DOMAIN.replaceAll(".", "\\.")}/icons/`,
+        ),
+        site,
+      );
+  });
+
   test("has no one-click test sign-in links, which only dev has", async () => {
     const reply = await get(
       "accounts",

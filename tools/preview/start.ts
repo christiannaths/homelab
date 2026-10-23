@@ -101,6 +101,8 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     HOMELAB_APPS: INSTALLED_APPS,
     DATA_DIR: path.join(DATA_DIR, "accounts"),
     PORT: "3000",
+    // The account page reads each app's manifest from the gateway in this container, as Home does.
+    GATEWAY_URL: `http://127.0.0.1:${PORT}`,
   };
   run(
     "the accounts service",
