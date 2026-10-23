@@ -1,7 +1,7 @@
 // The accounts site's pages, as plain server-rendered HTML in the homelab look (packages/theme).
 // They need no script, so they show at once, and follow the device's light or dark setting.
 import { tokens } from "@homelab/theme/tokens";
-import type { Grants } from "./app-access.ts";
+import type { Level } from "./app-access.ts";
 
 const STYLE = `
 :root {
@@ -62,6 +62,10 @@ button {
 a { color: inherit; }
 ul { padding: 0; list-style: none; }
 li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.app { display: flex; align-items: center; gap: 0.75rem; }
+.app a { flex: 1; text-decoration: none; font-weight: 500; }
+.app img, .app .icon { width: 2rem; height: 2rem; border-radius: 0.5rem; }
+.app .icon { background: var(--hover); }
 .dimmed { color: var(--dimmed); }
 [role="alert"] { color: var(--error); }
 [role="alert"]:empty { display: none; }
@@ -111,25 +115,81 @@ export function signInPage({ returnTo, email = "", error = "" }: SignInView) {
   );
 }
 
-export interface AccountView {
-  name: string;
-  email: string;
-  grants: Grants;
+/** What the account page's forms say after one was sent. */
+export interface AccountForms {
+  changed?: string;
+  nameError?: string;
+  passwordError?: string;
 }
 
-export function accountPage({ name, email, grants }: AccountView): string {
-  const apps = Object.entries(grants);
+export interface AccountView extends AccountForms {
+  name: string;
+  email: string;
+  homelabAdmin: boolean;
+  /** The person's apps, each named as its manifest names it. */
+  apps: { name: string; url: string; icon: string | null; level: Level }[];
+}
+
+const LEVEL_NAMES: Record<Level, string> = { member: "Member", admin: "Admin" };
+
+export function accountPage({
+  name,
+  email,
+  homelabAdmin,
+  apps,
+  changed = "",
+  nameError = "",
+  passwordError = "",
+}: AccountView): string {
+  const items = apps
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map(
+      (app) => `<li class="app">
+  ${app.icon ? `<img src="${escape(app.icon)}" alt="">` : '<span class="icon"></span>'}
+  <a href="${escape(app.url)}">${escape(app.name)}</a>
+  <span class="dimmed">${LEVEL_NAMES[app.level]}</span>
+</li>`,
+    );
   return layout(
     "Your account",
     `<h1>${escape(name)}</h1>
 <p class="dimmed">${escape(email)}</p>
+${changed ? `<p role="status">${escape(changed)}</p>` : ""}
 <h2>Your apps</h2>
-${
-  apps.length
-    ? `<ul>${apps.map(([app, level]) => `<li>${escape(appName(app))}${level === "admin" ? ' <span class="dimmed">admin</span>' : ""}</li>`).join("")}</ul>`
-    : '<p class="dimmed">No apps yet.</p>'
-}
+${items.length ? `<ul aria-label="Your apps">${items.join("")}</ul>` : '<p class="dimmed">No apps yet.</p>'}
+<h2>Name</h2>
+<form method="post" action="/name">
+  <label>Name <input name="name" value="${escape(name)}" autocomplete="name" required></label>
+  <p role="alert">${escape(nameError)}</p>
+  <button>Change name</button>
+</form>
+<h2>Password</h2>
+<form method="post" action="/password">
+  <label>Current password <input name="current-password" type="password" autocomplete="current-password" required></label>
+  <label>New password <input name="new-password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="new-password-hint"></label>
+  <p id="new-password-hint" class="dimmed">At least 8 characters.</p>
+  <p role="alert">${escape(passwordError)}</p>
+  <button>Change password</button>
+</form>
+${homelabAdmin ? '<h2>Homelab admin</h2>\n<p><a href="/people">People</a></p>' : ""}
 <p><a href="/sign-out">Sign out</a></p>`,
+  );
+}
+
+export function peoplePage(): string {
+  return layout(
+    "People",
+    `<h1>People</h1>
+<p class="dimmed">Inviting and managing people comes here soon.</p>
+<p><a href="/">Your account</a></p>`,
+  );
+}
+
+export function adminsOnlyPage(): string {
+  return layout(
+    "Homelab admins only",
+    `<h1>Only homelab admins can open this page</h1>
+<p><a href="/">Your account</a></p>`,
   );
 }
 
@@ -151,7 +211,7 @@ export function tooManyAttemptsPage(view: SignInView): string {
   });
 }
 
-/** An app named after its subdomain: this service reads no app's manifest. */
-function appName(app: string): string {
+/** An app named after its subdomain, for when its manifest can't be read. */
+export function appName(app: string): string {
   return app.includes(".") ? app : app.charAt(0).toUpperCase() + app.slice(1);
 }

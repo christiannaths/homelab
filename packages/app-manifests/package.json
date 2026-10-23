@@ -1,0 +1,22 @@
+{
+  "name": "@homelab/app-manifests",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "app-manifests",
+    "tags": [
+      "scope:shared",
+      "platform:node"
+    ]
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

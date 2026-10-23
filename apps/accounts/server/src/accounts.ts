@@ -3,19 +3,30 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import {
+  AppDirectory,
+  manifestReader,
+  type ReadManifest,
+} from "@homelab/app-manifests";
 import { Hono, type Context } from "hono";
+import { addAccountPage } from "./account-page.ts";
+import { addPeoplePage } from "./people.ts";
 import { AppAccess } from "./app-access.ts";
 import { createBetterAuth } from "./better-auth.ts";
 import type { Config } from "./config.ts";
+import { formFields, fromOurPages } from "./forms.ts";
 import { answer, safeReturnTo } from "./forward-auth.ts";
-import {
-  accountPage,
-  noAccessPage,
-  signInPage,
-  tooManyAttemptsPage,
-} from "./pages.ts";
+import { noAccessPage, signInPage, tooManyAttemptsPage } from "./pages.ts";
 
-export async function createAccounts(config: Config) {
+export interface Options {
+  /** Replaces reading manifests through the gateway, for tests. */
+  readManifest?: ReadManifest;
+}
+
+export async function createAccounts(
+  config: Config,
+  { readManifest = manifestReader(config.gateway) }: Options = {},
+) {
   mkdirSync(config.dataDir, { recursive: true });
   const db = new DatabaseSync(path.join(config.dataDir, "accounts.sqlite"));
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
@@ -61,13 +72,8 @@ export async function createAccounts(config: Config) {
 
   app.post("/sign-in", async (c) => {
     // A form on another site could otherwise sign the browser in to an account of its choosing.
-    if (c.req.header("origin") !== new URL(config.accountsUrl).origin)
-      return c.text("Forbidden", 403);
-    const form = await c.req.parseBody();
-    const field = (name: string) => {
-      const value = form[name];
-      return typeof value === "string" ? value : "";
-    };
+    if (!fromOurPages(c, config.accountsUrl)) return c.text("Forbidden", 403);
+    const field = await formFields(c);
     const view = {
       returnTo: safeReturnTo(field("return-to") || undefined, config),
       email: field("email").trim().toLowerCase(),
@@ -113,22 +119,26 @@ export async function createAccounts(config: Config) {
     return new Response(null, { status: 302, headers });
   });
 
-  app.get("/", async (c) => {
-    const session = await sessionOf(c.req.raw.headers);
-    if (!session) return c.redirect("/sign-in", 302);
-    return c.html(
-      accountPage({
-        name: session.user.name,
-        email: session.user.email,
-        grants: appAccess.of(session.user.id),
-      }),
-    );
+  addAccountPage(app, {
+    accountsUrl: config.accountsUrl,
+    betterAuth,
+    appAccess,
+    directory: new AppDirectory(homelabUrl(config), readManifest),
   });
+  addPeoplePage(app, { accountsUrl: config.accountsUrl, betterAuth });
 
   return { app, betterAuth, appAccess, close: () => db.close() };
 }
 
 export type Accounts = Awaited<ReturnType<typeof createAccounts>>;
+
+/** The parent address every app is under, on the accounts site's scheme and port. */
+function homelabUrl({ domain, accountsUrl }: Config): URL {
+  const accounts = new URL(accountsUrl);
+  return new URL(
+    `${accounts.protocol}//${domain}${accounts.port ? `:${accounts.port}` : ""}/`,
+  );
+}
 
 /**
  * The client address the gateway put last in X-Forwarded-For. Anything before it came from the

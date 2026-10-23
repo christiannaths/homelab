@@ -48,12 +48,13 @@ export function answer(
   site: Site,
 ): Answer {
   if (!person) {
-    const signIn = new URL("/sign-in", site.accountsUrl);
-    signIn.searchParams.set(
-      "return-to",
-      `${forwarded.proto}://${forwarded.host}${forwarded.uri}`,
-    );
-    return { kind: "sign-in", location: signIn.href };
+    return {
+      kind: "sign-in",
+      location: signInUrl(
+        site.accountsUrl,
+        `${forwarded.proto}://${forwarded.host}${forwarded.uri}`,
+      ),
+    };
   }
   const app = appOf(forwarded.host, site.domain);
   // A hostname that isn't one installed app under the domain fails closed.
@@ -82,6 +83,13 @@ function headerValue(value: string): string {
   return /^[\x20-\x7e]*$/.test(value) && !value.includes("%")
     ? value
     : encodeURIComponent(value);
+}
+
+/** The sign-in page, which comes back to `returnTo` (an address, or a path on this site). */
+export function signInUrl(accountsUrl: string, returnTo: string): string {
+  const url = new URL("/sign-in", accountsUrl);
+  url.searchParams.set("return-to", new URL(returnTo, accountsUrl).href);
+  return url.href;
 }
 
 /**
