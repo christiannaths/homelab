@@ -2,21 +2,11 @@ import path from "node:path";
 import { startServer } from "./server.ts";
 
 // Settings come from environment variables. How apps read and check them is issue #40.
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`Set ${name}.`);
-    process.exit(1);
-  }
-  return value;
-}
-
 const server = await startServer({
   dataDir: path.resolve(
     process.env.DATA_DIR ?? path.join(import.meta.dirname, "../data"),
   ),
   port: Number(process.env.PORT ?? 3000),
-  voidauthUrl: required("VOIDAUTH_URL"),
   clientDir: path.join(import.meta.dirname, "../../web/dist"),
 });
 console.log(`Notes server listening on port ${server.port}`);

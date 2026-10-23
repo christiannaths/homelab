@@ -1,6 +1,6 @@
 // The preview image's entrypoint (ADR-PLAT-008): runs the whole homelab in one container, since Fly
-// mounts a volume into only one container per machine. It starts VoidAuth, the Notes server, the
-// the gateway, with all their data under DATA_DIR, then loads the test accounts.
+// mounts a volume into only one container per machine. It starts the gateway, VoidAuth, the Home
+// and Notes servers, with all their data under DATA_DIR, then loads the test accounts.
 // Loading again on a later start only fills in what is missing, so data survives restarts.
 //
 //   node tools/preview/start.ts         run the preview until stopped
@@ -72,7 +72,7 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   };
 
   // The gateway starts first and alone, so a request that wakes a stopped machine reaches it within
-  // Fly's proxy's few seconds of patience. It holds requests until VoidAuth and Notes are up
+  // Fly's proxy's few seconds of patience. It holds requests until VoidAuth, Home and Notes are up
   // (Caddyfile).
   run(
     "the gateway",
@@ -114,6 +114,17 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     voidauthLog += chunk.toString();
   });
 
+  // Home reads each app's manifest from the gateway in this container, over plain HTTP like
+  // Fly's proxy.
+  run("Home", process.execPath, ["apps/home/server/src/index.ts"], {
+    cwd: ROOT,
+    env: {
+      HOMELAB_URL: `https://${domain}`,
+      GATEWAY_URL: `http://127.0.0.1:${PORT}`,
+      PORT: "3002",
+    },
+  });
+
   run(
     "Notes",
     process.execPath,
@@ -121,7 +132,6 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     {
       cwd: ROOT,
       env: {
-        VOIDAUTH_URL: accountsUrl,
         PORT: "3001",
         DATA_DIR: path.join(DATA_DIR, "notes"),
       },

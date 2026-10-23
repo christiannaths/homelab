@@ -12,7 +12,6 @@ import {
   start,
   tempDataDir,
   tryUpgrade,
-  VOIDAUTH_URL,
   waitFor,
   type Device,
   type TestServer,
@@ -93,11 +92,9 @@ describe("signing in and out", () => {
     expect(res.headers.get("location")).toBe("/");
   });
 
-  test("signing out goes to VoidAuth's sign-out page, which signs out every homelab app", async () => {
+  test("has no sign-out of its own: the App switcher signs out of every app", async () => {
     const s = await server();
-    const res = await request(s, "/api/sign-out", OWNER);
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe(`${VOIDAUTH_URL}/logout`);
+    expect((await request(s, "/api/sign-out", OWNER)).status).toBe(404);
   });
 });
 

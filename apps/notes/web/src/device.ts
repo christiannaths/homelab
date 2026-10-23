@@ -3,7 +3,6 @@
 import { parsePerson, type Person } from "./api.ts";
 
 const PERSON_KEY = "notes.person";
-const SIGN_OUT_KEY = "notes.signOutWaiting";
 
 // Storage can be unavailable (a private window, blocked site data); the app then remembers
 // nothing, as on a device that has never signed in.
@@ -37,13 +36,4 @@ export function rememberedPerson(): Person | undefined {
 
 export function rememberPerson(person: Person | undefined): void {
   write(PERSON_KEY, person ? JSON.stringify(person) : null);
-}
-
-/** A sign-out made offline, which the next online start finishes. */
-export function signOutWaiting(): boolean {
-  return read(SIGN_OUT_KEY) === "yes";
-}
-
-export function setSignOutWaiting(waiting: boolean): void {
-  write(SIGN_OUT_KEY, waiting ? "yes" : null);
 }

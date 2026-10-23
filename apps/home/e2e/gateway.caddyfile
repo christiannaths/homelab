@@ -1,0 +1,44 @@
+# The homelab gateway (ADR-PLAT-004), as in tools/dev/gateway.caddyfile: every request to an app is
+# asked about at VoidAuth first, by the sign-in check in packages/gateway/signed-in.caddyfile.
+{
+	# A self-signed CA, since *.home.test has no public certificate. A real install uses its own.
+	local_certs
+	skip_install_trust
+}
+
+accounts.{$HOMELAB_DOMAIN} {
+	reverse_proxy voidauth:3000
+}
+
+home.{$HOMELAB_DOMAIN} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		reverse_proxy {$HOME_UPSTREAM}
+	}
+}
+
+notes.{$HOMELAB_DOMAIN} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		reverse_proxy notes:3000
+	}
+}
+
+encyclopedia.{$HOMELAB_DOMAIN} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		root * /srv/encyclopedia
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# A stand-in for a bundled app such as Vaultwarden: its manifest doesn't say it opens offline.
+vault.{$HOMELAB_DOMAIN} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		header /manifest.webmanifest Content-Type application/manifest+json
+		respond /manifest.webmanifest `{"name": "Vault", "icons": []}`
+		respond "Vault"
+	}
+}

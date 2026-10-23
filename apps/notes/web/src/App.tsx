@@ -1,18 +1,19 @@
 import {
   Badge,
-  Button,
   Center,
   Group,
   Stack,
   Text,
   Title,
+  useComputedColorScheme,
 } from "@mantine/core";
+import type { SwitcherTheme } from "@homelab/app-switcher/react";
 import { useSyncExternalStore, type ReactNode } from "react";
 import type { Notes } from "./notes.ts";
 
 export function App({ notes }: { notes: Notes }) {
   const view = useSyncExternalStore(notes.subscribe, () => notes.view);
-  const signOut = () => void notes.signOut();
+  const scheme: SwitcherTheme = useComputedColorScheme("light");
   switch (view.screen) {
     case "needs-connection":
       return (
@@ -22,22 +23,16 @@ export function App({ notes }: { notes: Notes }) {
           </Text>
         </Message>
       );
-    case "signed-out-here":
-      return (
-        <Message title="Notes">
-          <Text>
-            Signed out here. Other apps finish signing out next time Notes is
-            online.
-          </Text>
-        </Message>
-      );
     case "home":
       return (
         <Stack
           p="lg"
           gap="md"
         >
-          <Group justify="space-between">
+          <Group
+            justify="space-between"
+            component="header"
+          >
             <Group gap="sm">
               <Title
                 order={1}
@@ -54,12 +49,7 @@ export function App({ notes }: { notes: Notes }) {
                 </Badge>
               )}
             </Group>
-            <Button
-              variant="default"
-              onClick={signOut}
-            >
-              Sign out
-            </Button>
+            <homelab-switcher theme={scheme} />
           </Group>
           <Text>Signed in as {view.person.name ?? "your homelab account"}</Text>
         </Stack>

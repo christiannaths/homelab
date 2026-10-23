@@ -22,6 +22,15 @@ http://accounts.{$SITE_DOMAIN}:{$PORT} {
 	}
 }
 
+http://home.{$SITE_DOMAIN}:{$PORT} {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		reverse_proxy 127.0.0.1:3002 {
+			import wait-for-upstream
+		}
+	}
+}
+
 http://notes.{$SITE_DOMAIN}:{$PORT} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
