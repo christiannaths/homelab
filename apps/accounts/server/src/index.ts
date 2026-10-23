@@ -4,6 +4,11 @@ import { configFromEnv } from "./config.ts";
 
 const config = configFromEnv(process.env);
 const accounts = await createAccounts(config);
+const setupInvite = accounts.setupInvite();
+if (setupInvite)
+  console.log(
+    `No accounts yet. Make the first homelab admin, within a week, at ${setupInvite}`,
+  );
 const server = serve(
   { fetch: accounts.app.fetch, port: config.port },
   ({ port }) => console.log(`Accounts service listening on port ${port}`),

@@ -16,6 +16,10 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Account page**: A person's own page on the accounts service, which Account settings in the App switcher opens. It shows their name, email and apps, and lets them change their name and password. _Avoid_: profile, settings page, account settings
 
+**People page**: The homelab admins' page on the accounts service, linked from their account page, where they make, list and cancel invites. Nobody else can open it. _Avoid_: admin panel, user management, dashboard
+
+**Invite**: A link a homelab admin makes for one email, granting App access, that lets that person make their homelab account once, within a week. The admin passes it on themselves, since the homelab sends no email. On an install with no accounts, the accounts service prints a setup invite that makes the first homelab admin. _Avoid_: invitation code, sign-up link, registration
+
 ## Apps
 
 **App**: One thing a household uses under the homelab's sign-in, at its own address, such as Notes or Encyclopedia. _Avoid_: service, module, site

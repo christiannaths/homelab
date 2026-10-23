@@ -176,12 +176,124 @@ ${signOutForm("/sign-out")}`,
   );
 }
 
-export function peoplePage(): string {
+/** An installed app as the People page offers it: its subdomain, and its manifest's name. */
+export interface InstalledApp {
+  id: string;
+  name: string;
+}
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  /** App names, each with the level the invite grants. */
+  apps: { name: string; level: Level }[];
+  expiresAt: Date;
+}
+
+export interface PeopleView {
+  installed: InstalledApp[];
+  invites: PendingInvite[];
+  /** The invite just made, whose link is shown this once. */
+  made?: { email: string; link: string };
+  /** What the invite form sent, shown again with its error. */
+  inviteForm?: { email: string; grants: Record<string, string>; error: string };
+}
+
+export function peoplePage({
+  installed,
+  invites,
+  made,
+  inviteForm,
+}: PeopleView): string {
+  const choices = installed
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map((app) => {
+      const chosen = inviteForm?.grants[app.id] ?? "";
+      const option = (value: string, label: string) =>
+        `<option value="${value}"${chosen === value ? " selected" : ""}>${label}</option>`;
+      return `<label>${escape(app.name)} <select name="app-${escape(app.id)}" aria-label="${escape(app.name)}">${option("", "No access")}${option("member", LEVEL_NAMES.member)}${option("admin", LEVEL_NAMES.admin)}</select></label>`;
+    });
+  const pending = invites.map(
+    (invite) => `<li>
+  <strong>${escape(invite.email)}</strong>
+  <p class="dimmed">${escape(appsGranted(invite.apps))} · Expires <time datetime="${invite.expiresAt.toISOString()}">${escape(dateOf(invite.expiresAt))}</time></p>
+  <form method="post" action="/people/invites/${encodeURIComponent(invite.id)}/cancel" aria-label="Cancel the invite for ${escape(invite.email)}"><button>Cancel invite</button></form>
+</li>`,
+  );
+  const newInvite = made
+    ? `<section aria-label="New invite">
+<h2>Invite for ${escape(made.email)}</h2>
+<p>Send this link to ${escape(made.email)} yourself. It works once, for a week, and is shown only now.</p>
+<label>Invite link <input name="invite-link" value="${escape(made.link)}" readonly></label>
+</section>`
+    : "";
   return layout(
     "People",
     `<h1>People</h1>
-<p class="dimmed">Inviting and managing people comes here soon.</p>
-<p><a href="/">Your account</a></p>`,
+<p><a href="/">Your account</a></p>
+${newInvite}
+<h2>Invite someone</h2>
+<form method="post" action="/people/invites">
+  <label>Email <input name="email" type="email" value="${escape(inviteForm?.email ?? "")}" required></label>
+  ${choices.join("\n  ")}
+  <p role="alert">${escape(inviteForm?.error ?? "")}</p>
+  <button>Make invite</button>
+</form>
+<h2>Pending invites</h2>
+${pending.length ? `<ul aria-label="Pending invites">${pending.join("")}</ul>` : '<p class="dimmed">No pending invites.</p>'}`,
+  );
+}
+
+function appsGranted(apps: PendingInvite["apps"]): string {
+  if (apps.length === 0) return "No apps";
+  return apps
+    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .map((app) => `${app.name} (${LEVEL_NAMES[app.level]})`)
+    .join(", ");
+}
+
+function dateOf(date: Date): string {
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export interface JoinView {
+  /** The invite's email, which the person can't change. None for the setup invite. */
+  email: string | null;
+  /** What the person typed, shown again with an error. */
+  typed?: { email: string; name: string };
+  error?: string;
+}
+
+/** The page an invite's link opens. Its form posts back to the same address. */
+export function joinPage({ email, typed, error = "" }: JoinView): string {
+  const emailInput = email
+    ? `<input name="email" type="email" value="${escape(email)}" autocomplete="username" readonly>`
+    : `<input name="email" type="email" value="${escape(typed?.email ?? "")}" autocomplete="username" required autofocus>`;
+  return layout(
+    "Join",
+    `<h1>Join Homelab</h1>
+${email ? "" : '<p class="dimmed">You will be this homelab\'s first homelab admin.</p>'}
+<form method="post">
+  <label>Email ${emailInput}</label>
+  <label>Name <input name="name" value="${escape(typed?.name ?? "")}" autocomplete="name" required ${email ? "autofocus" : ""}></label>
+  <label>Password <input name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="password-hint"></label>
+  <p id="password-hint" class="dimmed">At least 8 characters.</p>
+  <p role="alert">${escape(error)}</p>
+  <button>Join</button>
+</form>`,
+  );
+}
+
+export function inviteCantBeUsedPage(): string {
+  return layout(
+    "Invite can't be used",
+    `<h1>This invite can't be used</h1>
+<p>It was used already, has expired or was cancelled. Ask a homelab admin for a new one.</p>`,
   );
 }
 

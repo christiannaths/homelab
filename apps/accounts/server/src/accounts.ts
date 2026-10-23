@@ -10,7 +10,9 @@ import {
 } from "@homelab/app-manifests";
 import { Hono, type Context } from "hono";
 import { addAccountPage } from "./account-page.ts";
+import { addJoinPage } from "./join.ts";
 import { addPeoplePage } from "./people.ts";
+import { Invites } from "./invites.ts";
 import { AppAccess } from "./app-access.ts";
 import { createBetterAuth } from "./better-auth.ts";
 import type { Config } from "./config.ts";
@@ -34,6 +36,8 @@ export async function createAccounts(
   db.exec("PRAGMA busy_timeout = 5000;");
   const betterAuth = await createBetterAuth(db, config);
   const appAccess = new AppAccess(db, config.apps);
+  const invites = new Invites(db);
+  const directory = new AppDirectory(homelabUrl(config), readManifest);
 
   const sessionOf = (headers: Headers) =>
     betterAuth.api.getSession({ headers });
@@ -146,11 +150,37 @@ export async function createAccounts(
     accountsUrl: config.accountsUrl,
     betterAuth,
     appAccess,
-    directory: new AppDirectory(homelabUrl(config), readManifest),
+    directory,
   });
-  addPeoplePage(app, { accountsUrl: config.accountsUrl, betterAuth });
+  addPeoplePage(app, {
+    accountsUrl: config.accountsUrl,
+    betterAuth,
+    appAccess,
+    invites,
+    directory,
+    installed: config.apps,
+  });
+  addJoinPage(app, {
+    accountsUrl: config.accountsUrl,
+    betterAuth,
+    appAccess,
+    invites,
+  });
 
-  return { app, betterAuth, appAccess, close: () => db.close() };
+  return {
+    app,
+    betterAuth,
+    appAccess,
+    /**
+     * On an install with no accounts, the link that makes the first homelab admin, replacing any
+     * earlier one. Nothing once anyone has an account.
+     */
+    setupInvite: (): string | undefined => {
+      const token = invites.setup();
+      return token && new URL(`/join/${token}`, config.accountsUrl).href;
+    },
+    close: () => db.close(),
+  };
 }
 
 export type Accounts = Awaited<ReturnType<typeof createAccounts>>;
