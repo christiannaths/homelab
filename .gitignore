@@ -6,3 +6,6 @@ playwright-report/
 *.sqlite
 *.sqlite-*
 .nx/
+
+# The built App switcher, which packages/gateway/Dockerfile copies in to build the gateway.
+packages/gateway/caddy/switcher/switcher.js

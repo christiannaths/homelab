@@ -1,6 +1,6 @@
 # Home server
 
-Answers who is signed in and which apps they have, for Home's tiles and every app's App switcher, and serves Home's web client and the App switcher's script. It sits behind the homelab gateway and reads the person from its `Remote-*` headers ([ADR-PLAT-004](../../../docs/adr/ADR-PLAT-004-sign-in.md)), as Notes does. It keeps no data.
+Answers who is signed in and which apps they have, for Home's tiles and every app's App switcher, and serves Home's web client. It sits behind the homelab gateway and reads the person from its `Remote-*` headers ([ADR-PLAT-004](../../../docs/adr/ADR-PLAT-004-sign-in.md)), as Notes does. It keeps no data.
 
 ## Finding a person's apps
 
@@ -15,7 +15,6 @@ Answers who is signed in and which apps they have, for Home's tiles and every ap
 | --- | --- |
 | `GET /api/health` | `{ ok: true }` |
 | `GET /api/me` | `{ person: { username, name, email }, accountUrl, signOutUrl, apps: [{ id, url, name, icon, opensOffline }] }`, apps sorted by name. 401 for a request that did not come through the gateway |
-| `GET /switcher.js` | The [App switcher](../../../packages/app-switcher/README.md)'s script, revalidated on every load. Every app's `/_homelab/switcher.js` redirects here. Readable by apps under the parent domain with credentials, as `/api/me` is, so their service workers can keep a copy |
 | `GET /api/sign-in` | Redirects to `/`. The client loads it as a page, so a signed-out browser meets the gateway, which sends it to VoidAuth's sign-in page and back |
 | `GET /*` | The web client's files, and its app shell for any other path |
 

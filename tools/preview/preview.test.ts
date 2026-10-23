@@ -282,16 +282,13 @@ describe("signing in", () => {
     ]);
   });
 
-  test("every app's page loads the App switcher from Home", async () => {
+  test("every app's page has the App switcher in it, from the gateway", async () => {
     const { cookie } = await signIn("ada");
     for (const site of ["home", "notes", "encyclopedia"]) {
-      const reply = await get(site, "/_homelab/switcher.js", { cookie });
-      assert.equal(reply.status, 302, site);
-      assert.equal(reply.location, `https://home.${DOMAIN}/switcher.js`, site);
+      const reply = await get(site, "/", { cookie });
+      assert.equal(reply.status, 200, site);
+      assert.match(reply.body, /<script>.*homelab-switcher.*<\/script>/s, site);
     }
-    const script = await get("home", "/switcher.js", { cookie });
-    assert.equal(script.status, 200);
-    assert.match(script.body, /homelab-switcher/);
   });
 
   test("VoidAuth's session is scoped to the preview's domain", async () => {

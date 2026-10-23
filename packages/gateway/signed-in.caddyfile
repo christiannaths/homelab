@@ -33,10 +33,3 @@ forward_auth @needs-sign-in {$VOIDAUTH_UPSTREAM:voidauth:3000} {
 @homelab-public path /manifest.webmanifest /icons/*
 header @homelab-public Access-Control-Allow-Origin "*"
 
-# Every app's page loads the App switcher from its own address, and the gateway sends it on to
-# Home's one copy, so updating Home updates the switcher in every app. Home is `home.` beside the
-# app (ADR-PLAT-004); a preview's gateway sees plain HTTP, but the public address is always HTTPS.
-map {http.request.hostport} {homelab_home} {
-	~^[^.]+\.(.+)$ "home.${1}"
-}
-redir /_homelab/switcher.js https://{homelab_home}/switcher.js 302

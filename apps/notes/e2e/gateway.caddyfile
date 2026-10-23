@@ -1,5 +1,6 @@
-# The homelab gateway (ADR-PLAT-004): every request to Notes is asked about at VoidAuth first, by
-# the sign-in check in packages/gateway/signed-in.caddyfile.
+# The homelab gateway (ADR-PLAT-004), built from packages/gateway: every request to Notes is asked
+# about at VoidAuth first, by the sign-in check in signed-in.caddyfile, and its pages get the App
+# switcher, from switcher.caddyfile.
 {
 	# A self-signed CA, since *.home.test has no public certificate. A real install uses its own.
 	local_certs
@@ -13,6 +14,7 @@ accounts.{$HOMELAB_DOMAIN} {
 notes.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		reverse_proxy {$NOTES_UPSTREAM}
 	}
 }

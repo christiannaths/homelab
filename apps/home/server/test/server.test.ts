@@ -1,7 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { startServer, type HomeServer } from "../src/server.ts";
 import { manifestReader, type ReadManifest } from "../src/manifests.ts";
@@ -255,35 +252,6 @@ describe("other apps reading the answer", () => {
         null,
       );
     }
-  });
-});
-
-describe("the App switcher's script", () => {
-  test("is readable, with credentials, by an app under the parent domain only", async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), "home-switcher-"));
-    const switcherScript = path.join(dir, "switcher.js");
-    await writeFile(switcherScript, "// the switcher");
-    const s = await startServer({
-      homelabUrl: HOMELAB,
-      port: 0,
-      readManifest: fromTable,
-      switcherScript,
-    });
-    servers.push(s);
-    const load = (origin: string) =>
-      fetch(`http://localhost:${s.port}/switcher.js`, { headers: { origin } });
-
-    const res = await load("https://notes.home.test");
-    expect(await res.text()).toBe("// the switcher");
-    expect(res.headers.get("access-control-allow-origin")).toBe(
-      "https://notes.home.test",
-    );
-    expect(res.headers.get("access-control-allow-credentials")).toBe("true");
-    expect(
-      (await load("https://evil.example")).headers.get(
-        "access-control-allow-origin",
-      ),
-    ).toBe(null);
   });
 });
 

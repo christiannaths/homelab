@@ -7,12 +7,6 @@ import { STYLES } from "./styles.ts";
 
 export type Theme = "light" | "dark";
 
-/** The theme for elements that don't set their own, from the script tag. */
-let defaultTheme: Theme | undefined;
-export function setDefaultTheme(theme: Theme | undefined): void {
-  defaultTheme = theme;
-}
-
 const isTheme = (value: string | null): value is Theme =>
   value === "light" || value === "dark";
 
@@ -75,7 +69,7 @@ export class HomelabSwitcher extends HTMLElement {
 
   #applyTheme(): void {
     const own = this.getAttribute("theme");
-    this.#root.dataset.scheme = isTheme(own) ? own : (defaultTheme ?? "auto");
+    this.#root.dataset.scheme = isTheme(own) ? own : "auto";
   }
 
   #show(): void {

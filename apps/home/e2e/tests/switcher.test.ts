@@ -204,62 +204,27 @@ describe("where and how it renders", () => {
       .toBe("rgb(31, 31, 31)");
   });
 
-  it("floats in a named corner, in the theme the script tag asks for, untouched by the page's styles", async () => {
+  it("is untouched by the page's styles", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     const colour = await background(page);
-    // A fresh page on Home's origin, where no switcher has run yet.
-    await page.goto(`${HOME_URL}/manifest.webmanifest`);
-    await page.setContent(`
-      <style>
+    await page.addStyleTag({
+      content: `
         * { color: red !important; font-family: serif !important; }
         button { background: lime !important; }
         div { background: yellow !important; }
-      </style>
-      <p>A page with loud styles.</p>
-      <script src="/_homelab/switcher.js" data-placement="bottom-left" data-theme="dark"></script>
-    `);
-    await userIcon(page).waitFor();
-    const box = await userIcon(page).boundingBox();
-    const viewport = page.viewportSize();
-    expect(box && viewport && box.x < 40 && box.y > viewport.height - 60).toBe(
-      true,
-    );
+      `,
+    });
     expect(await background(page)).toBe(colour);
-
     await userIcon(page).click();
     const style = await panelStyle(page);
-    expect(style.background).toBe("rgb(31, 31, 31)");
-    expect(style.color).toBe("rgb(201, 201, 201)");
+    expect(style.background).toBe("rgb(255, 255, 255)");
+    expect(style.color).toBe("rgb(33, 37, 41)");
     expect(style.font).toMatch(/^-apple-system/);
-  });
-
-  it("floats top-right when the page marks no element and names no corner", async () => {
-    const page = await newDevice(browser);
-    await signIn(page, ADA);
-    await page.goto(`${HOME_URL}/manifest.webmanifest`);
-    await page.setContent(`<script src="/_homelab/switcher.js"></script>`);
-    await userIcon(page).waitFor();
-    const box = await userIcon(page).boundingBox();
-    const viewport = page.viewportSize();
-    expect(box && viewport && box.x > viewport.width - 60 && box.y < 40).toBe(
-      true,
-    );
   });
 });
 
 describe("signed out", () => {
-  it("shows nothing when the script is loaded signed out", async () => {
-    const page = await newDevice(browser);
-    await page.goto(`${HOME_URL}/manifest.webmanifest`);
-    await page.setContent(`
-      <homelab-switcher></homelab-switcher>
-      <script src="/_homelab/switcher.js" data-placement="element"></script>
-    `);
-    await page.waitForLoadState("load");
-    expect(await userIcon(page).count()).toBe(0);
-  });
-
   it("hides once Home says the person is signed out", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);

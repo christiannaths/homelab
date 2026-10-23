@@ -1,4 +1,4 @@
-// Builds the apps the stack serves, starts the gateway, VoidAuth and Notes with empty data, and
+// Builds the gateway and the apps the stack serves, starts the gateway, VoidAuth and Notes with empty data, and
 // loads the test people into VoidAuth as a homelab admin would grant them apps (ADR-PLAT-004).
 import { execFileSync } from "node:child_process";
 import { X509Certificate, createHash, randomBytes } from "node:crypto";
@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildGatewayImage } from "@homelab/gateway/image";
 import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
 import type { TestProject } from "vitest/node";
 import {
@@ -44,6 +45,7 @@ export default async function setup(project: TestProject) {
       stdio: ["ignore", "ignore", "inherit"],
     },
   );
+  buildGatewayImage();
   const dataDir = await mkdtemp(join(tmpdir(), "home-e2e-stack-"));
   // Made here rather than by Docker, so they belong to this user and can be deleted afterwards.
   for (const dir of ["caddy", "voidauth/config", "voidauth/db", "notes"])

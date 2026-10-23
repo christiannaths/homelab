@@ -14,12 +14,6 @@ const run = promisify(execFile);
 const COMPOSE_FILE = fileURLToPath(new URL("../compose.yaml", import.meta.url));
 /** The client's production build: the service worker exists only there. */
 const CLIENT_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
-const SWITCHER_SCRIPT = fileURLToPath(
-  new URL(
-    "../../../../packages/app-switcher/dist/switcher.js",
-    import.meta.url,
-  ),
-);
 
 export const GATEWAY_PORT = 8473;
 /** Where the Home server listens on this machine; only the gateway is meant to reach it. */
@@ -130,7 +124,6 @@ export function startHome(dataDir: string): Promise<HomeServer> {
       caFile: gatewayCaFile(dataDir),
     },
     clientDir: CLIENT_DIR,
-    switcherScript: SWITCHER_SCRIPT,
   });
 }
 

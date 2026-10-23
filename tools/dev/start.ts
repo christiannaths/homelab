@@ -1,13 +1,14 @@
 // Starts the whole homelab on this machine for trying it by hand (see README.md), and loads the test
 // people below into VoidAuth. Running it again only fills in what is missing.
 //
-//   node tools/dev/start.ts      build the apps, run everything with its logs until Ctrl+C
+//   node tools/dev/start.ts      build the apps and the gateway, run everything with its logs until Ctrl+C
 //
 //   node tools/dev/start.ts reset stop the containers and delete their data
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { buildGatewayImage } from "@homelab/gateway/image";
 import {
   loadFixtures,
   VoidAuthClient,
@@ -98,6 +99,8 @@ async function startHomelab(): Promise<void> {
     ],
     { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] },
   );
+  console.log("Building the gateway, with the App switcher in it…");
+  buildGatewayImage();
 
   // Ctrl+C reaches docker compose too, which stops the containers and then exits.
   process.on("SIGINT", () => {});

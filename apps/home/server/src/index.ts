@@ -19,10 +19,6 @@ const server = await startServer({
     caFile: process.env.GATEWAY_CA || undefined,
   },
   clientDir: path.join(import.meta.dirname, "../../web/dist"),
-  switcherScript: path.join(
-    import.meta.dirname,
-    "../../../../packages/app-switcher/dist/switcher.js",
-  ),
 });
 console.log(`Home server listening on port ${server.port}`);
 

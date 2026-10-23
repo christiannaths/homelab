@@ -9,8 +9,7 @@
       "platform:node"
     ],
     "implicitDependencies": [
-      "home-web",
-      "app-switcher"
+      "home-web"
     ]
   },
   "exports": {

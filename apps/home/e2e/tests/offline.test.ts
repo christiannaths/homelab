@@ -1,5 +1,6 @@
-// The App switcher with no connection (issue #91): it shows the answer Home last gave, from each
-// app's service worker, greys out what needs a connection, and catches up once back online.
+// The App switcher with no connection (issues #91 and #102): it shows the answer Home last gave, in
+// the page each app's service worker saved with the switcher in it, greys out what needs a
+// connection, and catches up once back online.
 import { changeGroups } from "@homelab/voidauth-fixtures";
 import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
@@ -34,18 +35,21 @@ afterAll(async () => {
   await home?.close();
 });
 
-/** Opens the app and waits until its service worker has kept the switcher for offline. */
+/**
+ * Opens the app and waits until its service worker has saved its page with the switcher in it, as
+ * the gateway sent it, for opening offline.
+ */
 async function visit(page: Page, url: string): Promise<void> {
   await page.goto(url);
   await userIcon(page).waitFor();
   await waitUntilOfflineReady(page);
   const kept = () =>
     page.evaluate(async () => {
-      const cache = await caches.open("homelab-switcher");
-      return (await cache.keys()).length > 0;
+      const saved = await caches.match("/index.html", { ignoreSearch: true });
+      return (await saved?.text())?.includes("homelab-switcher") ?? false;
     });
   for (let i = 0; !(await kept()); i++) {
-    if (i === 50) throw new Error(`${url} kept no copy of the switcher`);
+    if (i === 50) throw new Error(`${url} saved no page with the switcher`);
     await page.waitForTimeout(200);
   }
 }

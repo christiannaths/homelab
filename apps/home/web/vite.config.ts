@@ -61,8 +61,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//],
-        // The first visit is controlled at once, so the App switcher's script and icons are kept
-        // from then on (packages/app-switcher/src/caching.ts).
+        // The first visit is controlled at once, so the App switcher's icons are kept from then
+        // on (packages/app-switcher/src/caching.ts).
         clientsClaim: true,
         runtimeCaching: switcherCaching,
       },

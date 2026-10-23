@@ -1,20 +1,19 @@
 # App switcher
 
-The user icon at the top of every app and the menu it opens: the person's name and email, Home, every app they have access to, and Sign out (`GLOSSARY.md`: **App switcher**). It is one standalone script that Home serves, so updating Home updates the switcher in every app ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md)).
+The user icon at the top of every app and the menu it opens: the person's name and email, Home, every app they have access to, and Sign out (`GLOSSARY.md`: **App switcher**). It is one standalone script that the [gateway](../gateway/README.md) puts inline into every page of every app, so no app installs it and updating the gateway updates it everywhere ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md)).
 
-## Adding it to an app
+## In an app
 
-One script tag, at the end of `<body>`:
+An app does nothing to get the switcher beyond its site in the gateway. It draws itself in the `<homelab-switcher>` the app puts in its header, following the app's light or dark theme through the element's `theme` attribute:
 
-```html
-<script
-  src="/_homelab/switcher.js"
-  crossorigin="use-credentials"
-  data-placement="element"
-></script>
+```tsx
+import type { SwitcherTheme } from "@homelab/app-switcher/react";
+
+const theme: SwitcherTheme = useComputedColorScheme("light");
+<homelab-switcher theme={theme} />;
 ```
 
-`crossorigin="use-credentials"` lets the app's service worker see Home's answer, so it keeps only a good copy. An offline-first app also adds the switcher's routes to its Workbox config, so the switcher shows when the app opens offline:
+An offline-first app also adds the switcher's route to its Workbox config, so the other apps' icons show when it opens offline:
 
 ```ts
 import { switcherCaching } from "@homelab/app-switcher/caching";
@@ -24,24 +23,7 @@ VitePWA({
 });
 ```
 
-`clientsClaim` lets the service worker keep the script and icons on the very first visit.
-
-Every app's gateway site answers `/_homelab/switcher.js` (in [`signed-in.caddyfile`](../gateway/signed-in.caddyfile)) by sending the browser on to Home's copy, at `home.` beside the app.
-
-| Option | On | Values |
-| --- | --- | --- |
-| `data-placement` | the script tag | `element`: inside the `<homelab-switcher>` the app puts in its header. Or a corner for a floating icon: `top-right` (also the default when the page has no `<homelab-switcher>`), `top-left`, `bottom-right`, `bottom-left` |
-| `data-theme` | the script tag | `light` or `dark`. Without it, the switcher follows the device's setting |
-| `theme` | `<homelab-switcher>` | `light` or `dark`, overriding the script tag's; set it from the app's current theme |
-
-A React app imports the element's JSX type with the theme's, as Home does:
-
-```tsx
-import type { SwitcherTheme } from "@homelab/app-switcher/react";
-
-const theme: SwitcherTheme = useComputedColorScheme("light");
-<homelab-switcher theme={theme} />;
-```
+`clientsClaim` lets the service worker keep the icons on the very first visit. The app's saved page carries the switcher the gateway put in it, so an offline-first app shows the switcher from its last saved page, online too, until the app next updates that page.
 
 The switcher renders in its own shadow DOM, so the app's styles and its own don't reach each other. It asks Home for the person on load, and shows nothing when they turn out to be signed out: signing in is left to the app.
 
@@ -55,12 +37,12 @@ The switcher renders in its own shadow DOM, so the app's styles and its own don'
 
 The switcher keeps Home's last answer in the app's `localStorage` (`homelab.switcher`) and shows it when the device is offline or Home can't be reached. While the device is offline, apps whose manifest doesn't mark them as opening offline are greyed out and can't be opened, and Account settings and Sign out are greyed out with **Needs a connection**. It asks Home again on every load and when the device comes back online, so apps granted or removed meanwhile show up then. A signed-out answer clears what it kept.
 
-The service-worker routes in [`src/caching.ts`](src/caching.ts) keep the script (network first, falling back to the last good copy) and the other apps' icons (from the copy kept, refreshed in the background). Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
+The service-worker route in [`src/caching.ts`](src/caching.ts) keeps the other apps' icons (from the copy kept, refreshed in the background). Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
 
 ## Building and testing
 
 ```sh
-npx nx build app-switcher   # dist/switcher.js, which Home's server serves
+npx nx build app-switcher   # dist/switcher.js, which the gateway's image build makes for itself
 npx nx test app-switcher    # initials and colours
 npx nx e2e home-e2e         # the switcher in a real browser, through the gateway, online and off
 ```

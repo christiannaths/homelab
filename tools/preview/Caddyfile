@@ -25,6 +25,7 @@ http://accounts.{$SITE_DOMAIN}:{$PORT} {
 http://home.{$SITE_DOMAIN}:{$PORT} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		reverse_proxy 127.0.0.1:3002 {
 			import wait-for-upstream
 		}
@@ -34,6 +35,7 @@ http://home.{$SITE_DOMAIN}:{$PORT} {
 http://notes.{$SITE_DOMAIN}:{$PORT} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		reverse_proxy 127.0.0.1:3001 {
 			import wait-for-upstream
 		}
@@ -44,6 +46,7 @@ http://notes.{$SITE_DOMAIN}:{$PORT} {
 http://encyclopedia.{$SITE_DOMAIN}:{$PORT} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		root * /srv/encyclopedia
 		try_files {path} /index.html
 		file_server

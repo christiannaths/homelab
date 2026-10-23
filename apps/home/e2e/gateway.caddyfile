@@ -1,5 +1,6 @@
 # The homelab gateway (ADR-PLAT-004), as in tools/dev/gateway.caddyfile: every request to an app is
-# asked about at VoidAuth first, by the sign-in check in packages/gateway/signed-in.caddyfile.
+# asked about at VoidAuth first, by the sign-in check in signed-in.caddyfile, and every page of an
+# app gets the App switcher, from switcher.caddyfile (both in packages/gateway).
 {
 	# A self-signed CA, since *.home.test has no public certificate. A real install uses its own.
 	local_certs
@@ -13,6 +14,7 @@ accounts.{$HOMELAB_DOMAIN} {
 home.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		reverse_proxy {$HOME_UPSTREAM}
 	}
 }
@@ -20,6 +22,7 @@ home.{$HOMELAB_DOMAIN} {
 notes.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		reverse_proxy notes:3000
 	}
 }
@@ -27,6 +30,7 @@ notes.{$HOMELAB_DOMAIN} {
 encyclopedia.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		root * /srv/encyclopedia
 		try_files {path} /index.html
 		file_server
@@ -37,6 +41,7 @@ encyclopedia.{$HOMELAB_DOMAIN} {
 vault.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
+		import /etc/caddy/switcher.caddyfile
 		header /manifest.webmanifest Content-Type application/manifest+json
 		respond /manifest.webmanifest `{"name": "Vault", "icons": []}`
 		respond "Vault"
