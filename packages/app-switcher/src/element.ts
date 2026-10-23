@@ -1,20 +1,30 @@
-// <homelab-switcher>: the user icon and the menu it opens (GLOSSARY.md: App switcher). Its own
-// shadow DOM keeps the app's styles and its own apart.
+// <homelab-switcher>: the tab at the top of the page and the menu it opens (GLOSSARY.md: App
+// switcher). Its own shadow DOM keeps the app's styles and its own apart.
+import type { Icons } from "./icons.ts";
 import type { App, Me } from "./me.ts";
 import { colourFor, initials } from "./person.ts";
 import { current, refresh, subscribe } from "./store.ts";
 import { STYLES } from "./styles.ts";
 
-export type Theme = "light" | "dark";
-
-/** The theme for elements that don't set their own, from the script tag. */
-let defaultTheme: Theme | undefined;
-export function setDefaultTheme(theme: Theme | undefined): void {
-  defaultTheme = theme;
+/**
+ * A chevron that points down while the menu is closed, and up, as the CSS turns it, while it is
+ * open. Built node by node, since a page's Trusted Types policy may refuse markup.
+ */
+function chevron(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  for (const [name, value] of Object.entries({
+    "viewBox": "0 0 16 16",
+    "width": "16",
+    "height": "16",
+    "aria-hidden": "true",
+    "focusable": "false",
+  }))
+    svg.setAttribute(name, value);
+  path.setAttribute("d", "M4 6l4 4 4-4");
+  svg.append(path);
+  return svg;
 }
-
-const isTheme = (value: string | null): value is Theme =>
-  value === "light" || value === "dark";
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -37,12 +47,21 @@ function menuOrder(apps: App[]): App[] {
   return [...home, ...others];
 }
 
-export class HomelabSwitcher extends HTMLElement {
-  static observedAttributes = ["theme"];
+// A constructed style sheet rather than a <style> element, which a page's style-src would refuse.
+let styles: CSSStyleSheet | undefined;
+function sheet(): CSSStyleSheet {
+  if (!styles) {
+    styles = new CSSStyleSheet();
+    styles.replaceSync(STYLES);
+  }
+  return styles;
+}
 
+export class HomelabSwitcher extends HTMLElement {
   readonly #shadow = this.attachShadow({ mode: "open" });
   readonly #root = element("div", { class: "root" });
   #me: Me | undefined;
+  #icons: Icons | undefined;
   #offline = false;
   #button: HTMLButtonElement | undefined;
   #panel: HTMLDivElement | undefined;
@@ -51,13 +70,11 @@ export class HomelabSwitcher extends HTMLElement {
 
   constructor() {
     super();
-    const style = element("style");
-    style.textContent = STYLES;
-    this.#shadow.append(style, this.#root);
+    this.#shadow.adoptedStyleSheets = [sheet()];
+    this.#shadow.append(this.#root);
   }
 
   connectedCallback(): void {
-    this.#applyTheme();
     this.#unsubscribe = subscribe(() => this.#show());
     this.#show();
     void refresh();
@@ -69,31 +86,26 @@ export class HomelabSwitcher extends HTMLElement {
     document.removeEventListener("pointerdown", this.#onOutside, true);
   }
 
-  attributeChangedCallback(): void {
-    this.#applyTheme();
-  }
-
-  #applyTheme(): void {
-    const own = this.getAttribute("theme");
-    this.#root.dataset.scheme = isTheme(own) ? own : (defaultTheme ?? "auto");
-  }
-
   #show(): void {
     const state = current();
     const me = state.status === "signed-in" ? state.me : undefined;
+    const icons = state.status === "signed-in" ? state.icons : undefined;
     // Offline is as the browser says: Home being unreachable alone greys nothing out.
     const offline = !navigator.onLine;
-    // Signed out, the switcher shows nothing and leaves signing in to the app.
+    // Signed out, the switcher shows nothing and leaves signing in to the app or its page.
     this.hidden = !me;
-    if (me === this.#me && offline === this.#offline) return;
+    if (me === this.#me && icons === this.#icons && offline === this.#offline)
+      return;
     this.#me = me;
+    this.#icons = icons;
     this.#offline = offline;
-    if (me) this.#render(me, offline);
+    if (me) this.#render(me, icons, offline);
     else this.#root.replaceChildren();
   }
 
   #render(
     { person, apps, accountUrl, signOutUrl }: Me,
+    icons: Icons | undefined,
     offline: boolean,
   ): void {
     const wasOpen = this.#panel ? !this.#panel.hidden : false;
@@ -107,16 +119,15 @@ export class HomelabSwitcher extends HTMLElement {
       "button",
       {
         "type": "button",
-        "class": "avatar",
+        "class": "tab",
         "aria-haspopup": "menu",
         "aria-expanded": "false",
         "aria-controls": "menu",
         "aria-label": `${name}: apps and sign out`,
         "title": name,
       },
-      initials(person.name, person.username),
+      chevron(),
     );
-    button.style.background = colourFor(person.username);
     button.addEventListener("click", () => this.#toggle());
     button.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -140,7 +151,11 @@ export class HomelabSwitcher extends HTMLElement {
           "aria-current": here ? "page" : undefined,
         },
         app.icon
-          ? element("img", { src: app.icon, alt: "", crossorigin: "anonymous" })
+          ? element("img", {
+              src: icons?.[app.icon] ?? app.icon,
+              alt: "",
+              crossorigin: "anonymous",
+            })
           : element("span", { class: "no-icon" }),
         element("span", { class: "label" }, app.name),
         ...(here ? [element("span", { class: "note" }, "Current")] : []),
@@ -166,6 +181,13 @@ export class HomelabSwitcher extends HTMLElement {
     const signOut = atVoidAuth("Sign out", signOutUrl);
     this.#items = [...items, account, signOut];
 
+    const avatar = element(
+      "span",
+      { "class": "avatar", "aria-hidden": "true" },
+      initials(person.name, person.username),
+    );
+    avatar.style.background = colourFor(person.username);
+
     const menu = element(
       "div",
       { "id": "menu", "role": "menu", "aria-label": "Apps and sign out" },
@@ -182,10 +204,15 @@ export class HomelabSwitcher extends HTMLElement {
       element(
         "div",
         { class: "who" },
-        element("div", { class: "name" }, name),
-        ...(person.email
-          ? [element("div", { class: "email" }, person.email)]
-          : []),
+        avatar,
+        element(
+          "div",
+          {},
+          element("div", { class: "name" }, name),
+          ...(person.email
+            ? [element("div", { class: "email" }, person.email)]
+            : []),
+        ),
       ),
       menu,
     );

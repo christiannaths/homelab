@@ -1,7 +1,6 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { switcherCaching } from "@homelab/app-switcher/caching";
 import { tokens } from "@homelab/theme/tokens";
 
 declare module "vite-plugin-pwa" {
@@ -61,10 +60,22 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//],
-        // The first visit is controlled at once, so the App switcher's script and icons are kept
-        // from then on (packages/app-switcher/src/caching.ts).
+        // The first visit is controlled at once, so the tiles' icons are kept from then on.
         clientsClaim: true,
-        runtimeCaching: switcherCaching,
+        runtimeCaching: [
+          {
+            // The other apps' icons on the tiles; Home's own are in its precache already. They
+            // load with CORS, which the gateway allows for icons, so only good answers are kept.
+            urlPattern: ({ url, sameOrigin }) =>
+              !sameOrigin && url.pathname.startsWith("/icons/"),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "home-tile-icons",
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 50 },
+            },
+          },
+        ],
       },
     }),
   ],

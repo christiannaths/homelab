@@ -4,7 +4,7 @@ A read-only copy of Wikipedia for the homelab, already populated. Readers sign i
 
 The `encyclopedia` app in the [homelab monorepo](../../README.md).
 
-> Status: **title page only.** [`web/`](web) is an installable PWA that opens offline and shows a title page, with the App switcher in its header, so signing in and out can be tried across apps on one domain. Reading, search and saved lists are not built yet. The app will be built against:
+> Status: **title page only.** [`web/`](web) is an installable PWA that opens offline and shows a title page, with the App switcher at the top, so signing in and out can be tried across apps on one domain. Reading, search and saved lists are not built yet. The app will be built against:
 >
 > - [`docs/adr/`](docs/adr/README.md): the Encyclopedia ADRs, including what is deliberately _not_ decided yet, plus the [platform ADRs](../../docs/adr/README.md)
 > - [`docs/specs/`](docs/specs/README.md): the feature specs

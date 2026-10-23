@@ -1,9 +1,10 @@
-// Starts the gateway and VoidAuth with empty data and loads the test people into VoidAuth as a
+// Builds the gateway, starts it and VoidAuth with empty data and loads the test people into VoidAuth as a
 // homelab admin would grant them Notes (ADR-PLAT-004).
 import { X509Certificate, createHash, randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { buildGatewayImage } from "@homelab/gateway/image";
 import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
 import type { TestProject } from "vitest/node";
 import {
@@ -24,6 +25,7 @@ declare module "vitest" {
 }
 
 export default async function setup(project: TestProject) {
+  buildGatewayImage();
   const dataDir = await mkdtemp(join(tmpdir(), "notes-e2e-stack-"));
   const env = {
     COMPOSE_PROJECT_NAME: "notes-e2e",

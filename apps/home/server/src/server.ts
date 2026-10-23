@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -26,8 +25,6 @@ export interface ServerOptions {
   readManifest?: ReadManifest;
   /** The web client's build (apps/home/web/dist). Without it, only the API is served. */
   clientDir?: string;
-  /** The App switcher's built script (packages/app-switcher/dist/switcher.js), served for every app. */
-  switcherScript?: string;
 }
 
 export async function startServer({
@@ -36,7 +33,6 @@ export async function startServer({
   gateway = {},
   readManifest = manifestReader(gateway),
   clientDir,
-  switcherScript,
 }: ServerOptions) {
   const homelab = new URL(homelabUrl);
   const apps = new AppDirectory(homelab, readManifest);
@@ -64,8 +60,7 @@ export async function startServer({
 
   // Apps ask from their own pages, with the homelab's cookie, so the answer names their origin.
   // A GET with no custom headers needs no preflight, which the gateway could not let through:
-  // a preflight carries no cookie. The switcher's script is loaded the same way, so an app's
-  // service worker can tell a failed load from a good one before keeping it.
+  // a preflight carries no cookie.
   const allowHomelabApps = async (c: Context, next: () => Promise<void>) => {
     await next();
     const origin = c.req.header("origin");
@@ -76,7 +71,6 @@ export async function startServer({
     }
   };
   app.use("/api/*", allowHomelabApps);
-  app.use("/switcher.js", allowHomelabApps);
 
   app.get("/api/health", (c) => c.json({ ok: true }));
 
@@ -102,19 +96,6 @@ export async function startServer({
   });
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
-
-  if (switcherScript) {
-    // Revalidated on every load, so a new switcher reaches every app as soon as Home has it.
-    app.get("/switcher.js", async (c) => {
-      const script = await readFile(switcherScript, "utf8").catch(
-        () => undefined,
-      );
-      if (script === undefined) return c.text("Not Found", 404);
-      c.header("cache-control", "no-cache");
-      c.header("content-type", "text/javascript; charset=utf-8");
-      return c.body(script);
-    });
-  }
 
   if (clientDir) {
     // The service worker and the app shell must be revalidated so updates reach devices; Vite

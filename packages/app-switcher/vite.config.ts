@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
-// One standalone classic script, which Home serves and every app adds with a script tag. Classic
-// rather than a module, since it reads its options from document.currentScript.
+// One standalone classic script, which the gateway puts inline into every page (ADR-PLAT-004).
+// Classic rather than a module, so it runs wherever it is put.
 export default defineConfig({
   build: {
     lib: {

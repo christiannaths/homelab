@@ -17,6 +17,7 @@
     "e2e": "vitest run"
   },
   "devDependencies": {
+    "@homelab/gateway": "*",
     "@homelab/home-server": "*",
     "@homelab/voidauth-fixtures": "*",
     "@types/node": "^26.6.5",

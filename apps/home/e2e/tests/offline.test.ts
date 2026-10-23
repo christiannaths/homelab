@@ -1,5 +1,6 @@
-// The App switcher with no connection (issue #91): it shows the answer Home last gave, from each
-// app's service worker, greys out what needs a connection, and catches up once back online.
+// The App switcher with no connection (issues #91 and #102): it shows the answer Home last gave, in
+// the page each app's service worker saved with the switcher in it, greys out what needs a
+// connection, and catches up once back online.
 import { changeGroups } from "@homelab/voidauth-fixtures";
 import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
@@ -11,6 +12,7 @@ import {
   GRACE,
   HEDY,
   HOME_URL,
+  initialsInMenu,
   launchChromium,
   menuItems,
   newDevice,
@@ -18,7 +20,8 @@ import {
   signIn,
   signInAsAdmin,
   startHome,
-  userIcon,
+  tab,
+  VOIDAUTH_SESSION_COOKIE,
   waitUntilOfflineReady,
 } from "./stack.ts";
 
@@ -34,24 +37,30 @@ afterAll(async () => {
   await home?.close();
 });
 
-/** Opens the app and waits until its service worker has kept the switcher for offline. */
+/**
+ * Opens the app and waits until its service worker has saved its page with the switcher in it, as
+ * the gateway sent it, for opening offline.
+ */
 async function visit(page: Page, url: string): Promise<void> {
   await page.goto(url);
-  await userIcon(page).waitFor();
+  await tab(page).waitFor();
   await waitUntilOfflineReady(page);
   const kept = () =>
     page.evaluate(async () => {
-      const cache = await caches.open("homelab-switcher");
-      return (await cache.keys()).length > 0;
+      const saved = await caches.match("/index.html", { ignoreSearch: true });
+      return (await saved?.text())?.includes("homelab-switcher") ?? false;
     });
   for (let i = 0; !(await kept()); i++) {
-    if (i === 50) throw new Error(`${url} kept no copy of the switcher`);
+    if (i === 50) throw new Error(`${url} saved no page with the switcher`);
     await page.waitForTimeout(200);
   }
 }
 
-/** Whether every icon in the switcher's menu has loaded. */
-const iconsLoaded = (page: Page) =>
+/**
+ * Whether every icon in the switcher's menu has loaded, from the copies the switcher keeps itself
+ * rather than from the network or a service worker.
+ */
+const keptIconsLoaded = (page: Page) =>
   page.evaluate(() => {
     const images = [
       ...(document
@@ -60,8 +69,26 @@ const iconsLoaded = (page: Page) =>
     ];
     return (
       images.length > 0 &&
-      images.every((image) => image.complete && image.naturalWidth > 0)
+      images.every(
+        (image) =>
+          image.src.startsWith("data:image/png") &&
+          image.complete &&
+          image.naturalWidth > 0,
+      )
     );
+  });
+
+/** Which apps' icons the switcher keeps on this app's device, by hostname. */
+const keptIcons = (page: Page) =>
+  page.evaluate(() => {
+    const kept: unknown = JSON.parse(
+      localStorage.getItem("homelab.switcher.icons") ?? "{}",
+    );
+    return typeof kept === "object" && kept !== null
+      ? Object.keys(kept)
+          .map((address) => new URL(address).hostname)
+          .toSorted()
+      : [];
   });
 
 const menuItem = (page: Page, name: string) =>
@@ -93,10 +120,10 @@ describe("the App switcher offline", () => {
     { name: "Notes", url: NOTES_URL },
     { name: "Encyclopedia", url: ENCYCLOPEDIA_URL },
   ])
-    it(`shows the user icon and the last list of apps in ${app.name}`, async () => {
+    it(`shows the tab and the last list of apps in ${app.name}`, async () => {
       await page.goto(app.url);
-      await userIcon(page).waitFor();
-      expect(await userIcon(page).textContent()).toBe("GH");
+      await tab(page).waitFor();
+      expect(await initialsInMenu(page)).toBe("GH");
       expect(await menuItems(page)).toEqual(
         ["Home", "Encyclopedia", "Notes", "Vault"]
           .map((name) => (name === app.name ? `${name}Current` : name))
@@ -105,7 +132,7 @@ describe("the App switcher offline", () => {
             "Sign outNeeds a connection",
           ),
       );
-      await expect.poll(() => iconsLoaded(page)).toBe(true);
+      await expect.poll(() => keptIconsLoaded(page)).toBe(true);
     });
 
   it("greys out an app that doesn't open offline, which can't be opened", async () => {
@@ -174,7 +201,7 @@ describe("the App switcher catching up", () => {
         "encyclopedia",
       ]);
       await page.reload();
-      await userIcon(page).waitFor();
+      await tab(page).waitFor();
       expect(await menuItems(page)).toEqual([
         "HomeCurrent",
         "Encyclopedia",
@@ -211,7 +238,7 @@ describe("the App switcher catching up", () => {
       await home.close();
       try {
         await page.reload();
-        await userIcon(page).waitFor();
+        await tab(page).waitFor();
         expect(await menuItems(page)).toEqual([
           "Home",
           "Encyclopedia",
@@ -220,11 +247,44 @@ describe("the App switcher catching up", () => {
           "Account settings",
           "Sign out",
         ]);
+        await expect.poll(() => keptIconsLoaded(page)).toBe(true);
       } finally {
         home = await startHome(inject("dataDir"));
       }
     } finally {
       await page.context().close();
+    }
+  });
+});
+
+describe("the icons the App switcher keeps", () => {
+  it("follow apps granted or removed, and go when the person signs out", async () => {
+    const admin = await signInAsAdmin(inject("dataDir"));
+    const page = await newDevice(browser);
+    const icon = (app: string) => `${app}.home.test`;
+    try {
+      await signIn(page, HEDY);
+      await expect
+        .poll(() => keptIcons(page))
+        .toEqual([icon("home"), icon("notes")]);
+
+      await changeGroups(admin, HEDY.username, () => ["encyclopedia"]);
+      await page.reload();
+      await expect
+        .poll(() => keptIcons(page))
+        .toEqual([icon("encyclopedia"), icon("home")]);
+
+      await page.context().clearCookies({ name: VOIDAUTH_SESSION_COOKIE });
+      // A new switcher asks Home again, as one does on every page load.
+      await page.evaluate(() =>
+        document.documentElement.append(
+          document.createElement("homelab-switcher"),
+        ),
+      );
+      await expect.poll(() => keptIcons(page)).toEqual([]);
+    } finally {
+      await page.context().close();
+      await changeGroups(admin, HEDY.username, () => HEDY.groups);
     }
   });
 });

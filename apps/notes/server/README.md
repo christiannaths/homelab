@@ -6,7 +6,7 @@ The Notes server ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md))
 
 - People in VoidAuth's `notes-admins` or `auth_admins` group are owners, and people in `notes` are members. VoidAuth turns everyone else away before Notes sees them.
 - Until the access rules are built ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)), only owners open documents.
-- It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in, with the [App switcher](../../../packages/app-switcher/README.md) in its header. Signing out is the switcher's: Notes has no sign-out of its own.
+- It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in, with the [App switcher](../../../packages/app-switcher/README.md) at the top, which the gateway adds. Signing out is the switcher's: Notes has no sign-out of its own.
 
 ## Routes
 

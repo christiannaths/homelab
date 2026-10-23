@@ -1,11 +1,13 @@
 // The one answer from Home that every <homelab-switcher> on the page shows. The last answer is kept
 // on the device, so the switcher still shows when the app opens offline or Home can't be reached.
+import { forgetIcons, keepIcons, keptIcons, type Icons } from "./icons.ts";
 import { ask, homeOrigin, parseMe, type Me } from "./me.ts";
 
 export type State =
   | { status: "asking" }
   | { status: "signed-out" }
-  | { status: "signed-in"; me: Me };
+  /** `icons` holds the kept icons when the answer is the kept one, and the menu loads them otherwise. */
+  | { status: "signed-in"; me: Me; icons?: Icons };
 
 const KEPT_KEY = "homelab.switcher";
 
@@ -31,7 +33,7 @@ function keep(me: Me | undefined): void {
 // instead of failing still shows the switcher.
 const first = kept();
 let state: State = first
-  ? { status: "signed-in", me: first }
+  ? { status: "signed-in", me: first, icons: keptIcons() }
   : { status: "asking" };
 let asking: Promise<void> | undefined;
 const listeners = new Set<() => void>();
@@ -54,13 +56,19 @@ export function refresh(): Promise<void> {
     .then((answer) => {
       if (answer.status === "signed-in") {
         keep(answer.me);
+        void keepIcons(answer.me.apps);
         set({ status: "signed-in", me: answer.me });
       } else if (answer.status === "signed-out") {
         keep(undefined);
+        forgetIcons();
         set({ status: "signed-out" });
       } else {
         const me = kept();
-        set(me ? { status: "signed-in", me } : { status: "signed-out" });
+        set(
+          me
+            ? { status: "signed-in", me, icons: keptIcons() }
+            : { status: "signed-out" },
+        );
       }
     })
     .finally(() => (asking = undefined));

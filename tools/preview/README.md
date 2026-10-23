@@ -33,7 +33,7 @@ None of these go in the repo. The script keeps its answers in `tools/preview/.en
 | **Deploy to staging** | Each push to `main` that changes what the image is built from, or run by hand with a branch | Deploys `main` (or that branch) as `staging` and lists the links in the run's summary |
 | **Reset preview** | Run by hand, with a preview's name | Wipes that preview's accounts and data and starts it with fresh test accounts |
 
-Inside the machine, [`start.ts`](start.ts) runs VoidAuth, the Home and Notes servers and the gateway ([`Caddyfile`](Caddyfile)), with all their data under `/data`, and loads the test accounts in [`fixtures.ts`](fixtures.ts). `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
+Inside the machine, [`start.ts`](start.ts) runs VoidAuth, the Home and Notes servers and the gateway ([`Caddyfile`](Caddyfile)), built into the image as in [`packages/gateway`](../../packages/gateway/README.md) so every app's pages get the App switcher, with all their data under `/data`, and loads the test accounts in [`fixtures.ts`](fixtures.ts). `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
 
 ## Adding an app
 
@@ -41,7 +41,7 @@ An app added to the homelab is added in four places together, or previews fall b
 
 - `tools/dev/` (the compose service, the gateway site and the test accounts' groups in `start.ts`).
 - [`Dockerfile`](Dockerfile): building the app and copying in what it runs.
-- [`Caddyfile`](Caddyfile): its site, importing the sign-in check, and [`start.ts`](start.ts) if it runs a server.
+- [`Caddyfile`](Caddyfile): its site, importing the sign-in check and the App switcher, and [`start.ts`](start.ts) if it runs a server.
 - [`fixtures.ts`](fixtures.ts): the app and the groups the test people get, named after its subdomain.
 
 ## Test the image

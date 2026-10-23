@@ -1,0 +1,5 @@
+# The App switcher (ADR-PLAT-004), imported by every app's site and VoidAuth's: the gateway puts the
+# whole switcher into every page passing through, so no app installs anything for it. Pages are
+# compressed for the browser here, since the gateway asks upstreams for them uncompressed.
+encode
+homelab_switcher

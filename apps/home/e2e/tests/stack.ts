@@ -14,12 +14,6 @@ const run = promisify(execFile);
 const COMPOSE_FILE = fileURLToPath(new URL("../compose.yaml", import.meta.url));
 /** The client's production build: the service worker exists only there. */
 const CLIENT_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
-const SWITCHER_SCRIPT = fileURLToPath(
-  new URL(
-    "../../../../packages/app-switcher/dist/switcher.js",
-    import.meta.url,
-  ),
-);
 
 export const GATEWAY_PORT = 8473;
 /** Where the Home server listens on this machine; only the gateway is meant to reach it. */
@@ -130,7 +124,6 @@ export function startHome(dataDir: string): Promise<HomeServer> {
       caFile: gatewayCaFile(dataDir),
     },
     clientDir: CLIENT_DIR,
-    switcherScript: SWITCHER_SCRIPT,
   });
 }
 
@@ -182,15 +175,7 @@ export async function typePassword(
   await page.getByLabel("Username or Email").fill(account.username);
   await page.getByLabel("Password", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  // VoidAuth offers to set up a passkey after a password sign-in; a person would skip it.
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  const offered = await Promise.race([
-    skip.waitFor().then(() => true),
-    page
-      .waitForURL((url) => !url.pathname.startsWith("/login"))
-      .then(() => false),
-  ]).catch(() => false);
-  if (offered) await skip.click();
+  // VoidAuth's "add a passkey?" question never comes: the App switcher on its page skips it.
 }
 
 /** Opens Home and signs in on VoidAuth's page; resolves once Home's tiles show. */
@@ -258,17 +243,39 @@ export async function confirmSignOut(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Yes", exact: true }).click();
 }
 
-/** The App switcher's user icon on the page, whose menu it opens. */
-export const userIcon = (page: Page) =>
+/** The App switcher's tab at the top of the page, whose menu it opens. */
+export const tab = (page: Page) =>
   page.getByRole("button", { name: /: apps and sign out$/ });
+
+/** The initials on the person's icon at the top of the App switcher's menu, opening it first. */
+export async function initialsInMenu(page: Page): Promise<string | null> {
+  const menu = page.getByRole("menu", { name: "Apps and sign out" });
+  if (!(await menu.isVisible())) await tab(page).click();
+  return page.evaluate(
+    () =>
+      document
+        .querySelector("homelab-switcher")
+        ?.shadowRoot?.querySelector(".avatar")?.textContent ?? null,
+  );
+}
 
 /** The names of the items in the App switcher's menu, opening it first. */
 export async function menuItems(page: Page): Promise<string[]> {
   const menu = page.getByRole("menu", { name: "Apps and sign out" });
-  if (!(await menu.isVisible())) await userIcon(page).click();
+  if (!(await menu.isVisible())) await tab(page).click();
   return menu
     .getByRole("menuitem")
     .evaluateAll((items) =>
       items.map((item) => item.textContent?.trim() ?? ""),
     );
+}
+
+/** The browser's complaints about a page's security policy, from when this is called. */
+export function securityPolicyErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (/Content Security Policy/i.test(message.text()))
+      errors.push(message.text());
+  });
+  return errors;
 }

@@ -1,7 +1,7 @@
 # ADR-ENCY-004. How does the app know who is reading?
 
 - Status: Accepted
-- Date: 2026-10-22
+- Date: 2026-10-23
 - Depends on: [ADR-ENCY-001](ADR-ENCY-001-content-source.md), [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)
 - Dependency of: [ADR-ENCY-005](ADR-ENCY-005-offline-use.md)
 
@@ -16,13 +16,13 @@ Saved lists belong to a person, and only the homelab admin should change which W
 - **Only the homelab admin changes the content settings** ([ADR-ENCY-001](ADR-ENCY-001-content-source.md)). Every other person who has access reads, searches and keeps saved lists.
 - **A person is identified by their VoidAuth username,** never by email, and their saved lists are keyed by it.
 - **A device stays signed in** across restarts and while offline, so saved articles open with no network.
-- **Signing out is the App switcher's**, in the header at the top of every Encyclopedia page, as in every homelab app ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)). The same menu leads to the reader's other apps. Encyclopedia has no sign-out of its own.
+- **Signing out is the App switcher's**, at the top of every Encyclopedia page, as in every homelab app ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)). The same menu leads to the reader's other apps. Encyclopedia has no sign-out of its own.
 
 ## Evidence
 
 - Platform sign-in decision and the VoidAuth spike: [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md).
 - Christian, 2026-10-18, in the project thread: access to any app is set by the admin when inviting someone.
-- Home's end-to-end suite (`apps/home/e2e/`): the App switcher sits in the title page's header with Encyclopedia marked as current, and its Sign out signs out every app (PR for issue #90).
+- Home's end-to-end suite (`apps/home/e2e/`): the App switcher shows on the title page with Encyclopedia marked as current, and its Sign out signs out every app (PR for issue #90).
 
 ## Consequences
 
@@ -32,6 +32,7 @@ Saved lists belong to a person, and only the homelab admin should change which W
 
 ## Changelog
 
+- 2026-10-23: The App switcher is the tab the gateway adds at the top of every page, instead of an element in the title page's header, so the Encyclopedia carries nothing for it (issue #104, spec #101).
 - 2026-10-22: The title page has a header holding the App switcher, which is how a reader signs out and reaches their other apps. Before it, Encyclopedia had no way to sign out or leave (issue #90, spec #75).
 - 2026-10-19: A person is identified by their VoidAuth username, read from the homelab gateway's headers, instead of VoidAuth's `sub`, and the admin grants Encyclopedia through VoidAuth groups. Every homelab app now sits behind one gateway that asks VoidAuth about each request ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)).
 - 2026-10-18: Accepted. People signed in with their homelab account through VoidAuth, identified by VoidAuth's `sub`.

@@ -1,19 +1,9 @@
-import {
-  Badge,
-  Center,
-  Group,
-  Stack,
-  Text,
-  Title,
-  useComputedColorScheme,
-} from "@mantine/core";
-import type { SwitcherTheme } from "@homelab/app-switcher/react";
+import { Badge, Center, Group, Stack, Text, Title } from "@mantine/core";
 import { useSyncExternalStore, type ReactNode } from "react";
 import type { Notes } from "./notes.ts";
 
 export function App({ notes }: { notes: Notes }) {
   const view = useSyncExternalStore(notes.subscribe, () => notes.view);
-  const scheme: SwitcherTheme = useComputedColorScheme("light");
   switch (view.screen) {
     case "needs-connection":
       return (
@@ -29,10 +19,7 @@ export function App({ notes }: { notes: Notes }) {
           p="lg"
           gap="md"
         >
-          <Group
-            justify="space-between"
-            component="header"
-          >
+          <Group component="header">
             <Group gap="sm">
               <Title
                 order={1}
@@ -49,7 +36,6 @@ export function App({ notes }: { notes: Notes }) {
                 </Badge>
               )}
             </Group>
-            <homelab-switcher theme={scheme} />
           </Group>
           <Text>Signed in as {view.person.name ?? "your homelab account"}</Text>
         </Stack>

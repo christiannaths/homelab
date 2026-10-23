@@ -1,58 +1,24 @@
-// The App switcher's script, which Home serves and every app adds with one tag (ADR-PLAT-004):
-//
-//   <script src="/_homelab/switcher.js" data-placement="element" data-theme="dark"></script>
-//
-// data-placement is "element", for a <homelab-switcher> the app puts in its header, or a corner
-// for a floating icon: top-right (the default with no element on the page), top-left,
-// bottom-right or bottom-left. data-theme is light or dark; an element's own theme attribute
-// wins, and with neither it follows the device.
-import { HomelabSwitcher, setDefaultTheme } from "./element.ts";
-import { current } from "./store.ts";
+// The App switcher's script, which the gateway puts inline into every page of every app
+// (ADR-PLAT-004). It adds the tab at the top of the page, which has no options: every app gets
+// the same one.
+import { HomelabSwitcher } from "./element.ts";
 
-const CORNERS = ["top-right", "top-left", "bottom-right", "bottom-left"];
 const NAME = "homelab-switcher";
 
-const script = document.currentScript;
-const placement = script?.dataset.placement;
-const theme = script?.dataset.theme;
-setDefaultTheme(theme === "light" || theme === "dark" ? theme : undefined);
-
-if (!customElements.get(NAME)) customElements.define(NAME, HomelabSwitcher);
-
-function float(): void {
-  if (placement !== "element" && !document.querySelector(NAME)) {
-    const floating = document.createElement(NAME);
-    floating.setAttribute(
-      "corner",
-      CORNERS.includes(placement ?? "") ? (placement ?? "") : "top-right",
-    );
-    document.body.append(floating);
+// VoidAuth, at accounts. (ADR-PLAT-004), asks "add a passkey?" after every sign-in on a browser
+// until the person skips it, which it remembers here. It has no setting for it, so the switcher
+// skips it for everyone: passkeys are added from Account settings.
+if (location.hostname.startsWith("accounts.")) {
+  try {
+    if (!localStorage.getItem("passkey_skipped"))
+      localStorage.setItem("passkey_skipped", new Date().toString());
+  } catch {
+    // Storage can be unavailable (a private window, blocked site data); VoidAuth then asks.
   }
 }
 
-// An app may put its element on the page after this script runs, so the check waits for the page.
-if (CORNERS.includes(placement ?? "")) float();
-else if (document.readyState === "loading")
-  document.addEventListener("DOMContentLoaded", float);
-else float();
-
-// On the first visit the script and the icons load before the app's service worker controls the
-// page, so it has no copy of them for opening offline (caching.ts). They are asked for again once
-// it does.
-const scriptUrl = script instanceof HTMLScriptElement ? script.src : undefined;
-navigator.serviceWorker?.addEventListener("controllerchange", () => {
-  const state = current();
-  const icons =
-    state.status === "signed-in"
-      ? state.me.apps.flatMap((app) => (app.icon ? [app.icon] : []))
-      : [];
-  // Each is asked for as its tag asks, so the copy kept is the one the tag gets offline.
-  if (scriptUrl)
-    void fetch(scriptUrl, { mode: "cors", credentials: "include" }).catch(
-      () => undefined,
-    );
-  for (const icon of icons)
-    void fetch(icon, { mode: "cors", credentials: "same-origin" }).catch(
-      () => undefined,
-    );
-});
+if (!customElements.get(NAME)) {
+  customElements.define(NAME, HomelabSwitcher);
+  // Beside <body> rather than in it, so an app that replaces its body's contents keeps the tab.
+  document.documentElement.append(document.createElement(NAME));
+}
