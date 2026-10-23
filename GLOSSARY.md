@@ -18,4 +18,4 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Home**: The app every homelab account can open, which shows the apps a person can use. _Avoid_: home page, dashboard, launcher, portal
 
-**App switcher**: The user icon at the top of an app and the menu it opens, listing the person's apps and Sign out. _Avoid_: widget, apps menu, user menu, launcher
+**App switcher**: The tab at the top of every app and the menu it opens, listing the person's apps, Account settings and Sign out. _Avoid_: widget, apps menu, user menu, launcher

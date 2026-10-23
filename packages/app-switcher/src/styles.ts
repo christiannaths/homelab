@@ -9,15 +9,18 @@ const scheme = (name: "light" | "dark") => `
 `;
 
 // Everything is set on .root rather than inherited, since the page's styles still reach the host
-// element and so whatever it would pass down.
+// element and so whatever it would pass down. The host is fixed to the top centre of the viewport,
+// over the page, so it never moves the page's own content.
 export const STYLES = `
-  :host { all: initial; display: inline-block; position: relative; }
+  :host {
+    all: initial;
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 2147483000;
+    transform: translateX(-50%);
+  }
   :host([hidden]) { display: none; }
-  :host([corner]) { position: fixed; z-index: 2147483000; }
-  :host([corner^="top"]) { top: 12px; }
-  :host([corner^="bottom"]) { bottom: 12px; }
-  :host([corner$="right"]) { right: 12px; }
-  :host([corner$="left"]) { left: 12px; }
 
   .root {
     ${scheme("light")}
@@ -26,34 +29,45 @@ export const STYLES = `
     line-height: 1.4;
     color: var(--text);
   }
-  .root[data-scheme="dark"] { ${scheme("dark")} }
   @media (prefers-color-scheme: dark) {
-    .root[data-scheme="auto"] { ${scheme("dark")} }
+    .root { ${scheme("dark")} }
   }
 
-  .avatar {
+  /* 24x24: a 16x16 chevron with 4px around it, hanging from the top edge. */
+  .tab {
     all: unset;
+    position: relative;
     box-sizing: border-box;
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    color: #fff;
-    font: 600 13px/1 ${tokens.font};
-    letter-spacing: 0.02em;
+    width: 24px;
+    height: 24px;
+    padding: 4px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: ${tokens.shadow.light};
     cursor: pointer;
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .avatar:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  /* A larger area to tap than to see, for fingers. */
+  .tab::before { content: ""; position: absolute; inset: 0 -12px -12px; }
+  .tab:hover { background: var(--hover); }
+  .tab:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .tab svg { display: block; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+  .tab[aria-expanded="true"] svg { transform: rotate(180deg); }
 
   .panel {
     position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
     box-sizing: border-box;
     width: max-content;
-    min-width: 220px;
+    min-width: 240px;
     max-width: min(320px, calc(100vw - 24px));
     padding: 4px;
     background: var(--surface);
@@ -62,10 +76,27 @@ export const STYLES = `
     box-shadow: ${tokens.shadow.medium};
   }
   .panel[hidden] { display: none; }
-  :host([corner^="bottom"]) .panel { top: auto; bottom: calc(100% + 8px); }
-  :host([corner$="left"]) .panel { right: auto; left: 0; }
 
-  .who { padding: 8px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .avatar {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #fff;
+    font: 600 13px/1 ${tokens.font};
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
   .name { font-weight: 600; overflow-wrap: anywhere; }
   .email { color: var(--dimmed); font-size: 13px; overflow-wrap: anywhere; }
 

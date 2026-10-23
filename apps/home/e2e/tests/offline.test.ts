@@ -12,6 +12,7 @@ import {
   GRACE,
   HEDY,
   HOME_URL,
+  initialsInMenu,
   launchChromium,
   menuItems,
   newDevice,
@@ -19,7 +20,7 @@ import {
   signIn,
   signInAsAdmin,
   startHome,
-  userIcon,
+  tab,
   waitUntilOfflineReady,
 } from "./stack.ts";
 
@@ -41,7 +42,7 @@ afterAll(async () => {
  */
 async function visit(page: Page, url: string): Promise<void> {
   await page.goto(url);
-  await userIcon(page).waitFor();
+  await tab(page).waitFor();
   await waitUntilOfflineReady(page);
   const kept = () =>
     page.evaluate(async () => {
@@ -97,10 +98,10 @@ describe("the App switcher offline", () => {
     { name: "Notes", url: NOTES_URL },
     { name: "Encyclopedia", url: ENCYCLOPEDIA_URL },
   ])
-    it(`shows the user icon and the last list of apps in ${app.name}`, async () => {
+    it(`shows the tab and the last list of apps in ${app.name}`, async () => {
       await page.goto(app.url);
-      await userIcon(page).waitFor();
-      expect(await userIcon(page).textContent()).toBe("GH");
+      await tab(page).waitFor();
+      expect(await initialsInMenu(page)).toBe("GH");
       expect(await menuItems(page)).toEqual(
         ["Home", "Encyclopedia", "Notes", "Vault"]
           .map((name) => (name === app.name ? `${name}Current` : name))
@@ -178,7 +179,7 @@ describe("the App switcher catching up", () => {
         "encyclopedia",
       ]);
       await page.reload();
-      await userIcon(page).waitFor();
+      await tab(page).waitFor();
       expect(await menuItems(page)).toEqual([
         "HomeCurrent",
         "Encyclopedia",
@@ -215,7 +216,7 @@ describe("the App switcher catching up", () => {
       await home.close();
       try {
         await page.reload();
-        await userIcon(page).waitFor();
+        await tab(page).waitFor();
         expect(await menuItems(page)).toEqual([
           "Home",
           "Encyclopedia",

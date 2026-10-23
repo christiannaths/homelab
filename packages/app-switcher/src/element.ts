@@ -1,14 +1,29 @@
-// <homelab-switcher>: the user icon and the menu it opens (GLOSSARY.md: App switcher). Its own
-// shadow DOM keeps the app's styles and its own apart.
+// <homelab-switcher>: the tab at the top of the page and the menu it opens (GLOSSARY.md: App
+// switcher). Its own shadow DOM keeps the app's styles and its own apart.
 import type { App, Me } from "./me.ts";
 import { colourFor, initials } from "./person.ts";
 import { current, refresh, subscribe } from "./store.ts";
 import { STYLES } from "./styles.ts";
 
-export type Theme = "light" | "dark";
-
-const isTheme = (value: string | null): value is Theme =>
-  value === "light" || value === "dark";
+/**
+ * A chevron that points down while the menu is closed, and up, as the CSS turns it, while it is
+ * open. Built node by node, since a page's Trusted Types policy may refuse markup.
+ */
+function chevron(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  for (const [name, value] of Object.entries({
+    "viewBox": "0 0 16 16",
+    "width": "16",
+    "height": "16",
+    "aria-hidden": "true",
+    "focusable": "false",
+  }))
+    svg.setAttribute(name, value);
+  path.setAttribute("d", "M4 6l4 4 4-4");
+  svg.append(path);
+  return svg;
+}
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -32,8 +47,6 @@ function menuOrder(apps: App[]): App[] {
 }
 
 export class HomelabSwitcher extends HTMLElement {
-  static observedAttributes = ["theme"];
-
   readonly #shadow = this.attachShadow({ mode: "open" });
   readonly #root = element("div", { class: "root" });
   #me: Me | undefined;
@@ -51,7 +64,6 @@ export class HomelabSwitcher extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this.#applyTheme();
     this.#unsubscribe = subscribe(() => this.#show());
     this.#show();
     void refresh();
@@ -63,21 +75,12 @@ export class HomelabSwitcher extends HTMLElement {
     document.removeEventListener("pointerdown", this.#onOutside, true);
   }
 
-  attributeChangedCallback(): void {
-    this.#applyTheme();
-  }
-
-  #applyTheme(): void {
-    const own = this.getAttribute("theme");
-    this.#root.dataset.scheme = isTheme(own) ? own : "auto";
-  }
-
   #show(): void {
     const state = current();
     const me = state.status === "signed-in" ? state.me : undefined;
     // Offline is as the browser says: Home being unreachable alone greys nothing out.
     const offline = !navigator.onLine;
-    // Signed out, the switcher shows nothing and leaves signing in to the app.
+    // Signed out, the switcher shows nothing and leaves signing in to the app or its page.
     this.hidden = !me;
     if (me === this.#me && offline === this.#offline) return;
     this.#me = me;
@@ -101,16 +104,15 @@ export class HomelabSwitcher extends HTMLElement {
       "button",
       {
         "type": "button",
-        "class": "avatar",
+        "class": "tab",
         "aria-haspopup": "menu",
         "aria-expanded": "false",
         "aria-controls": "menu",
         "aria-label": `${name}: apps and sign out`,
         "title": name,
       },
-      initials(person.name, person.username),
+      chevron(),
     );
-    button.style.background = colourFor(person.username);
     button.addEventListener("click", () => this.#toggle());
     button.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -160,6 +162,13 @@ export class HomelabSwitcher extends HTMLElement {
     const signOut = atVoidAuth("Sign out", signOutUrl);
     this.#items = [...items, account, signOut];
 
+    const avatar = element(
+      "span",
+      { "class": "avatar", "aria-hidden": "true" },
+      initials(person.name, person.username),
+    );
+    avatar.style.background = colourFor(person.username);
+
     const menu = element(
       "div",
       { "id": "menu", "role": "menu", "aria-label": "Apps and sign out" },
@@ -176,10 +185,15 @@ export class HomelabSwitcher extends HTMLElement {
       element(
         "div",
         { class: "who" },
-        element("div", { class: "name" }, name),
-        ...(person.email
-          ? [element("div", { class: "email" }, person.email)]
-          : []),
+        avatar,
+        element(
+          "div",
+          {},
+          element("div", { class: "name" }, name),
+          ...(person.email
+            ? [element("div", { class: "email" }, person.email)]
+            : []),
+        ),
       ),
       menu,
     );

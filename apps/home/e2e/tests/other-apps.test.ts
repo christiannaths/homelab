@@ -1,5 +1,5 @@
-// The App switcher in the other apps, each added with Home's one script tag (issues #89 and #90):
-// the same user icon as in Home, the app marked as current, and Sign out signing out every app.
+// The App switcher in the other apps, which the gateway adds to their pages (issues #89, #90 and
+// #102): the same person as in Home, the app marked as current, and Sign out signing out every app.
 import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
@@ -8,6 +8,7 @@ import {
   confirmSignOut,
   ENCYCLOPEDIA_URL,
   HOME_URL,
+  initialsInMenu,
   launchChromium,
   menuItems,
   newDevice,
@@ -15,7 +16,7 @@ import {
   onVoidAuthSignIn,
   signIn,
   startHome,
-  userIcon,
+  tab,
 } from "./stack.ts";
 
 let home: HomeServer;
@@ -30,13 +31,21 @@ afterAll(async () => {
   await home?.close();
 });
 
-const iconColour = (page: Page) =>
-  userIcon(page).evaluate((icon) => getComputedStyle(icon).backgroundColor);
+/** The colour of the person's icon in the switcher's menu. */
+const iconColour = async (page: Page) => {
+  await initialsInMenu(page);
+  return page.evaluate(() => {
+    const avatar = document
+      .querySelector("homelab-switcher")
+      ?.shadowRoot?.querySelector(".avatar");
+    return avatar ? getComputedStyle(avatar).backgroundColor : null;
+  });
+};
 
 /** Opens the app in the signed-in page and waits for its App switcher. */
 async function open(page: Page, url: string): Promise<void> {
   await page.goto(url);
-  await userIcon(page).waitFor();
+  await tab(page).waitFor();
 }
 
 const APPS = [
@@ -46,24 +55,17 @@ const APPS = [
 
 for (const app of APPS)
   describe(`the App switcher in ${app.name}`, () => {
-    it("sits in the app's header, with the app marked as current", async () => {
+    it("shows the person, with the app marked as current", async () => {
       const page = await newDevice(browser);
       await signIn(page, ADA);
       await open(page, app.url);
-      expect(
-        await page.evaluate(
-          () =>
-            document.querySelector("homelab-switcher")?.closest("header") !==
-            null,
-        ),
-      ).toBe(true);
-      expect(await userIcon(page).textContent()).toBe("AL");
+      expect(await initialsInMenu(page)).toBe("AL");
       const items = await menuItems(page);
       expect(items).toContain(`${app.name}Current`);
       expect(items[0]).toBe("Home");
     });
 
-    it("shows the same user icon colour as Home", async () => {
+    it("shows the same icon colour for the person as Home", async () => {
       const page = await newDevice(browser);
       await signIn(page, ADA);
       const inHome = await iconColour(page);
@@ -75,32 +77,32 @@ for (const app of APPS)
       const page = await newDevice(browser);
       await signIn(page, ADA);
       await open(page, app.url);
-      await userIcon(page).click();
+      await tab(page).click();
       await page.getByRole("menuitem", { name: "Sign out" }).click();
       await confirmSignOut(page);
       await onVoidAuthSignIn(page);
 
       for (const url of [HOME_URL, NOTES_URL]) {
-        const tab = await page.context().newPage();
-        await tab.goto(url);
-        await onVoidAuthSignIn(tab);
+        const other = await page.context().newPage();
+        await other.goto(url);
+        await onVoidAuthSignIn(other);
       }
       // Once it has been opened, the Encyclopedia's title page opens from its service worker
       // without asking anyone, as it keeps nothing private yet. The gateway then turns its
       // requests away, and the switcher hides.
-      const tab = await page.context().newPage();
-      await tab.goto(ENCYCLOPEDIA_URL);
-      if (new URL(tab.url()).origin === ENCYCLOPEDIA_URL) {
+      const other = await page.context().newPage();
+      await other.goto(ENCYCLOPEDIA_URL);
+      if (new URL(other.url()).origin === ENCYCLOPEDIA_URL) {
         expect(
-          await tab.evaluate(
+          await other.evaluate(
             async () =>
               (await fetch("/not-cached", { redirect: "manual" })).type,
           ),
         ).toBe("opaqueredirect");
-        // The switcher's kept copy loads, and hides once Home's answer says signed out.
-        await expect.poll(() => userIcon(tab).count()).toBe(0);
+        // The page's switcher shows the kept answer, and hides once Home's answer says signed out.
+        await expect.poll(() => tab(other).count()).toBe(0);
       } else {
-        await onVoidAuthSignIn(tab);
+        await onVoidAuthSignIn(other);
       }
     });
   });

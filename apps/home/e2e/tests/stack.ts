@@ -251,14 +251,26 @@ export async function confirmSignOut(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Yes", exact: true }).click();
 }
 
-/** The App switcher's user icon on the page, whose menu it opens. */
-export const userIcon = (page: Page) =>
+/** The App switcher's tab at the top of the page, whose menu it opens. */
+export const tab = (page: Page) =>
   page.getByRole("button", { name: /: apps and sign out$/ });
+
+/** The initials on the person's icon at the top of the App switcher's menu, opening it first. */
+export async function initialsInMenu(page: Page): Promise<string | null> {
+  const menu = page.getByRole("menu", { name: "Apps and sign out" });
+  if (!(await menu.isVisible())) await tab(page).click();
+  return page.evaluate(
+    () =>
+      document
+        .querySelector("homelab-switcher")
+        ?.shadowRoot?.querySelector(".avatar")?.textContent ?? null,
+  );
+}
 
 /** The names of the items in the App switcher's menu, opening it first. */
 export async function menuItems(page: Page): Promise<string[]> {
   const menu = page.getByRole("menu", { name: "Apps and sign out" });
-  if (!(await menu.isVisible())) await userIcon(page).click();
+  if (!(await menu.isVisible())) await tab(page).click();
   return menu
     .getByRole("menuitem")
     .evaluateAll((items) =>

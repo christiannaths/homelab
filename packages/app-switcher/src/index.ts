@@ -1,11 +1,16 @@
 // The App switcher's script, which the gateway puts inline into every page of every app
-// (ADR-PLAT-004). It draws itself in the <homelab-switcher> an app puts in its header.
+// (ADR-PLAT-004). It adds the tab at the top of the page, which has no options: every app gets
+// the same one.
 import { HomelabSwitcher } from "./element.ts";
 import { current } from "./store.ts";
 
 const NAME = "homelab-switcher";
 
-if (!customElements.get(NAME)) customElements.define(NAME, HomelabSwitcher);
+if (!customElements.get(NAME)) {
+  customElements.define(NAME, HomelabSwitcher);
+  // Beside <body> rather than in it, so an app that replaces its body's contents keeps the tab.
+  document.documentElement.append(document.createElement(NAME));
+}
 
 // On the first visit the icons load before the app's service worker controls the page, so it has
 // no copy of them for opening offline (caching.ts). They are asked for again once it does.
