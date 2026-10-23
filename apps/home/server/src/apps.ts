@@ -1,10 +1,10 @@
-// Works out a person's apps from their VoidAuth groups (ADR-PLAT-004): the group `<app>` or
+// Works out a person's apps from their App access (ADR-PLAT-004): the group `<app>` or
 // `<app>-admins` means the app at `<app>.<parent domain>`, and a group with no manifest there is
 // not an app.
 import type { ReadManifest } from "./manifests.ts";
 
 export interface App {
-  /** The app's subdomain, which is also its VoidAuth group. */
+  /** The app's subdomain, which also names its App access group. */
   id: string;
   url: string;
   name: string;
@@ -22,7 +22,7 @@ const FRESH_MS = 5 * 60_000;
 const MISSING_MS = 60_000;
 /** How long an app whose manifest stops answering stays listed, in case it is restarting. */
 const KEPT_MS = 24 * 60 * 60_000;
-// One DNS label. Rules out VoidAuth's own groups, such as auth_admins.
+// One DNS label, as every app's subdomain is.
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

@@ -1,13 +1,11 @@
 // The homelab around Home (compose.yaml) and the people the tests sign in as. A browser reaches
 // everything through the gateway on GATEWAY_PORT, as a browser on the home network would.
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import { connect } from "node:tls";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { startServer, type HomeServer } from "@homelab/home-server";
-import { VoidAuthClient } from "@homelab/voidauth-fixtures";
 import { chromium, type Browser, type Page } from "playwright";
 
 const run = promisify(execFile);
@@ -25,75 +23,64 @@ export const HOME_URL = appUrl("home");
 export const NOTES_URL = appUrl("notes");
 export const ENCYCLOPEDIA_URL = appUrl("encyclopedia");
 export const VAULT_URL = appUrl("vault");
-/** VoidAuth's session cookie, on the parent domain. */
-export const VOIDAUTH_SESSION_COOKIE = "x-voidauth-session";
-
-export interface Account {
-  username: string;
-  password: string;
-  name: string | null;
-  email?: string;
-  /** The homelab admin's grants: each app's group is named after its subdomain. */
-  groups: string[];
-}
+/** The accounts service's session cookie, on the parent domain. */
+export const SESSION_COOKIE = "__Secure-homelab.session_token";
 
 /**
- * The instance admin VoidAuth creates on first run, in `auth_admins`, which lets it into every
- * app. It was given only the Encyclopedia.
+ * A test person, as the accounts service's loader takes them
+ * (apps/accounts/server/src/test-people.ts).
  */
+export interface Account {
+  email: string;
+  password: string;
+  name: string;
+  homelabAdmin?: boolean;
+  /** App access, by app subdomain. */
+  apps: Record<string, "member" | "admin">;
+}
+
+/** A homelab admin, who was given only the Encyclopedia. */
 export const ADMIN: Account = {
-  username: "auth_admin",
+  email: "admin@example.com",
   password: "violet-quartz-harbour-71",
-  name: null,
-  groups: ["encyclopedia"],
+  name: "Homelab Admin",
+  homelabAdmin: true,
+  apps: { encyclopedia: "member" },
 };
 export const ADA: Account = {
-  username: "ada",
+  email: "ada@example.com",
   password: "lantern-meadow-copper-48",
   name: "Ada Lovelace",
-  email: "ada@example.com",
-  groups: ["notes-admins", "encyclopedia"],
+  apps: { notes: "admin", encyclopedia: "member" },
 };
 export const DANA: Account = {
-  username: "dana",
+  email: "dana@example.com",
   password: "quartz-ember-willow-27",
   name: "Dana Scully",
-  email: "dana@example.com",
-  groups: ["notes"],
+  apps: { notes: "member" },
 };
 /** Has a homelab account but no apps. */
 export const BOB: Account = {
-  username: "bob",
+  email: "bob@example.com",
   password: "harbour-violet-thistle-93",
   name: "Bob Ross",
-  groups: [],
+  apps: {},
 };
 /** Has an app that doesn't open offline, the Vault stand-in in gateway.caddyfile. */
 export const GRACE: Account = {
-  username: "grace",
+  email: "grace@example.com",
   password: "copper-thistle-lantern-65",
   name: "Grace Hopper",
-  email: "grace@example.com",
-  groups: ["notes", "encyclopedia", "vault"],
+  apps: { notes: "member", encyclopedia: "member", vault: "member" },
 };
-/** Has their groups changed by the tests, as an admin granting and removing apps. */
+/** Has their App access changed by the tests, as an admin granting and removing apps. */
 export const HEDY: Account = {
-  username: "hedy",
+  email: "hedy@example.com",
   password: "willow-harbour-ember-52",
   name: "Hedy Lamarr",
-  groups: ["notes"],
+  apps: { notes: "member" },
 };
-export const PEOPLE = [ADA, DANA, BOB, GRACE, HEDY];
-export const APPS = [
-  { name: "Home", host: `home.${DOMAIN}`, groups: [] },
-  { name: "Notes", host: `notes.${DOMAIN}`, groups: ["notes", "notes-admins"] },
-  {
-    name: "Encyclopedia",
-    host: `encyclopedia.${DOMAIN}`,
-    groups: ["encyclopedia"],
-  },
-  { name: "Vault", host: `vault.${DOMAIN}`, groups: ["vault"] },
-];
+export const PEOPLE = [ADMIN, ADA, DANA, BOB, GRACE, HEDY];
 
 export async function compose(
   env: Record<string, string>,
@@ -127,15 +114,49 @@ export function startHome(dataDir: string): Promise<HomeServer> {
   });
 }
 
-/** VoidAuth's API signed in as the homelab admin, for granting and removing apps. */
-export async function signInAsAdmin(dataDir: string): Promise<VoidAuthClient> {
-  const admin = new VoidAuthClient({
-    url: ACCOUNTS_URL,
-    ca: await readFile(gatewayCaFile(dataDir), "utf8"),
+/**
+ * Makes the people in the accounts service, or brings them to exactly what is given, with its
+ * loader for test people. A change in App access takes effect on the person's next request.
+ * Resolves to each person's account id, by email.
+ */
+export function loadPeople(
+  composeEnv: Record<string, string>,
+  people: Account[],
+): Promise<Record<string, string>> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      "docker",
+      [
+        "compose",
+        "-f",
+        COMPOSE_FILE,
+        "exec",
+        "-T",
+        "accounts",
+        "node",
+        "--no-experimental-webstorage",
+        "apps/accounts/server/src/load-test-people.ts",
+      ],
+      { env: { ...process.env, ...composeEnv } },
+      (error, stdout, stderr) => {
+        if (error) reject(new Error(`Loading people failed: ${stderr}`));
+        // The ids are the last line, after anything Better Auth logs.
+        else resolve(idsFrom(stdout.trim().split("\n").at(-1) ?? ""));
+      },
+    );
+    child.stdin?.end(JSON.stringify(people));
   });
-  if (!(await admin.signIn(ADMIN)))
-    throw new Error(`Can't sign in to VoidAuth as ${ADMIN.username}`);
-  return admin;
+}
+
+function idsFrom(line: string): Record<string, string> {
+  const ids: unknown = JSON.parse(line);
+  if (typeof ids !== "object" || ids === null)
+    throw new Error(`No account ids in ${line}`);
+  return Object.fromEntries(
+    Object.entries(ids).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }
 
 /** `gatewayCaSpki` is the hash of the gateway's CA key, which global setup provides. */
@@ -160,28 +181,27 @@ export async function newDevice(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-/** Resolves once the page has arrived on VoidAuth's sign-in page. */
-export function onVoidAuthSignIn(page: Page): Promise<void> {
+/** Resolves once the page has arrived on the accounts site's sign-in page. */
+export function onSignInPage(page: Page): Promise<void> {
   return page.waitForURL(
-    (url) => url.origin === ACCOUNTS_URL && url.pathname === "/login",
+    (url) => url.origin === ACCOUNTS_URL && url.pathname === "/sign-in",
   );
 }
 
-/** Types a password on VoidAuth's sign-in page, which the page must already be on. */
+/** Types an email and password on the sign-in page, which the page must already be on. */
 export async function typePassword(
   page: Page,
-  account: Pick<Account, "username" | "password">,
+  account: Pick<Account, "email" | "password">,
 ): Promise<void> {
-  await page.getByLabel("Username or Email").fill(account.username);
-  await page.getByLabel("Password", { exact: true }).fill(account.password);
-  await page.getByRole("button", { name: "Login", exact: true }).click();
-  // VoidAuth's "add a passkey?" question never comes: the App switcher on its page skips it.
+  await page.getByLabel("Email").fill(account.email);
+  await page.getByLabel("Password").fill(account.password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** Opens Home and signs in on VoidAuth's page; resolves once Home's tiles show. */
+/** Opens Home and signs in on the sign-in page; resolves once Home's tiles show. */
 export async function signIn(page: Page, account: Account): Promise<void> {
   await page.goto(HOME_URL);
-  await onVoidAuthSignIn(page);
+  await onSignInPage(page);
   await typePassword(page, account);
   await page.getByRole("list", { name: "Your apps" }).waitFor();
 }
@@ -234,14 +254,6 @@ const gatewayAnswers = () =>
       })
       .once("error", () => resolve(false));
   });
-
-/** Answers Yes on VoidAuth's "sign out?" page, which the browser must be on or on its way to. */
-export async function confirmSignOut(page: Page): Promise<void> {
-  await page.waitForURL(
-    (url) => url.origin === ACCOUNTS_URL && url.pathname.startsWith("/logout"),
-  );
-  await page.getByRole("button", { name: "Yes", exact: true }).click();
-}
 
 /** The App switcher's tab at the top of the page, whose menu it opens. */
 export const tab = (page: Page) =>

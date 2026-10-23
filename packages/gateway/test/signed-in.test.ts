@@ -1,5 +1,6 @@
-// The sign-in check (signed-in.caddyfile) in the gateway image, in front of a stand-in for VoidAuth
-// and an app that echoes what reached it. Needs Docker; run with `npm run e2e -w @homelab/gateway`.
+// The sign-in check (signed-in.caddyfile) in the gateway image, in front of a stand-in for the
+// accounts service and an app that echoes what reached it. Needs Docker; run with
+// `npm run e2e -w @homelab/gateway`.
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { buildGatewayImage } from "../src/image.ts";
@@ -10,7 +11,7 @@ import {
   type Gateway,
 } from "./gateway.ts";
 
-const SIGN_IN = "https://accounts.home.test/login";
+const SIGN_IN = "https://accounts.home.test/sign-in";
 const FORGED = {
   "remote-user": "mallory",
   "remote-name": "Mallory",
@@ -49,9 +50,10 @@ async function get(
 
 before(async () => {
   buildGatewayImage();
-  // Answers as VoidAuth's forward-auth does: the person for a session cookie, else its sign-in
-  // page. Ada has no name, so the Remote-Name a browser sends must not survive either.
-  const voidauth = await listen((req, res) => {
+  // Answers as the accounts service's forward-auth does: the person for a session cookie, else
+  // its sign-in page. This stand-in sends only some headers, so the Remote-Name a browser sends
+  // must not survive either.
+  const accounts = await listen((req, res) => {
     if (req.headers.cookie === "session=ada") {
       res.writeHead(200, { "Remote-User": "ada", "Remote-Groups": "notes" });
     } else {
@@ -59,7 +61,7 @@ before(async () => {
     }
     res.end();
   });
-  closers.push(voidauth.close);
+  closers.push(accounts.close);
   // Echoes what reached it.
   const app = await listen((req, res) => {
     const header = (name: string) => req.headers[name] ?? "";
@@ -93,7 +95,7 @@ http:// {
 	respond "Up"
 }
 `,
-    { VOIDAUTH_UPSTREAM: `host.docker.internal:${voidauth.port}` },
+    { ACCOUNTS_UPSTREAM: `host.docker.internal:${accounts.port}` },
   );
 });
 
@@ -103,7 +105,7 @@ after(() => {
 });
 
 describe("signed in", () => {
-  test("passes VoidAuth's person on, and none of the browser's headers", async () => {
+  test("passes the accounts service's person on, and none of the browser's headers", async () => {
     const reply = await get("/", { ...FORGED, cookie: "session=ada" });
     assert.deepEqual(reply.seen, {
       path: "/",

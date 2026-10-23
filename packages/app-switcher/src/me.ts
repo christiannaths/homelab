@@ -10,8 +10,8 @@ export interface App {
 }
 
 export interface Me {
-  person: { username: string; name: string | null; email: string | null };
-  /** VoidAuth's own pages, where the person changes their name, password and passkeys. */
+  person: { id: string; name: string | null; email: string | null };
+  /** The person's account page on the accounts site. */
   accountUrl: string;
   signOutUrl: string;
   apps: App[];
@@ -33,7 +33,7 @@ export function parseMe(value: unknown): Me | undefined {
   if (!isRecord(value) || !isRecord(value.person)) return undefined;
   const { person, accountUrl, signOutUrl, apps } = value;
   if (
-    typeof person.username !== "string" ||
+    typeof person.id !== "string" ||
     typeof accountUrl !== "string" ||
     typeof signOutUrl !== "string"
   )
@@ -41,7 +41,7 @@ export function parseMe(value: unknown): Me | undefined {
   if (!Array.isArray(apps)) return undefined;
   return {
     person: {
-      username: person.username,
+      id: person.id,
       name: stringOrNull(person.name),
       email: stringOrNull(person.email),
     },
@@ -75,7 +75,7 @@ export function homeOrigin(location: {
 }
 
 /**
- * Asks Home who is signed in. A signed-out browser gets the gateway's redirect to VoidAuth, which
+ * Asks Home who is signed in. A signed-out browser gets the gateway's redirect to sign in, which
  * is not followed: signing in is left to the app.
  */
 export async function ask(home: string): Promise<Answer> {

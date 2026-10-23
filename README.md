@@ -6,6 +6,7 @@ Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app i
 
 | App | What it is |
 | --- | --- |
+| [`accounts`](apps/accounts/README.md) | **Accounts**: the homelab account, where people sign in, and who may open which app |
 | [`home`](apps/home/README.md) | **Home**: the apps each person can use, as tiles, open to every homelab account |
 | [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace (starting fresh) |
 | [`encyclopedia`](apps/encyclopedia/README.md) | **Encyclopedia**: a read-only copy of Wikipedia, already populated, with saved lists that work offline (docs only) |

@@ -19,7 +19,6 @@
   "devDependencies": {
     "@homelab/gateway": "*",
     "@homelab/home-server": "*",
-    "@homelab/voidauth-fixtures": "*",
     "@types/node": "^26.6.5",
     "playwright": "^1.64.1",
     "typescript": "^7.0.2",

@@ -9,19 +9,16 @@ const isRole = (value: string): value is Role =>
   ROLES.some((role) => role === value);
 
 export interface Person {
-  /** The VoidAuth username. */
+  /** The account id (ADR-NOTE-009). */
   id: string;
   role: Role;
   name: string | null;
 }
 
-/**
- * VoidAuth groups that make someone a Notes owner (ADR-NOTE-009): Notes' own admins, and the
- * homelab's admins, whom VoidAuth lets into every app.
- */
-const OWNER_GROUPS = ["notes-admins", "auth_admins"];
+/** Admin-level App access to Notes makes someone a Notes owner (ADR-NOTE-009). */
+const OWNER_GROUP = "notes-admins";
 
-/** The people who have used Notes (ADR-NOTE-009). VoidAuth's groups decide who gets in. */
+/** The people who have used Notes (ADR-NOTE-009). App access decides who gets in. */
 export class People {
   readonly #db: DatabaseSync;
 
@@ -39,13 +36,14 @@ export class People {
     return { id: text(row, "id"), role, name: nullableText(row, "name") };
   }
 
-  /** The person the gateway let in, added on their first request and kept in step with VoidAuth. */
+  /**
+   * The person the gateway let in, added on their first request and kept in step with the
+   * accounts service.
+   */
   admit(identity: GatewayIdentity): Person {
     const person: Person = {
-      id: identity.username,
-      role: identity.groups.some((group) => OWNER_GROUPS.includes(group))
-        ? "owner"
-        : "member",
+      id: identity.id,
+      role: identity.groups.includes(OWNER_GROUP) ? "owner" : "member",
       name: identity.name,
     };
     this.#db

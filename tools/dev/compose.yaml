@@ -17,6 +17,8 @@ services:
       - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
+      # The sign-in check asks VoidAuth until dev moves to the accounts service (issue #112).
+      ACCOUNTS_UPSTREAM: voidauth:3000
     depends_on: [voidauth, home, notes]
 
   voidauth:

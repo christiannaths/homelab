@@ -5,7 +5,6 @@ import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
   ADA,
-  confirmSignOut,
   ENCYCLOPEDIA_URL,
   HOME_URL,
   initialsInMenu,
@@ -13,7 +12,7 @@ import {
   menuItems,
   newDevice,
   NOTES_URL,
-  onVoidAuthSignIn,
+  onSignInPage,
   signIn,
   startHome,
   tab,
@@ -79,13 +78,12 @@ for (const app of APPS)
       await open(page, app.url);
       await tab(page).click();
       await page.getByRole("menuitem", { name: "Sign out" }).click();
-      await confirmSignOut(page);
-      await onVoidAuthSignIn(page);
+      await onSignInPage(page);
 
       for (const url of [HOME_URL, NOTES_URL]) {
         const other = await page.context().newPage();
         await other.goto(url);
-        await onVoidAuthSignIn(other);
+        await onSignInPage(other);
       }
       // Once it has been opened, the Encyclopedia's title page opens from its service worker
       // without asking anyone, as it keeps nothing private yet. The gateway then turns its
@@ -102,7 +100,7 @@ for (const app of APPS)
         // The page's switcher shows the kept answer, and hides once Home's answer says signed out.
         await expect.poll(() => tab(other).count()).toBe(0);
       } else {
-        await onVoidAuthSignIn(other);
+        await onSignInPage(other);
       }
     });
   });

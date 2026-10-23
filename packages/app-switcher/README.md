@@ -15,7 +15,7 @@ On VoidAuth's pages (at `accounts.`) it also marks VoidAuth's "add a passkey?" q
 ## What it shows
 
 - The tab: a 16×16 chevron with 4px around it (24×24), hanging from the top centre of the screen over the page. It can be tapped a little beyond its edges. Tapping it, or Enter, Space or the arrow keys on it, pulls the menu down.
-- The menu: the person's icon (the first letters of the first and last words of their name, or of their username, on a colour from `tokens.avatar` in `@homelab/theme` picked from the username alone), their name and email, then Home, then the person's other apps by name, with the app in use marked **Current**, then **Account settings**, VoidAuth's own pages for the person's name, email, password and passkeys, then **Sign out**, which goes to VoidAuth's sign-out page and so signs the homelab account out of every app.
+- The menu: the person's icon (the first letters of the first and last words of their name, or of their email, on a colour from `tokens.avatar` in `@homelab/theme` picked from their account id alone), their name and email, then Home, then the person's other apps by name, with the app in use marked **Current**, then **Account settings**, the person's account page on the accounts site, then **Sign out**, which goes to the accounts site's sign-out and so signs the homelab account out of every app.
 - It closes on Escape, a click outside or Tab. The arrow keys, Home and End move through it.
 - It follows the device's light or dark setting.
 

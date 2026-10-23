@@ -2,8 +2,8 @@
 
 The one way into every app ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md)). It is Caddy, built with the homelab's own module, and it does two things for every app's site:
 
-- **The sign-in check** ([`signed-in.caddyfile`](signed-in.caddyfile)): it asks VoidAuth about each request and passes the person on in `Remote-*` headers, which apps trust. [`src/identity.ts`](src/identity.ts) reads them in an app's server.
-- **The App switcher** ([`switcher.caddyfile`](switcher.caddyfile)): it puts the whole [App switcher](../app-switcher/README.md) inline into every page passing through, so no app installs anything for it. VoidAuth's site imports it too.
+- **The sign-in check** ([`signed-in.caddyfile`](signed-in.caddyfile)): it asks the [accounts service](../../apps/accounts/README.md) about each request and passes the person on in `Remote-*` headers, which apps trust. The service is `accounts:3000`, or `ACCOUNTS_UPSTREAM`. [`src/identity.ts`](src/identity.ts) reads them in an app's server.
+- **The App switcher** ([`switcher.caddyfile`](switcher.caddyfile)): it puts the whole [App switcher](../app-switcher/README.md) inline into every page passing through, so no app installs anything for it. The accounts site imports it too.
 
 ## The image
 
@@ -45,4 +45,4 @@ notes.{$HOMELAB_DOMAIN} {
 npm run e2e -w @homelab/gateway   # builds the image and runs it alone, with Docker
 ```
 
-The tests in [`test/`](test) run the image in front of stand-ins: the sign-in check against a stand-in for VoidAuth, and the switcher against an app that answers with pages, other files and compressed pages. The module's own Go tests run in the image build.
+The tests in [`test/`](test) run the image in front of stand-ins: the sign-in check against a stand-in for the accounts service, and the switcher against an app that answers with pages, other files and compressed pages. The module's own Go tests run in the image build.

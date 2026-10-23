@@ -83,7 +83,7 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
       env: {
         SITE_DOMAIN: domain,
         PORT: String(PORT),
-        VOIDAUTH_UPSTREAM: "127.0.0.1:3000",
+        ACCOUNTS_UPSTREAM: "127.0.0.1:3000",
         XDG_DATA_HOME: path.join(DATA_DIR, "caddy"),
         XDG_CONFIG_HOME: path.join(DATA_DIR, "caddy"),
       },

@@ -24,7 +24,7 @@ export function parsePerson(value: unknown): Person | undefined {
 
 /**
  * Asks who is signed in on this device. A signed-out browser gets the gateway's redirect to
- * VoidAuth instead of an answer (ADR-NOTE-014); it is not followed, since only a page load can
+ * sign in instead of an answer (ADR-NOTE-014); it is not followed, since only a page load can
  * sign in.
  */
 export async function checkSession(): Promise<SessionCheck> {

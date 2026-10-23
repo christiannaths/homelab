@@ -10,33 +10,34 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { startServer, type NotesServer } from "../src/server.ts";
 
-/** Who the gateway says is signing in, as VoidAuth would tell it. */
+/** Who the gateway says is signing in, as the accounts service tells it. */
 export interface Account {
-  username: string;
+  /** The account id. */
+  id: string;
   name?: string;
   groups: string[];
 }
 
 export const OWNER: Account = {
-  username: "alex",
+  id: "alex",
   name: "Alex",
   groups: ["notes-admins"],
 };
 export const MEMBER: Account = {
-  username: "sam",
+  id: "sam",
   name: "Sam",
   groups: ["notes"],
 };
-/** A homelab admin, whom VoidAuth lets into every app whatever its groups. */
-export const HOMELAB_ADMIN: Account = {
-  username: "auth_admin",
-  groups: ["auth_admins"],
+/** The Encyclopedia's admin, and a Notes member. The gateway sends no name for this account. */
+export const OTHER_APPS_ADMIN: Account = {
+  id: "kim",
+  groups: ["encyclopedia-admins", "notes"],
 };
 
-/** The headers the gateway adds after VoidAuth lets a request through. */
+/** The headers the gateway adds after the accounts service lets a request through. */
 export function gatewayHeaders(account: Account): Record<string, string> {
   return {
-    "remote-user": account.username,
+    "remote-user": account.id,
     ...(account.name && { "remote-name": encodeURIComponent(account.name) }),
     ...(account.groups.length && { "remote-groups": account.groups.join(",") }),
   };

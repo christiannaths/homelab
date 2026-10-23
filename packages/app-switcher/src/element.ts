@@ -113,7 +113,7 @@ export class HomelabSwitcher extends HTMLElement {
     const focused = this.#items.findIndex(
       (item) => item === this.#shadow.activeElement,
     );
-    const name = person.name ?? person.username;
+    const name = person.name ?? person.email ?? "Your account";
 
     const button = element(
       "button",
@@ -161,8 +161,8 @@ export class HomelabSwitcher extends HTMLElement {
         ...(here ? [element("span", { class: "note" }, "Current")] : []),
       );
     });
-    // The account's pages and signing out are VoidAuth's, which needs a connection.
-    const atVoidAuth = (label: string, href: string) =>
+    // The account page and signing out are on the accounts site, which needs a connection.
+    const atAccounts = (label: string, href: string) =>
       element(
         "a",
         {
@@ -177,16 +177,16 @@ export class HomelabSwitcher extends HTMLElement {
           ? [element("span", { class: "note" }, "Needs a connection")]
           : []),
       );
-    const account = atVoidAuth("Account settings", accountUrl);
-    const signOut = atVoidAuth("Sign out", signOutUrl);
+    const account = atAccounts("Account settings", accountUrl);
+    const signOut = atAccounts("Sign out", signOutUrl);
     this.#items = [...items, account, signOut];
 
     const avatar = element(
       "span",
       { "class": "avatar", "aria-hidden": "true" },
-      initials(person.name, person.username),
+      initials(person.name, person.email ?? ""),
     );
-    avatar.style.background = colourFor(person.username);
+    avatar.style.background = colourFor(person.id);
 
     const menu = element(
       "div",
