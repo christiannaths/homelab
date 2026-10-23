@@ -93,6 +93,10 @@ before(async () => {
         return send("text/html", PAGE, {
           "Content-Security-Policy": "frame-ancestors 'self'",
         });
+      case "/export.html":
+        return send("text/html", PAGE, {
+          "Content-Disposition": 'attachment; filename="export.html"',
+        });
       case "/missing":
         res.writeHead(404, { "Content-Type": "text/html" });
         return res.end("<p>Not found</p>");
@@ -172,7 +176,7 @@ describe("pages", () => {
 });
 
 describe("pages inside another page", () => {
-  for (const dest of ["iframe", "frame"])
+  for (const dest of ["iframe", "frame", "object", "embed"])
     test(`get no switcher (Sec-Fetch-Dest: ${dest})`, async () => {
       const reply = await get("/", { "sec-fetch-dest": dest });
       assert.equal(reply.text, PAGE);
@@ -188,6 +192,21 @@ describe("everything else", () => {
     const data = await get("/data.json", { "sec-fetch-dest": "empty" });
     assert.equal(data.text, DATA);
     assert.equal(data.headers.etag, '"v1"');
+  });
+
+  test("comes compressed as the browser asked, as the app sent it", async () => {
+    const reply = await get("/compressed", {
+      "sec-fetch-dest": "script",
+      "accept-encoding": "br",
+    });
+    assert.equal(reply.headers["content-encoding"], "br");
+    assert.deepEqual(reply.body, brotliCompressSync(PAGE));
+  });
+
+  test("passes HTML downloads through untouched", async () => {
+    const reply = await get("/export.html");
+    assert.equal(reply.text, PAGE);
+    assert.equal(reply.headers.etag, '"v1"');
   });
 
   test("passes HEAD requests through untouched", async () => {

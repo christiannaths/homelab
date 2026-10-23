@@ -32,7 +32,7 @@ func TestAllowSwitcher(t *testing.T) {
 		{
 			"default-src alone gets its own script, connect and image lists",
 			"default-src 'self'",
-			"default-src 'self'; script-src 'self' 'sha256-SWITCHER'; connect-src 'self' *.home.test:8443; img-src 'self' *.home.test:8443",
+			"default-src 'self'; script-src 'self' 'sha256-SWITCHER'; connect-src 'self' *.home.test:8443; img-src 'self' *.home.test:8443 data:",
 		},
 		{
 			"'none' gives way",
@@ -40,14 +40,14 @@ func TestAllowSwitcher(t *testing.T) {
 			"script-src 'sha256-SWITCHER'; connect-src *.home.test:8443",
 		},
 		{
-			"connect and image lists gain the homelab's apps",
+			"connect and image lists gain the homelab's apps, and images data:",
 			"connect-src 'self'; img-src 'self' data:",
 			"connect-src 'self' *.home.test:8443; img-src 'self' data: *.home.test:8443",
 		},
 		{
-			"a list that allows everywhere is left alone",
+			"a list that allows everywhere gains only data:, which * does not cover",
 			"connect-src *; img-src *",
-			"connect-src *; img-src *",
+			"connect-src *; img-src * data:",
 		},
 		{
 			"a policy that limits nothing the switcher does is left as it is",
@@ -57,7 +57,7 @@ func TestAllowSwitcher(t *testing.T) {
 		{
 			"every policy in a header",
 			"script-src 'self', img-src 'self'",
-			"script-src 'self' 'sha256-SWITCHER', img-src 'self' *.home.test:8443",
+			"script-src 'self' 'sha256-SWITCHER', img-src 'self' *.home.test:8443 data:",
 		},
 	}
 	for _, c := range cases {

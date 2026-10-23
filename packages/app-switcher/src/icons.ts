@@ -33,11 +33,17 @@ function store(icons: Icons | undefined): void {
   }
 }
 
+// Counts Home's answers, so icons still loading for an older answer aren't kept over a newer one,
+// such as a sign-out.
+let answers = 0;
+
 /** Keeps the icons of exactly these apps, keeping an earlier copy of any that fails to load. */
 export async function keepIcons(apps: App[]): Promise<void> {
+  const answer = ++answers;
   const before = keptIcons();
   const addresses = apps.flatMap((app) => (app.icon ? [app.icon] : []));
   const shrunk = await Promise.all(addresses.map(shrink));
+  if (answer !== answers) return;
   const icons: Icons = {};
   addresses.forEach((address, i) => {
     const icon = shrunk[i] ?? before[address];
@@ -47,6 +53,7 @@ export async function keepIcons(apps: App[]): Promise<void> {
 }
 
 export function forgetIcons(): void {
+  answers++;
   store(undefined);
 }
 

@@ -7,7 +7,8 @@ import (
 )
 
 // allowSwitcher returns a Content-Security-Policy value that also lets the switcher run: its script,
-// by hash, and its requests to Home and the other apps' icons, by the homelab's wildcard source.
+// by hash, its requests to Home and the other apps' icons, by the homelab's wildcard source, and the
+// icons it keeps, as data: addresses.
 // A header may hold several policies, separated by commas, and each must allow it. A policy that
 // does not limit something is left to allow it.
 func allowSwitcher(value, hash, homelab string) string {
@@ -61,11 +62,17 @@ func allowInPolicy(policy, hash, homelab string) string {
 		d.add(hash)
 		changed = true
 	}
-	for _, names := range [][]string{{"connect-src", "default-src"}, {"img-src", "default-src"}} {
-		if d := effective(names...); d != nil && !d.has("*") {
+	if d := effective("connect-src", "default-src"); d != nil && !d.has("*") {
+		d.add(homelab)
+		changed = true
+	}
+	// The icons it keeps for offline show as data: addresses, which * does not cover.
+	if d := effective("img-src", "default-src"); d != nil {
+		if !d.has("*") {
 			d.add(homelab)
-			changed = true
 		}
+		d.add("data:")
+		changed = true
 	}
 	if !changed {
 		return policy

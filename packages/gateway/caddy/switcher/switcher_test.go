@@ -3,6 +3,8 @@ package switcher
 import (
 	"net/http"
 	"testing"
+
+	"github.com/caddyserver/caddy/v2"
 )
 
 func TestInsertBeforeTheLastBodyEnd(t *testing.T) {
@@ -46,5 +48,20 @@ func TestIsPage(t *testing.T) {
 		if got := isPage(c.status, header); got != c.want {
 			t.Errorf("isPage(%d, %q, %q) = %v, want %v", c.status, c.contentType, c.encoding, got, c.want)
 		}
+	}
+}
+
+func TestADownloadIsNotAPage(t *testing.T) {
+	header := http.Header{}
+	header.Set("Content-Type", "text/html")
+	header.Set("Content-Disposition", `attachment; filename="export.html"`)
+	if isPage(200, header) {
+		t.Error("isPage is true for a download")
+	}
+}
+
+func TestTheBuiltSwitcherCanGoInline(t *testing.T) {
+	if err := new(Switcher).Provision(caddy.Context{}); err != nil {
+		t.Error(err)
 	}
 }

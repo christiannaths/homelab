@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"encoding/base64"
+	"errors"
 	"mime"
 	"net/http"
 	"regexp"
@@ -44,6 +45,11 @@ func (Switcher) CaddyModule() caddy.ModuleInfo {
 }
 
 func (s *Switcher) Provision(caddy.Context) error {
+	// Either would end the inline script early, or change how the page around it is read.
+	lower := bytes.ToLower(script)
+	if bytes.Contains(lower, []byte("</script")) || bytes.Contains(lower, []byte("<!--")) {
+		return errors.New("the switcher's script can't go inline: it holds </script or <!--")
+	}
 	s.tag = append(append([]byte("<script>"), script...), "</script>"...)
 	sum := sha256.Sum256(script)
 	s.hash = "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
@@ -65,10 +71,11 @@ func (s *Switcher) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 }
 
 func (s *Switcher) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	// A page inside another page would show a second switcher. Every other fetch of a page counts,
-	// including an offline-first app's service worker saving it (Sec-Fetch-Dest: empty).
-	dest := r.Header.Get("Sec-Fetch-Dest")
-	if r.Method != http.MethodGet || dest == "iframe" || dest == "frame" {
+	// Only a fetch that can be a whole page counts: a page inside another page (an iframe, an
+	// object) would show a second switcher. An offline-first app's service worker saving its page
+	// says Sec-Fetch-Dest: empty, and an older browser says nothing.
+	if dest := r.Header.Get("Sec-Fetch-Dest"); r.Method != http.MethodGet ||
+		(dest != "" && dest != "document" && dest != "empty") {
 		return next.ServeHTTP(w, r)
 	}
 	// A page can only be changed uncompressed. Without the browser's Accept-Encoding, which encode
@@ -107,6 +114,10 @@ func (s *Switcher) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyh
 func isPage(status int, header http.Header) bool {
 	if status < 200 || status == http.StatusNoContent || status == http.StatusPartialContent ||
 		(status >= 300 && status < 400) {
+		return false
+	}
+	// A download is a file to keep, not a page to show.
+	if disposition, _, _ := mime.ParseMediaType(header.Get("Content-Disposition")); disposition == "attachment" {
 		return false
 	}
 	// A page compressed in a way the proxy can't undo passes through as it is, without the switcher.
