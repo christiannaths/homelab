@@ -47,6 +47,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.branch || github.sha }}
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # First, so a new certificate issues while the image builds.
+      - name: Prepare staging
+        run: tools/preview/preview.sh prepare staging
       - uses: actions/setup-node@v5
         with:
           node-version: 26
@@ -62,7 +66,6 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy staging
         run: tools/preview/preview.sh deploy staging
       - name: List the links

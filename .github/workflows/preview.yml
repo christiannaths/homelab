@@ -48,6 +48,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: vars.PREVIEW_DOMAIN != ''
+      # First, so the certificate issues while the image builds and is tested.
+      - name: Prepare the preview
+        if: vars.PREVIEW_DOMAIN != ''
+        run: tools/preview/preview.sh prepare "$NAME"
       - uses: actions/setup-node@v5
         with:
           node-version: 26
@@ -66,8 +72,6 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Test the preview image
         run: npm run e2e -w @homelab/tools
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: vars.PREVIEW_DOMAIN != ''
       - name: Deploy the preview
         if: vars.PREVIEW_DOMAIN != ''
         run: tools/preview/preview.sh deploy "$NAME"
