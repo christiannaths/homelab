@@ -1,3 +1,5 @@
+import type { GatewayAddress } from "@homelab/app-manifests";
+
 // The install's settings, from environment variables, for now read directly (issue #40).
 
 export interface Config {
@@ -17,6 +19,8 @@ export interface Config {
    * account and is not listed.
    */
   apps: string[];
+  /** How to reach the gateway to read apps' manifests. By default, at each app's address. */
+  gateway: GatewayAddress;
   /** Sign-in attempts allowed per client address in each window, in seconds. */
   signInRateLimit: { window: number; max: number };
   /**
@@ -38,6 +42,10 @@ export function configFromEnv(env: NodeJS.ProcessEnv): Config {
     dataDir: env.DATA_DIR ?? "data",
     port: Number(env.PORT ?? 3000),
     apps: installedApps(env.HOMELAB_APPS ?? ""),
+    gateway: {
+      url: env.GATEWAY_URL ? new URL(env.GATEWAY_URL) : undefined,
+      caFile: env.GATEWAY_CA || undefined,
+    },
     signInRateLimit: {
       window: Number(env.SIGN_IN_RATE_WINDOW ?? 60),
       max: Number(env.SIGN_IN_RATE_MAX ?? 5),

@@ -3,6 +3,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type { ReadManifest } from "@homelab/app-manifests";
 import { createAccounts, type Accounts } from "../src/accounts.ts";
 import type { Config } from "../src/config.ts";
 import { loadTestPeople, type TestPerson } from "../src/test-people.ts";
@@ -28,6 +29,21 @@ export const ADMIN: TestPerson = {
   homelabAdmin: true,
 };
 
+/** The installed apps' manifests, as the gateway would serve them, by hostname. */
+const MANIFESTS: Record<string, unknown> = {
+  [`notes.${DOMAIN}`]: {
+    name: "Notes",
+    icons: [{ src: "icons/icon-192.png", sizes: "192x192" }],
+  },
+  [`encyclopedia.${DOMAIN}`]: {
+    name: "Encyclopedia",
+    icons: [{ src: "/icons/icon-512.png", sizes: "512x512" }],
+  },
+};
+
+const readManifest: ReadManifest = async (url) =>
+  url.pathname === "/manifest.webmanifest" ? MANIFESTS[url.host] : undefined;
+
 export interface TestAccounts extends Accounts {
   /** Each loaded person's account id, by email. */
   ids: Record<string, string>;
@@ -38,16 +54,20 @@ export async function startAccounts(
   people: TestPerson[] = [ADA, BOB, ADMIN],
   config: Partial<Config> = {},
 ): Promise<TestAccounts> {
-  const accounts = await createAccounts({
-    domain: DOMAIN,
-    accountsUrl: ACCOUNTS,
-    secret: "a-test-secret-that-is-at-least-32-characters",
-    dataDir: mkdtempSync(path.join(tmpdir(), "accounts-")),
-    port: 0,
-    apps: ["notes", "encyclopedia"],
-    signInRateLimit: { window: 60, max: 100 },
-    ...config,
-  });
+  const accounts = await createAccounts(
+    {
+      domain: DOMAIN,
+      accountsUrl: ACCOUNTS,
+      secret: "a-test-secret-that-is-at-least-32-characters",
+      dataDir: mkdtempSync(path.join(tmpdir(), "accounts-")),
+      port: 0,
+      apps: ["notes", "encyclopedia"],
+      gateway: {},
+      signInRateLimit: { window: 60, max: 100 },
+      ...config,
+    },
+    { readManifest },
+  );
   const ids = await loadTestPeople(accounts, people);
   return Object.assign(accounts, { ids });
 }

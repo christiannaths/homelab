@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { afterEach, describe, expect, test } from "vitest";
 import { startServer, type HomeServer } from "../src/server.ts";
-import { manifestReader, type ReadManifest } from "../src/manifests.ts";
+import { manifestReader, type ReadManifest } from "@homelab/app-manifests";
 
 const HOMELAB = "https://home.test";
 

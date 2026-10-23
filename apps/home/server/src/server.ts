@@ -3,12 +3,13 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono, type Context } from "hono";
 import { identityFrom } from "@homelab/gateway";
-import { AppDirectory } from "./apps.ts";
 import {
+  AppDirectory,
   manifestReader,
   type GatewayAddress,
   type ReadManifest,
-} from "./manifests.ts";
+} from "@homelab/app-manifests";
+import { appsFor } from "./apps.ts";
 
 export interface ServerOptions {
   /**
@@ -91,7 +92,7 @@ export async function startServer({
       },
       accountUrl,
       signOutUrl,
-      apps: await apps.appsFor(identity.groups),
+      apps: await appsFor(apps, identity.groups),
     });
   });
 

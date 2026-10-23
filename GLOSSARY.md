@@ -14,6 +14,8 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Accounts service**: The homelab's own service at `accounts.<domain>`, on Better Auth, where people sign in and manage their homelab account, and which tells the gateway who is signed in. _Avoid_: auth server, identity provider, VoidAuth
 
+**Account page**: A person's own page on the accounts service, which Account settings in the App switcher opens. It shows their name, email and apps, and lets them change their name and password. _Avoid_: profile, settings page, account settings
+
 ## Apps
 
 **App**: One thing a household uses under the homelab's sign-in, at its own address, such as Notes or Encyclopedia. _Avoid_: service, module, site
