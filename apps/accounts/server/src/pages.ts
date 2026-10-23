@@ -172,7 +172,7 @@ ${items.length ? `<ul aria-label="Your apps">${items.join("")}</ul>` : '<p class
   <button>Change password</button>
 </form>
 ${homelabAdmin ? '<h2>Homelab admin</h2>\n<p><a href="/people">People</a></p>' : ""}
-<p><a href="/sign-out">Sign out</a></p>`,
+${signOutForm("/sign-out")}`,
   );
 }
 
@@ -193,6 +193,11 @@ export function adminsOnlyPage(): string {
   );
 }
 
+/** A POST, since a link or an image on any site could otherwise sign the browser out. */
+function signOutForm(action: string): string {
+  return `<form method="post" action="${escape(action)}"><button>Sign out</button></form>`;
+}
+
 /** `app` is an app's subdomain, or a hostname that isn't an app's. */
 export function noAccessPage(app: string, accountsUrl: string): string {
   const account = new URL("/", accountsUrl).href;
@@ -200,7 +205,8 @@ export function noAccessPage(app: string, accountsUrl: string): string {
     "No access",
     `<h1>You don't have access to ${escape(appName(app))}</h1>
 <p>Ask a homelab admin to give you access to it.</p>
-<p><a href="${escape(account)}">Your account</a></p>`,
+<p><a href="${escape(account)}">Your account</a></p>
+${signOutForm(new URL("/sign-out", accountsUrl).href)}`,
   );
 }
 

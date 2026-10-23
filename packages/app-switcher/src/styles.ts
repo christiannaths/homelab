@@ -116,6 +116,7 @@ export const STYLES = `
   .item:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
   .item[aria-current="page"] { font-weight: 600; }
   .item[aria-disabled="true"] { color: var(--dimmed); cursor: default; }
+  .item[aria-busy="true"] { cursor: progress; }
   .item[aria-disabled="true"] img { opacity: 0.5; }
   .item img, .item .no-icon { width: 20px; height: 20px; border-radius: 5px; flex: none; }
   .item .no-icon { background: var(--border); }

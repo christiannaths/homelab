@@ -1,7 +1,7 @@
 // The Notes app in a real Chromium, behind the homelab gateway and the accounts service: signing in
 // with the homelab account, signing out of it, and starting offline (issue #47, ADR-PLAT-004).
 // Notes has no sign-out of its own: the App switcher's Sign out, which these tests stand in for
-// with the accounts site's own sign-out, is tested in Home's suite.
+// with the same request to the accounts site, is tested in Home's suite.
 import type { NotesServer } from "@homelab/notes-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
@@ -45,9 +45,19 @@ function sessionFrom(page: Page, headers: Record<string, string> = {}) {
   }, headers);
 }
 
-/** Signs the homelab account out on the accounts site, as the App switcher's Sign out does. */
+/**
+ * Signs the homelab account out with the POST the App switcher's Sign out sends, from a page of
+ * the accounts site, and shows the sign-in page, as the switcher does next.
+ */
 async function signOut(page: Page): Promise<void> {
-  await page.goto(`${ACCOUNTS_URL}/sign-out`);
+  await page.goto(ACCOUNTS_URL);
+  const status = await page.evaluate(
+    async () =>
+      (await fetch("/sign-out", { method: "POST", credentials: "include" }))
+        .status,
+  );
+  expect(status).toBe(204);
+  await page.goto(`${ACCOUNTS_URL}/sign-in`);
   await onSignInPage(page);
 }
 
