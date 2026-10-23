@@ -17,7 +17,7 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 | --- | --- | --- |
 | Instance | Workspace | One instance is one workspace. The specs say "workspace" to match Notion. |
 | Admin ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)) | Workspace owner |  |
-| Account | Member or guest | Every person signs in through the homelab's VoidAuth ([ADR-PLAT-004](../../../../../docs/adr/ADR-PLAT-004-sign-in.md)). |
+| Account | Member or guest | Every person signs in through the homelab's accounts service ([ADR-PLAT-004](../../../../../docs/adr/ADR-PLAT-004-sign-in.md)). |
 
 ## Adapted from Notion, not copied
 

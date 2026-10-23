@@ -1,7 +1,7 @@
 // The preview image's entrypoint (ADR-PLAT-008): runs the whole homelab in one container, since Fly
-// mounts a volume into only one container per machine. It starts the gateway, VoidAuth, the Home
-// and Notes servers, with all their data under DATA_DIR, then loads the test accounts.
-// Loading again on a later start only fills in what is missing, so data survives restarts.
+// mounts a volume into only one container per machine. It starts the gateway, the accounts
+// service, the Home and Notes servers, with all their data under DATA_DIR, then loads the test
+// people. Loading again on a later start only adds the people missing, so data survives restarts.
 //
 //   node tools/preview/start.ts         run the preview until stopped
 //   node tools/preview/start.ts reset   wipe the running preview's data and start it fresh
@@ -17,16 +17,15 @@ import {
 } from "node:fs";
 import { connect } from "node:net";
 import path from "node:path";
-import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
-import { ADMIN, PEOPLE, appsUnder } from "./fixtures.ts";
+import { INSTALLED_APPS, LOAD_TEST_PEOPLE, PEOPLE } from "../test-people.ts";
 
 const ROOT = path.join(import.meta.dirname, "..", "..");
-/** The volume. VoidAuth's config and db folders link into it (Dockerfile). */
+/** The volume. */
 const DATA_DIR = "/data";
 const PORT = Number(process.env.PORT ?? 8080);
 /** Holds the running preview's process id, for `reset` to signal. */
 const PID_FILE = "/tmp/preview.pid";
-/** Written once the test accounts are loaded, so `reset` knows when the fresh preview is up. */
+/** Written once the test people are loaded, so `reset` knows when the fresh preview is up. */
 const READY_FILE = path.join(DATA_DIR, "ready");
 
 function setting(name: string): string {
@@ -42,12 +41,14 @@ interface Running {
   stop(): Promise<void>;
 }
 
-/** Starts every service and loads the test accounts. Fails when a service won't come up. */
+/** Starts every service and loads the test people. Fails when a service won't come up. */
 async function startPreview(onExit: (name: string) => void): Promise<Running> {
   const domain = `${setting("PREVIEW_NAME")}.${setting("PREVIEW_DOMAIN")}`;
   const accountsUrl = `https://accounts.${domain}`;
-  const apps = appsUnder(domain);
-  for (const dir of ["voidauth/config", "voidauth/db", "notes", "caddy"])
+  // A volume with no accounts data holds another sign-in service's people, whose Notes data
+  // would belong to no one, so the preview starts fresh.
+  if (!existsSync(path.join(DATA_DIR, "accounts"))) wipeData();
+  for (const dir of ["accounts", "notes", "caddy"])
     mkdirSync(path.join(DATA_DIR, dir), { recursive: true });
 
   const children: { name: string; child: ChildProcess }[] = [];
@@ -72,8 +73,8 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   };
 
   // The gateway starts first and alone, so a request that wakes a stopped machine reaches it within
-  // Fly's proxy's few seconds of patience. It holds requests until VoidAuth, Home and Notes are up
-  // (Caddyfile).
+  // Fly's proxy's few seconds of patience. It holds requests until the accounts service, Home and
+  // Notes are up (Caddyfile).
   run(
     "the gateway",
     "caddy",
@@ -91,28 +92,24 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   );
   await listening(PORT);
 
-  // VoidAuth's image is copied in whole, with the Node it was built for, since its native SQLite
-  // module would not load in this image's Node. Its config and db folders link to DATA_DIR.
-  const voidauth = run("VoidAuth", "/opt/voidauth/node", ["./dist/index.mjs"], {
-    cwd: "/app",
-    env: {
-      APP_URL: accountsUrl,
-      // The session cookie goes on the preview's domain, so its apps share it and no other
-      // preview's do.
-      SESSION_DOMAIN: domain,
-      STORAGE_KEY: setting("STORAGE_KEY"),
-      DB_ADAPTER: "sqlite",
-      DEFAULT_REDIRECT: `${accountsUrl}/`,
-      // Registration is closed: accounts come only from invite links (ADR-PLAT-004).
-      SIGNUP: "false",
-      APP_PORT: "3000",
-    },
-  });
-  // VoidAuth's log holds the first-run link for setting the admin's password.
-  let voidauthLog = "";
-  voidauth.stdout?.on("data", (chunk: Buffer) => {
-    voidauthLog += chunk.toString();
-  });
+  const accountsEnv = {
+    // The session cookie goes on the preview's domain, so its apps share it and no other
+    // preview's do.
+    HOMELAB_DOMAIN: domain,
+    ACCOUNTS_URL: accountsUrl,
+    ACCOUNTS_SECRET: setting("ACCOUNTS_SECRET"),
+    HOMELAB_APPS: INSTALLED_APPS,
+    DATA_DIR: path.join(DATA_DIR, "accounts"),
+    PORT: "3000",
+    // The account page reads each app's manifest from the gateway in this container, as Home does.
+    GATEWAY_URL: `http://127.0.0.1:${PORT}`,
+  };
+  run(
+    "the accounts service",
+    process.execPath,
+    ["--no-experimental-webstorage", "apps/accounts/server/src/index.ts"],
+    { cwd: ROOT, env: accountsEnv },
+  );
 
   // Home reads each app's manifest from the gateway in this container, over plain HTTP like
   // Fly's proxy.
@@ -138,7 +135,6 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     },
   );
 
-  const gateway = { url: accountsUrl, port: PORT };
   const stop = async () => {
     const stopping = children.splice(0);
     await Promise.all(
@@ -155,12 +151,9 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   };
 
   try {
-    await loadFixtures(new VoidAuthClient(gateway), {
-      admin: ADMIN,
-      apps,
-      people: PEOPLE,
-      readLog: () => voidauthLog,
-    });
+    // After the service has made its tables, so the loader never makes them at the same time.
+    await listening(3000);
+    await loadTestPeople(accountsEnv);
   } catch (error) {
     await stop();
     throw error;
@@ -168,6 +161,20 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   writeFileSync(READY_FILE, new Date().toISOString());
   console.log(`The preview is up at ${accountsUrl}/`);
   return { stop };
+}
+
+/** Makes the test people who are missing, with the accounts service's own loader. */
+async function loadTestPeople(env: Record<string, string>): Promise<void> {
+  const loader = spawn(process.execPath, LOAD_TEST_PEOPLE, {
+    cwd: ROOT,
+    env: { ...process.env, ...env },
+    stdio: ["pipe", "ignore", "inherit"],
+  });
+  loader.stdin.end(JSON.stringify(PEOPLE));
+  const code = await new Promise<number | null>((resolve) =>
+    loader.on("exit", resolve),
+  );
+  if (code !== 0) throw new Error(`Loading the test people failed (${code})`);
 }
 
 /** Waits until something accepts connections on the port, on this machine. */
@@ -236,7 +243,7 @@ async function reset(): Promise<void> {
   for (let i = 0; i < 240; i++) {
     await new Promise((resolve) => setTimeout(resolve, 500));
     if (existsSync(READY_FILE) && statSync(READY_FILE).mtimeMs > before) {
-      console.log("The preview was reset: only the test accounts are left.");
+      console.log("The preview was reset: only the test people are left.");
       return;
     }
   }

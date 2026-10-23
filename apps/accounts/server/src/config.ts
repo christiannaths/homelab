@@ -23,10 +23,18 @@ export interface Config {
   gateway: GatewayAddress;
   /** Sign-in attempts allowed per client address in each window, in seconds. */
   signInRateLimit: { window: number; max: number };
+  /**
+   * Answers `/test-sign-in`, which signs a browser in as any person by email with no password, for
+   * the links `npm run dev` prints. Never on an install or a preview.
+   */
+  testSignInLinks?: boolean;
 }
 
 export function configFromEnv(env: NodeJS.ProcessEnv): Config {
   const domain = required(env, "HOMELAB_DOMAIN");
+  const testSignInLinks = env.TEST_SIGN_IN_LINKS === "on";
+  if (testSignInLinks && env.NODE_ENV === "production")
+    throw new Error("TEST_SIGN_IN_LINKS can't be on in production");
   return {
     domain,
     accountsUrl: env.ACCOUNTS_URL ?? `https://accounts.${domain}`,
@@ -42,6 +50,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv): Config {
       window: Number(env.SIGN_IN_RATE_WINDOW ?? 60),
       max: Number(env.SIGN_IN_RATE_MAX ?? 5),
     },
+    testSignInLinks,
   };
 }
 

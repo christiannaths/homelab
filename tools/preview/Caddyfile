@@ -1,11 +1,14 @@
 # The preview's gateway (ADR-PLAT-008): the homelab gateway of tools/dev/gateway.caddyfile, but over
 # plain HTTP, since Fly's proxy ends TLS in front of it. It trusts that proxy's X-Forwarded-Proto,
-# so VoidAuth and the apps still see https.
+# so the accounts service and the apps still see https.
 {
 	auto_https off
 	admin off
 	servers {
 		trusted_proxies static private_ranges
+		# The client's address is the last one in X-Forwarded-For that Fly's proxy didn't add:
+		# anything before it came from the browser.
+		trusted_proxies_strict
 	}
 }
 
@@ -16,11 +19,14 @@
 	lb_try_interval 250ms
 }
 
-# VoidAuth's pages get the App switcher too, for people managing their account.
+# The accounts site gets the App switcher too, for people managing their account.
 http://accounts.{$SITE_DOMAIN}:{$PORT} {
 	import /etc/caddy/switcher.caddyfile
 	reverse_proxy 127.0.0.1:3000 {
 		import wait-for-upstream
+		# The accounts service limits sign-in attempts by the last address here, which would
+		# otherwise be Fly's proxy's for everyone.
+		header_up X-Forwarded-For {client_ip}
 	}
 }
 

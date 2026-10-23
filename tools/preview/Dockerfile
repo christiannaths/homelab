@@ -7,10 +7,7 @@
 # Behind a proxy that intercepts TLS, also pass its CA so npm trusts it:
 # --secret id=ca-certs,src=<the CA's PEM file>.
 #
-# The VoidAuth version matches tools/dev/compose.yaml, and the gateway is built as in
-# packages/gateway/Dockerfile; update them together.
-FROM voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97 AS voidauth
-
+# The gateway is built as in packages/gateway/Dockerfile; update them together.
 FROM node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS web
 WORKDIR /repo
 # The package files come first, so a change that leaves dependencies alone reuses the installed ones.
@@ -33,20 +30,16 @@ COPY --from=web /repo/packages/app-switcher/dist/switcher.js switcher/switcher.j
 RUN go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /usr/bin/caddy .
 
 FROM node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
-# VoidAuth's own Node, since its native SQLite module is built for it. Both images are Alpine 3.24.
-COPY --from=voidauth /usr/bin/node /opt/voidauth/node
-COPY --from=voidauth /app /app
-RUN ln -s /data/voidauth/config /app/config && ln -s /data/voidauth/db /app/db
 COPY --from=gateway /usr/bin/caddy /usr/bin/caddy
 
 WORKDIR /repo
 COPY --parents package.json package-lock.json apps/*/*/package.json packages/*/package.json \
   spikes/*/*/package.json tools/package.json ./
-# Only what runs: the Home and Notes servers' dependencies and the preview's own scripts.
+# Only what runs: the accounts service's, Home's and Notes' dependencies and the preview's scripts.
 RUN --mount=type=secret,id=ca-certs \
   if [ -f /run/secrets/ca-certs ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca-certs; fi \
   && npm ci --no-audit --no-fund --omit=dev \
-    -w @homelab/home-server -w @homelab/notes-server -w @homelab/tools \
+    -w @homelab/accounts-server -w @homelab/home-server -w @homelab/notes-server -w @homelab/tools \
   && npm cache clean --force
 COPY . .
 COPY --from=web /repo/apps/home/web/dist apps/home/web/dist

@@ -19,7 +19,8 @@ primary_region = "{{REGION}}"
   auto_start_machines = true
   min_machines_running = 0
 
-# VoidAuth, Notes and the gateway use about 450 MB together, measured in the image test.
+# The accounts service, Home, Notes, the gateway and start.ts use about 430 MB together, measured
+# on the image.
 [[vm]]
   size = "shared-cpu-1x"
   memory = "1gb"

@@ -1,7 +1,8 @@
-# The whole homelab on one machine, for trying it by hand: the gateway (Caddy), VoidAuth, Home, Notes
-# and the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with `npm run dev`
-# from the repository root, which also builds the apps and sets VoidAuth up (see README.md).
-# Only the gateway publishes a port: Home and Notes trust the Remote-* headers the gateway sets.
+# The whole homelab on one machine, for trying it by hand: the gateway (Caddy), the accounts service,
+# Home, Notes and the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with
+# `npm run dev` from the repository root, which also builds the apps and loads the test people
+# (see README.md). Only the gateway publishes a port: the apps trust the Remote-* headers the
+# gateway sets.
 name: homelab-dev
 services:
   gateway:
@@ -17,24 +18,29 @@ services:
       - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
       HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
-      # The sign-in check asks VoidAuth until dev moves to the accounts service (issue #112).
-      ACCOUNTS_UPSTREAM: voidauth:3000
-    depends_on: [voidauth, home, notes]
+    depends_on: [accounts, home, notes]
 
-  voidauth:
-    image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
+  # The accounts service (apps/accounts/server), run from this checkout.
+  accounts:
+    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+    working_dir: /repo
+    command: node --no-experimental-webstorage apps/accounts/server/src/index.ts
     volumes:
-      - voidauth-config:/app/config
-      - voidauth-db:/app/db
+      - ../..:/repo:ro
+      - accounts:/data
+      - caddy:/caddy:ro
     environment:
-      APP_URL: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
-      # The session cookie goes on the parent domain, so every app's hostname receives it.
-      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
-      STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
-      DB_ADAPTER: sqlite
-      DEFAULT_REDIRECT: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}/
-      # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
-      SIGNUP: "false"
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
+      ACCOUNTS_URL: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
+      ACCOUNTS_SECRET: ${ACCOUNTS_SECRET:?set ACCOUNTS_SECRET to at least 32 random characters}
+      HOMELAB_APPS: notes,encyclopedia
+      DATA_DIR: /data
+      PORT: "3000"
+      # The one-click sign-in links start.ts prints. Only dev turns them on.
+      TEST_SIGN_IN_LINKS: "on"
+      # The account page reads each app's manifest through the gateway, as Home does.
+      GATEWAY_URL: https://gateway:443
+      GATEWAY_CA: /caddy/caddy/pki/authorities/local/root.crt
 
   # The real Home server, run from this checkout. It serves apps/home/web/dist. It reads each app's
   # manifest through the gateway, since *.homelab.localhost is this container itself, trusting the
@@ -66,6 +72,5 @@ services:
 
 volumes:
   caddy:
-  voidauth-config:
-  voidauth-db:
+  accounts:
   notes:

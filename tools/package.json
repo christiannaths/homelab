@@ -15,8 +15,7 @@
     "e2e": "node --test \"preview/*.test.ts\""
   },
   "dependencies": {
-    "@homelab/gateway": "*",
-    "@homelab/voidauth-fixtures": "*"
+    "@homelab/gateway": "*"
   },
   "devDependencies": {
     "@hocuspocus/provider": "^4.7.1",
