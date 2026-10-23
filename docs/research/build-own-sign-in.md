@@ -2,6 +2,8 @@
 
 **Outcome (2026-10-19):** not needed for now. The ProxyAuth spike passed and the homelab stays on VoidAuth ([ADR-PLAT-004](../adr/ADR-PLAT-004-sign-in.md)). This stays the fallback.
 
+**Update (2026-10-23):** option 2 was spiked, with email as the sign-in identifier, to bring the sign-in pages into the homelab's own UI. It worked behind the unchanged gateway; see [`spikes/better-auth-sign-in-poc/FINDINGS.md`](../../spikes/better-auth-sign-in-poc/FINDINGS.md). No decision yet.
+
 This is light research from 2026-10-19, kept for the case where the VoidAuth ProxyAuth spike fails. See also [auth-provider-comparison.md](auth-provider-comparison.md).
 
 ## Why building it is easier than it sounds

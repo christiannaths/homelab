@@ -1,0 +1,21 @@
+# The gateway (Caddy) for the spike's end-to-end tests. The accounts service runs in the test
+# process on the host, and the gateway reaches it there. The gateway's sign-in check is the
+# homelab's own (packages/gateway/signed-in.caddyfile), unchanged: only its upstream moves from
+# VoidAuth to the accounts service.
+name: ${COMPOSE_PROJECT_NAME:-better-auth-sign-in-e2e}
+services:
+  gateway:
+    image: caddy:2.10.2@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
+    ports:
+      - "${GATEWAY_PORT:-8473}:443"
+    volumes:
+      - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ../../../packages/gateway/signed-in.caddyfile:/etc/caddy/signed-in.caddyfile:ro
+      - ${DATA_DIR:?set DATA_DIR}/caddy:/data
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      # The name signed-in.caddyfile reads. It points at the accounts service here.
+      VOIDAUTH_UPSTREAM: host.docker.internal:${ACCOUNTS_PORT:-4130}
+    extra_hosts:
+      - host.docker.internal:host-gateway

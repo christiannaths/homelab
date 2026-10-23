@@ -1,0 +1,34 @@
+# The accounts service, and two stand-in apps that answer with the Remote-* headers the gateway
+# passed on, so the tests can see exactly what an app would trust.
+{
+	# A self-signed CA, since *.home.test has no public certificate. A real install uses its own.
+	local_certs
+	skip_install_trust
+}
+
+accounts.{$HOMELAB_DOMAIN} {
+	reverse_proxy {$VOIDAUTH_UPSTREAM}
+}
+
+(echo-app) {
+	route {
+		import /etc/caddy/signed-in.caddyfile
+		header Content-Type "text/plain; charset=utf-8"
+		header Cache-Control no-store
+		respond <<TEXT
+			app: {args[0]}
+			Remote-User: {http.request.header.Remote-User}
+			Remote-Email: {http.request.header.Remote-Email}
+			Remote-Name: {http.request.header.Remote-Name}
+			Remote-Groups: {http.request.header.Remote-Groups}
+			TEXT 200
+	}
+}
+
+notes.{$HOMELAB_DOMAIN} {
+	import echo-app notes
+}
+
+encyclopedia.{$HOMELAB_DOMAIN} {
+	import echo-app encyclopedia
+}
