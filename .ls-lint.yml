@@ -26,3 +26,5 @@ ignore:
   # Vendored: Matt Pocock's skills, managed by `npx skills`.
   - .agents/skills
   - .claude/skills
+  # Worktrees Claude Code makes for subagents, each a whole checkout.
+  - .claude/worktrees
