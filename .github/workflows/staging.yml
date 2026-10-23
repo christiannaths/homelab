@@ -1,12 +1,15 @@
-# Deploys a branch as the preview named staging (ADR-PLAT-008), on request only. Its accounts and
-# data are kept until the Reset preview workflow wipes them. The run's summary lists the links.
+# Deploys staging (ADR-PLAT-008): main on every push, so staging always shows what has merged, or
+# another branch when run by hand. Its accounts and data are kept until the Reset preview workflow
+# wipes them. The run's summary lists the links.
 name: Deploy to staging
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       branch:
-        description: The branch to deploy
+        description: The branch to deploy (the next push to main replaces it)
         required: true
         default: main
 
@@ -30,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ inputs.branch || github.sha }}
       - uses: actions/setup-node@v5
         with:
           node-version: 26
