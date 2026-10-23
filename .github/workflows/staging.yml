@@ -6,6 +6,18 @@ name: Deploy to staging
 on:
   push:
     branches: [main]
+    # Only changes that reach the preview image, so merging docs alone leaves staging as it is.
+    paths:
+      - apps/**
+      - packages/**
+      - tools/preview/**
+      - tools/package.json
+      - package.json
+      - package-lock.json
+      - .dockerignore
+      - .github/workflows/staging.yml
+      - "!**/*.md"
+      - "!**/docs/**"
   workflow_dispatch:
     inputs:
       branch:
@@ -30,6 +42,7 @@ jobs:
       PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
       DNSIMPLE_TOKEN: ${{ secrets.DNSIMPLE_TOKEN }}
       DNSIMPLE_ACCOUNT_ID: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+      PREVIEW_IMAGE: homelab-preview:ci
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,6 +50,18 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 26
+      - uses: docker/setup-buildx-action@v3
+      # Built here with its layers cached in GitHub's cache, so most pushes reinstall nothing, and
+      # pull requests start from main's layers.
+      - name: Build the preview image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: tools/preview/Dockerfile
+          tags: ${{ env.PREVIEW_IMAGE }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy staging
         run: tools/preview/preview.sh deploy staging
