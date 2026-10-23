@@ -2,6 +2,7 @@
 // that answers with pages, other files and compressed pages. Needs Docker; run with
 // `npm run e2e -w @homelab/gateway`.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { after, before, describe, test } from "node:test";
 import { brotliCompressSync, gunzipSync, gzipSync } from "node:zlib";
 import { buildGatewayImage } from "../src/image.ts";
@@ -74,6 +75,23 @@ before(async () => {
       case "/brotli-anyway":
         return send("text/html", brotliCompressSync(PAGE), {
           "Content-Encoding": "br",
+        });
+      case "/csp-header":
+        return send("text/html", PAGE, {
+          "Content-Security-Policy":
+            "script-src 'self'; frame-ancestors 'self'",
+        });
+      case "/csp-meta":
+        return send(
+          "text/html",
+          PAGE.replace(
+            "<head>",
+            `<head><meta http-equiv="Content-Security-Policy" content="script-src 'self'">`,
+          ),
+        );
+      case "/csp-no-script-limit":
+        return send("text/html", PAGE, {
+          "Content-Security-Policy": "frame-ancestors 'self'",
         });
       case "/missing":
         res.writeHead(404, { "Content-Type": "text/html" });
@@ -181,5 +199,42 @@ describe("everything else", () => {
       "HEAD",
     );
     assert.equal(reply.headers.etag, '"v1"');
+  });
+});
+
+describe("security policies", () => {
+  /** The CSP source that lets the inline switcher run. */
+  const hashOf = (page: string) =>
+    `'sha256-${createHash("sha256")
+      .update(switcherIn(page) ?? "")
+      .digest("base64")}'`;
+
+  test("a policy in a header lets the switcher run", async () => {
+    const reply = await get("/csp-header");
+    assert.equal(
+      reply.headers["content-security-policy"],
+      `script-src 'self' ${hashOf(reply.text)}; frame-ancestors 'self'`,
+    );
+  });
+
+  test("a policy in the page lets the switcher run", async () => {
+    const reply = await get("/csp-meta");
+    assert.ok(
+      reply.text.includes(
+        `<meta http-equiv="Content-Security-Policy" content="script-src 'self' ${hashOf(reply.text)}">`,
+      ),
+      reply.text,
+    );
+  });
+
+  test("a page that doesn't limit scripts gets no policy added", async () => {
+    assert.equal(
+      (await get("/csp-no-script-limit")).headers["content-security-policy"],
+      "frame-ancestors 'self'",
+    );
+    assert.equal(
+      (await get("/")).headers["content-security-policy"],
+      undefined,
+    );
   });
 });

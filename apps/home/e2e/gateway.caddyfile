@@ -7,7 +7,9 @@
 	skip_install_trust
 }
 
+# VoidAuth's pages get the App switcher too, for people managing their account.
 accounts.{$HOMELAB_DOMAIN} {
+	import /etc/caddy/switcher.caddyfile
 	reverse_proxy voidauth:3000
 }
 
@@ -37,13 +39,16 @@ encyclopedia.{$HOMELAB_DOMAIN} {
 	}
 }
 
-# A stand-in for a bundled app such as Vaultwarden: its manifest doesn't say it opens offline.
+# A stand-in for a bundled app such as Vaultwarden: its manifest doesn't say it opens offline, and
+# its page has a strict security policy, as Vaultwarden's does.
 vault.{$HOMELAB_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile
 		header /manifest.webmanifest Content-Type application/manifest+json
 		respond /manifest.webmanifest `{"name": "Vault", "icons": []}`
-		respond "Vault"
+		header Content-Type "text/html; charset=utf-8"
+		header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'"
+		respond `<!doctype html><html><head><title>Vault</title></head><body><h1>Vault</h1></body></html>`
 	}
 }

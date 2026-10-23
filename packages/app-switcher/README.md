@@ -18,7 +18,9 @@ VitePWA({
 
 `clientsClaim` lets the service worker keep the icons on the very first visit. The app's saved page carries the switcher the gateway put in it, so an offline-first app shows the switcher from its last saved page, online too, until the app next updates that page.
 
-The switcher renders in its own shadow DOM, so the app's styles and its own don't reach each other. It asks Home for the person on load, and shows nothing when they turn out to be signed out: signing in is left to the app.
+The switcher renders in its own shadow DOM, styled by a constructed style sheet, so the app's styles and its own don't reach each other and a page's style policy doesn't block it. The gateway lets its script, and its requests to Home and for icons, through a page's security policy.
+
+On VoidAuth's pages (at `accounts.`) it also marks VoidAuth's "add a passkey?" question as skipped (`passkey_skipped` in `localStorage`), so it never comes; people add passkeys from Account settings. It asks Home for the person on load, and shows nothing when they turn out to be signed out: signing in is left to the app.
 
 ## What it shows
 

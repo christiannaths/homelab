@@ -4,7 +4,9 @@ package switcher
 
 import (
 	"bytes"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/base64"
 	"mime"
 	"net/http"
 	"regexp"
@@ -30,7 +32,8 @@ func init() {
 
 // Switcher is the `homelab_switcher` directive. It has no options.
 type Switcher struct {
-	tag []byte
+	tag  []byte
+	hash string
 }
 
 func (Switcher) CaddyModule() caddy.ModuleInfo {
@@ -41,7 +44,9 @@ func (Switcher) CaddyModule() caddy.ModuleInfo {
 }
 
 func (s *Switcher) Provision(caddy.Context) error {
-	s.tag = scriptTag(script)
+	s.tag = append(append([]byte("<script>"), script...), "</script>"...)
+	sum := sha256.Sum256(script)
+	s.hash = "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
 	return nil
 }
 
@@ -57,10 +62,6 @@ func (s *Switcher) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		return d.ArgErr()
 	}
 	return nil
-}
-
-func scriptTag(script []byte) []byte {
-	return append(append([]byte("<script>"), script...), "</script>"...)
 }
 
 func (s *Switcher) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -82,8 +83,17 @@ func (s *Switcher) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyh
 	if !rec.Buffered() {
 		return nil
 	}
-	page := insert(buf.Bytes(), s.tag)
+	// A page that limits scripts lets the switcher's run, and lets it reach Home and the other
+	// apps' icons, whether the policy comes in a header or in the page.
+	homelab := homelabSource(r.Host)
 	header := w.Header()
+	for _, name := range []string{"Content-Security-Policy", "Content-Security-Policy-Report-Only"} {
+		policies := header.Values(name)
+		for i, policy := range policies {
+			policies[i] = allowSwitcher(policy, s.hash, homelab)
+		}
+	}
+	page := insert(allowInMetas(buf.Bytes(), s.hash, homelab), s.tag)
 	header.Set("Content-Length", strconv.Itoa(len(page)))
 	// The page is no longer the upstream's, and a browser revalidating it would keep an old switcher.
 	header.Del("ETag")

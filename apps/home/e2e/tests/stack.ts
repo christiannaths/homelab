@@ -175,15 +175,7 @@ export async function typePassword(
   await page.getByLabel("Username or Email").fill(account.username);
   await page.getByLabel("Password", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  // VoidAuth offers to set up a passkey after a password sign-in; a person would skip it.
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  const offered = await Promise.race([
-    skip.waitFor().then(() => true),
-    page
-      .waitForURL((url) => !url.pathname.startsWith("/login"))
-      .then(() => false),
-  ]).catch(() => false);
-  if (offered) await skip.click();
+  // VoidAuth's "add a passkey?" question never comes: the App switcher on its page skips it.
 }
 
 /** Opens Home and signs in on VoidAuth's page; resolves once Home's tiles show. */
@@ -276,4 +268,14 @@ export async function menuItems(page: Page): Promise<string[]> {
     .evaluateAll((items) =>
       items.map((item) => item.textContent?.trim() ?? ""),
     );
+}
+
+/** The browser's complaints about a page's security policy, from when this is called. */
+export function securityPolicyErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (/Content Security Policy/i.test(message.text()))
+      errors.push(message.text());
+  });
+  return errors;
 }

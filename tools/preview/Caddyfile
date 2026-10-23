@@ -16,7 +16,9 @@
 	lb_try_interval 250ms
 }
 
+# VoidAuth's pages get the App switcher too, for people managing their account.
 http://accounts.{$SITE_DOMAIN}:{$PORT} {
+	import /etc/caddy/switcher.caddyfile
 	reverse_proxy 127.0.0.1:3000 {
 		import wait-for-upstream
 	}

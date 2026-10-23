@@ -46,6 +46,16 @@ function menuOrder(apps: App[]): App[] {
   return [...home, ...others];
 }
 
+// A constructed style sheet rather than a <style> element, which a page's style-src would refuse.
+let styles: CSSStyleSheet | undefined;
+function sheet(): CSSStyleSheet {
+  if (!styles) {
+    styles = new CSSStyleSheet();
+    styles.replaceSync(STYLES);
+  }
+  return styles;
+}
+
 export class HomelabSwitcher extends HTMLElement {
   readonly #shadow = this.attachShadow({ mode: "open" });
   readonly #root = element("div", { class: "root" });
@@ -58,9 +68,8 @@ export class HomelabSwitcher extends HTMLElement {
 
   constructor() {
     super();
-    const style = element("style");
-    style.textContent = STYLES;
-    this.#shadow.append(style, this.#root);
+    this.#shadow.adoptedStyleSheets = [sheet()];
+    this.#shadow.append(this.#root);
   }
 
   connectedCallback(): void {

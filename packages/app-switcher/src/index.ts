@@ -6,6 +6,18 @@ import { current } from "./store.ts";
 
 const NAME = "homelab-switcher";
 
+// VoidAuth, at accounts. (ADR-PLAT-004), asks "add a passkey?" after every sign-in on a browser
+// until the person skips it, which it remembers here. It has no setting for it, so the switcher
+// skips it for everyone: passkeys are added from Account settings.
+if (location.hostname.startsWith("accounts.")) {
+  try {
+    if (!localStorage.getItem("passkey_skipped"))
+      localStorage.setItem("passkey_skipped", new Date().toString());
+  } catch {
+    // Storage can be unavailable (a private window, blocked site data); VoidAuth then asks.
+  }
+}
+
 if (!customElements.get(NAME)) {
   customElements.define(NAME, HomelabSwitcher);
   // Beside <body> rather than in it, so an app that replaces its body's contents keeps the tab.

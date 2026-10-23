@@ -40,7 +40,7 @@ Then restart the browser. Firefox keeps its own list: Settings, Privacy & Securi
 | `dana` | `quartz-ember-willow-27` | Notes as a member, no Encyclopedia |
 | `bob` | `harbour-violet-thistle-93` | A homelab account but no apps: Home only |
 
-Opening an app sends you to VoidAuth's sign-in page, as on a real install. VoidAuth offers to set up a passkey after a password sign-in; **Skip** is fine. To switch accounts, sign out from VoidAuth's account page.
+Opening an app sends you to VoidAuth's sign-in page, as on a real install. It never asks to add a passkey, since the App switcher skips that question; add one from **Account settings** in the switcher. To switch accounts, use **Sign out** in the switcher.
 
 ## Start over
 

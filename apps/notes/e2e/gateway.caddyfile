@@ -7,7 +7,9 @@
 	skip_install_trust
 }
 
+# VoidAuth's pages get the App switcher too, for people managing their account.
 accounts.{$HOMELAB_DOMAIN} {
+	import /etc/caddy/switcher.caddyfile
 	reverse_proxy voidauth:3000
 }
 
