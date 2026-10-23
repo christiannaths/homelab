@@ -1,0 +1,25 @@
+{
+  "name": "@homelab/better-auth-sign-in-poc-e2e",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "better-auth-sign-in-poc-e2e",
+    "tags": [
+      "scope:better-auth-sign-in-poc",
+      "spike",
+      "platform:node"
+    ],
+    "implicitDependencies": [
+      "better-auth-sign-in-poc-accounts"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

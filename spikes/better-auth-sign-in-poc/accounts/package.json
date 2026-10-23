@@ -1,0 +1,30 @@
+{
+  "name": "@homelab/better-auth-sign-in-poc-accounts",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "better-auth-sign-in-poc-accounts",
+    "tags": [
+      "scope:better-auth-sign-in-poc",
+      "spike",
+      "platform:node"
+    ]
+  },
+  "scripts": {
+    "start": "node --no-experimental-webstorage src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p src/public/tsconfig.json",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run"
+  },
+  "dependencies": {
+    "@better-auth/passkey": "^1.7.12",
+    "@hono/node-server": "^2.1.5",
+    "@simplewebauthn/browser": "^13.3.0",
+    "better-auth": "^1.7.12",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
