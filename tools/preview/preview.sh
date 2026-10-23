@@ -3,6 +3,7 @@
 # .github/workflows/ run it. The preview's name is the only input; the rest comes from the
 # repository settings that tools/preview/setup.sh writes.
 #
+#   tools/preview/preview.sh prepare <name>  set up its app, volume, DNS and certificate only
 #   tools/preview/preview.sh deploy <name>   create or update the preview, its DNS and certificate
 #   tools/preview/preview.sh reset <name>    wipe its data and start it fresh
 #   tools/preview/preview.sh remove <name>   destroy it with its volume, certificate and DNS records
@@ -14,8 +15,8 @@
 # having Fly build one, so a workflow deploys the image it tested.
 set -euo pipefail
 
-command=${1:?Usage: preview.sh deploy|reset|remove <name>}
-name=${2:?Usage: preview.sh deploy|reset|remove <name>}
+command=${1:?Usage: preview.sh prepare|deploy|reset|remove <name>}
+name=${2:?Usage: preview.sh prepare|deploy|reset|remove <name>}
 if [[ ! "$name" =~ ^(staging|pr-[0-9]+)$ ]]; then
   echo "A preview is named staging or pr-<number>, not $name." >&2
   exit 1
@@ -80,7 +81,9 @@ set_record() { # zone name type content
 
 # ── Commands ──────────────────────────────────────────────────────────────
 
-deploy() {
+# Everything a preview needs besides its machine. The certificate takes minutes to issue, so a
+# workflow runs this first and the issuing overlaps building and testing the image.
+prepare() {
   if ! app_exists; then
     echo "Creating the Fly app $app…"
     flyctl apps create "$app" --org "$FLY_ORG"
@@ -93,24 +96,6 @@ deploy() {
   fi
   if ! flyctl volumes list --app "$app" --json | jq -e 'length > 0' >/dev/null; then
     flyctl volumes create data --app "$app" --region "$FLY_REGION" --size 1 --yes
-  fi
-
-  config="$(mktemp -d)/fly.toml"
-  sed -e "s/{{APP}}/$app/" -e "s/{{REGION}}/$FLY_REGION/" \
-    -e "s/{{NAME}}/$name/" -e "s/{{DOMAIN}}/$PREVIEW_DOMAIN/" \
-    "$root/tools/preview/fly.toml" >"$config"
-  if [[ -n "${PREVIEW_IMAGE:-}" ]]; then
-    flyctl deploy "$root" --config "$config" --image "$PREVIEW_IMAGE" --local-only \
-      --app "$app" --ha=false --yes
-  else
-    flyctl deploy "$root" --config "$config" --dockerfile "$root/tools/preview/Dockerfile" \
-      --app "$app" --remote-only --ha=false --yes
-  fi
-
-  # A new app gets its addresses on its first deploy; these are for one that lost them.
-  if flyctl ips list --app "$app" --json | jq -e 'length == 0' >/dev/null; then
-    flyctl ips allocate-v6 --app "$app"
-    flyctl ips allocate-v4 --shared --app "$app"
   fi
 
   local cert target zone_name
@@ -130,6 +115,28 @@ deploy() {
   zone_name=$(zone)
   set_record "$zone_name" "$(relative "*.$domain" "$zone_name")" CNAME "$app.fly.dev"
   set_record "$zone_name" "$(relative "_acme-challenge.$domain" "$zone_name")" CNAME "${target%.}"
+}
+
+deploy() {
+  prepare
+
+  config="$(mktemp -d)/fly.toml"
+  sed -e "s/{{APP}}/$app/" -e "s/{{REGION}}/$FLY_REGION/" \
+    -e "s/{{NAME}}/$name/" -e "s/{{DOMAIN}}/$PREVIEW_DOMAIN/" \
+    "$root/tools/preview/fly.toml" >"$config"
+  if [[ -n "${PREVIEW_IMAGE:-}" ]]; then
+    flyctl deploy "$root" --config "$config" --image "$PREVIEW_IMAGE" --local-only \
+      --app "$app" --ha=false --yes
+  else
+    flyctl deploy "$root" --config "$config" --dockerfile "$root/tools/preview/Dockerfile" \
+      --app "$app" --remote-only --ha=false --yes
+  fi
+
+  # A new app gets its addresses on its first deploy; these are for one that lost them.
+  if flyctl ips list --app "$app" --json | jq -e 'length == 0' >/dev/null; then
+    flyctl ips allocate-v6 --app "$app"
+    flyctl ips allocate-v4 --shared --app "$app"
+  fi
 
   # Done once a browser would accept the certificate, whatever Fly's status field is called.
   echo "Waiting for the certificate for $certificate…"
@@ -192,11 +199,12 @@ remove() {
 }
 
 case "$command" in
+  prepare) prepare ;;
   deploy) deploy ;;
   reset) reset ;;
   remove) remove ;;
   *)
-    echo "Unknown command $command. Use deploy, reset or remove." >&2
+    echo "Unknown command $command. Use prepare, deploy, reset or remove." >&2
     exit 1
     ;;
 esac

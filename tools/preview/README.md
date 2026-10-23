@@ -25,7 +25,7 @@ None of these go in the repo. The script keeps its answers in `tools/preview/.en
 
 ## How a preview runs
 
-[`preview.sh`](preview.sh) deploys, resets and removes one preview, and the workflows in [`.github/workflows/`](../../.github/workflows/) call it:
+[`preview.sh`](preview.sh) deploys, resets and removes one preview (and `prepare` sets up its app, certificate and DNS without deploying, which the workflows run first so the certificate issues during the build), and the workflows in [`.github/workflows/`](../../.github/workflows/) call it:
 
 | Workflow | When | Does |
 | --- | --- | --- |
