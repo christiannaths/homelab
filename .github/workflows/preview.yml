@@ -1,13 +1,25 @@
 # A preview for every pull request from this repo (ADR-PLAT-008): each push tests the preview image,
 # then deploys it as pr-<number> and keeps one comment on the pull request up to date with its
 # links. Closing or merging the pull request removes the preview. Pull requests from forks get no
-# secrets, so they get no preview. Until tools/preview/setup.sh has set the repository's settings,
-# only the image test runs.
+# secrets, so they get no preview, and neither do pull requests that only change docs. Until
+# tools/preview/setup.sh has set the repository's settings, only the image test runs.
 name: Preview
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+    # Only changes that reach the preview image, so a docs-only pull request gets no preview.
+    paths:
+      - apps/**
+      - packages/**
+      - tools/preview/**
+      - tools/package.json
+      - package.json
+      - package-lock.json
+      - .dockerignore
+      - .github/workflows/preview.yml
+      - "!**/*.md"
+      - "!**/docs/**"
 
 # A newer push, or closing the pull request, cancels a deploy still running for an older commit.
 concurrency:
@@ -26,6 +38,8 @@ env:
   PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
   DNSIMPLE_TOKEN: ${{ secrets.DNSIMPLE_TOKEN }}
   DNSIMPLE_ACCOUNT_ID: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+  # The image is built once, then tested and deployed as is.
+  PREVIEW_IMAGE: homelab-preview:ci
 
 jobs:
   deploy:
@@ -39,6 +53,17 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - uses: docker/setup-buildx-action@v3
+      # Built here with its layers cached in GitHub's cache, so most pushes reinstall nothing.
+      - name: Build the preview image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: tools/preview/Dockerfile
+          tags: ${{ env.PREVIEW_IMAGE }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Test the preview image
         run: npm run e2e -w @homelab/tools
       - uses: superfly/flyctl-actions/setup-flyctl@master

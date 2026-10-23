@@ -24,9 +24,10 @@ Most work on the homelab is done by Claude threads in cloud environments, and th
 - **Previews are open.** They hold the same test accounts, groups and published passwords as `tools/dev`, which the pull request comment lists. People sign in on VoidAuth's own page, as on a real install: a preview adds no site or shortcut that a real install lacks. VoidAuth's `STORAGE_KEY` is generated per preview and kept as a Fly secret.
 - **Data** is kept across deploys and restarts of the same preview: a later start only adds the test accounts that are missing. Removing a preview deletes its volume. Resetting a preview signals the running image, which stops every service, wipes the volume and starts again with fresh test accounts, so a reset needs no redeploy.
 - **GitHub Actions** deploys and removes previews:
-  - Every push to an open pull request from this repo deploys its preview, and the pull request comment says which commit it runs. Pull requests from forks get no preview, since they get no secrets.
+  - Every push to an open pull request from this repo deploys its preview, and the pull request comment says which commit it runs. Pull requests from forks get no preview, since they get no secrets. Nor do pull requests that change nothing the image is built from (only docs and Markdown, for example), since their preview would show nothing new.
+  - The workflow builds the image once on its own runner, with its layers kept in GitHub's cache so a push that leaves dependencies alone reinstalls nothing, then tests that image and pushes the same image to Fly. Building on Fly's builder instead meant waiting for it and building everything a second time.
   - Closing or merging a pull request removes its preview: the Fly app, its volume and its DNS records.
-  - Every push to `main` deploys it to staging, so staging always shows what has merged. Deploying another branch to staging and resetting a preview are run by hand (`workflow_dispatch`); the next push to `main` puts staging back on `main`.
+  - Every push to `main` that changes what the image is built from deploys it to staging, so staging always shows what has merged. Deploying another branch to staging and resetting a preview are run by hand (`workflow_dispatch`); the next push to `main` puts staging back on `main`.
 - **Settings** are GitHub repository settings, set by `tools/preview/setup.sh`:
   - Secrets: `FLY_API_TOKEN`, `DNSIMPLE_TOKEN` and `DNSIMPLE_ACCOUNT_ID`.
   - Variables: `PREVIEW_DOMAIN`, `FLY_ORG` and `FLY_REGION`.
@@ -58,5 +59,6 @@ Most work on the homelab is done by Claude threads in cloud environments, and th
 
 ## Changelog
 
+- 2026-10-23: Faster deploys: the workflows build the image once on GitHub's runner with cached layers and deploy the image they tested, and pull requests or pushes to `main` that change nothing in the image (docs only) deploy nothing.
 - 2026-10-23: Staging follows `main`: every push to `main` deploys it, so the maintainer always has one address showing what has merged. Deploying another branch there stays available by hand.
 - 2026-10-22: Accepted. One preview per pull request on Fly.io, plus a staging preview deployed only on request.
