@@ -259,6 +259,38 @@ describe("signing in", () => {
     assert.equal(await encyclopedia(admin.cookie), "in");
   });
 
+  test("Home lists each account's apps, from their manifests, to every account", async () => {
+    const apps = async (username: string) => {
+      const reply = await get("home", "/api/me", {
+        cookie: (await signIn(username)).cookie,
+      });
+      assert.equal(reply.status, 200, `${username}: ${reply.body}`);
+      const listed = pick(reply.body, "apps");
+      assert.ok(Array.isArray(listed), reply.body);
+      return listed.map((app) => pick(JSON.stringify(app), "name"));
+    };
+    assert.deepEqual(await apps("ada"), ["Encyclopedia", "Home", "Notes"]);
+    assert.deepEqual(await apps("dana"), ["Home", "Notes"]);
+    assert.deepEqual(await apps("bob"), ["Home"]);
+    assert.deepEqual(await apps(ADMIN.username), [
+      "Encyclopedia",
+      "Home",
+      "Notes",
+    ]);
+  });
+
+  test("every app's page loads the App switcher from Home", async () => {
+    const { cookie } = await signIn("ada");
+    for (const site of ["home", "notes", "encyclopedia"]) {
+      const reply = await get(site, "/_homelab/switcher.js", { cookie });
+      assert.equal(reply.status, 302, site);
+      assert.equal(reply.location, `https://home.${DOMAIN}/switcher.js`, site);
+    }
+    const script = await get("home", "/switcher.js", { cookie });
+    assert.equal(script.status, 200);
+    assert.match(script.body, /homelab-switcher/);
+  });
+
   test("VoidAuth's session is scoped to the preview's domain", async () => {
     const { cookies } = await signIn("dana");
     const session = cookies.find((cookie) =>
@@ -296,6 +328,22 @@ describe("the gateway", () => {
       reply.location ?? "",
       new RegExp(`^https://accounts\\.${DOMAIN}/`),
     );
+  });
+
+  test("lets anyone read each app's manifest and its icons, and nothing else", async () => {
+    for (const site of ["notes", "encyclopedia"]) {
+      const manifest = await get(site, "/manifest.webmanifest");
+      assert.equal(manifest.status, 200, site);
+      assert.equal(pick(manifest.body, "homelab", "opens_offline"), true, site);
+      const icons = pick(manifest.body, "icons");
+      assert.ok(Array.isArray(icons) && icons.length > 0, manifest.body);
+      for (const icon of icons) {
+        const src = String(pick(JSON.stringify(icon), "src"));
+        assert.equal((await get(site, `/${src}`)).status, 200, src);
+      }
+      for (const route of ["/", "/index.html", "/sw.js", "/icons/../"])
+        assert.equal((await get(site, route)).status, 302, `${site} ${route}`);
+    }
   });
 
   test("ignores Remote-* headers sent by the client", async () => {

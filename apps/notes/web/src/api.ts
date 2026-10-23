@@ -46,7 +46,5 @@ export async function checkSession(): Promise<SessionCheck> {
   return person ? { status: "signed-in", person } : { status: "unreachable" };
 }
 
-/** Page loads the service worker leaves to the network, so they reach the gateway. */
+/** A page load the service worker leaves to the network, so it reaches the gateway. */
 export const SIGN_IN_PATH = "/api/sign-in";
-/** Leads to VoidAuth's sign-out page, which signs the homelab account out of every app. */
-export const SIGN_OUT_PATH = "/api/sign-out";

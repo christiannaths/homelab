@@ -1,7 +1,7 @@
 # ADR-NOTE-014. How does the server handle HTTP requests and account security?
 
 - Status: Accepted
-- Date: 2026-10-19
+- Date: 2026-10-22
 - Depends on: [ADR-NOTE-003](ADR-NOTE-003-app-delivery.md), [ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md), [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)
 - Dependency of: none
 
@@ -18,7 +18,8 @@ The server needs a real HTTP API: the signed-in person, invites, people and role
   - Hocuspocus's `onRequest`, `onUpgrade` and `onListen` hooks are not used.
 - **Every API request and sync upgrade reads the person from the gateway's headers.** `Remote-User` is the username, `Remote-Name` the name and `Remote-Groups` the comma-separated groups, each percent-decoded. A request without `Remote-User` did not come through the gateway and is answered 401, and a sync upgrade without it opens no socket.
 - **The PWA asks the server who is signed in** (`GET /api/session`, with `redirect: "manual"`) whenever it starts online or reconnects. A signed-out device gets the gateway's redirect to VoidAuth instead of an answer, and goes to sign-in.
-- **Sign-in and sign-out are page loads the service worker does not answer** (`/api/sign-in` and `/api/sign-out`), so they reach the gateway. The gateway sends a signed-out browser to VoidAuth's sign-in page and back. `/api/sign-out` sends the browser to VoidAuth's `/logout` page.
+- **Sign-in is a page load the service worker does not answer** (`/api/sign-in`), so it reaches the gateway, which sends a signed-out browser to VoidAuth's sign-in page and back.
+- **The server has no sign-out route.** Signing out is the App switcher's, which goes to VoidAuth's `/logout` page itself ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
 
 ## Alternatives considered
 
@@ -43,6 +44,7 @@ The server needs a real HTTP API: the signed-in person, invites, people and role
 
 ## Changelog
 
+- 2026-10-22: `/api/sign-out` is removed, since signing out moved to the App switcher, the same in every app ([ADR-NOTE-009](ADR-NOTE-009-identity.md), issue #89).
 - 2026-10-19: The server reads the person from the homelab gateway's headers, instead of signing people in as an OIDC client and keeping its own device sessions. As an OIDC client, Notes could not learn of a sign-out made elsewhere ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md), PR #68).
 - 2026-10-17: Notes signed people in through VoidAuth and kept only its own device sessions, instead of running Better Auth with its own accounts and rate limiting. Passwords moved to the homelab's shared sign-in ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)).
 - 2026-10-17: Accepted. Hono served HTTP with Hocuspocus behind it, and Better Auth managed username accounts, scrypt passwords, year-long sessions and rate limiting in the same SQLite file.

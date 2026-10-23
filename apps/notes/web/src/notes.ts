@@ -1,23 +1,12 @@
-// Which screen shows, decided from three things: the person as of the last session check, whether
-// a sign-out is waiting, and whether the server can be reached (issue #47).
-import {
-  checkSession,
-  SIGN_IN_PATH,
-  SIGN_OUT_PATH,
-  type Person,
-} from "./api.ts";
-import {
-  rememberedPerson,
-  rememberPerson,
-  setSignOutWaiting,
-  signOutWaiting,
-} from "./device.ts";
+// Which screen shows, decided from two things: the person as of the last session check, and
+// whether the server can be reached (issue #47). Signing out is the App switcher's (ADR-NOTE-009).
+import { checkSession, SIGN_IN_PATH, type Person } from "./api.ts";
+import { rememberedPerson, rememberPerson } from "./device.ts";
 
 export type View =
   /** Checking the session, or on the way to a sign-in page. Nothing shows. */
   | { screen: "starting" }
   | { screen: "needs-connection" }
-  | { screen: "signed-out-here" }
   | { screen: "home"; person: Person; online: boolean };
 
 export class Notes {
@@ -46,34 +35,7 @@ export class Notes {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") void this.#reconnected();
     });
-    if (signOutWaiting()) {
-      await this.#finishSignOut();
-      return;
-    }
     await this.#checkSession();
-  }
-
-  /** Signs out of the homelab account, or, offline, signs out on this device at once. */
-  async signOut(): Promise<void> {
-    rememberPerson(undefined);
-    // Saved first, so a sign-out cut short by a lost connection still finishes next time.
-    setSignOutWaiting(true);
-    // Offline, the screen changes at once rather than when the request fails, which on a
-    // connection that hangs could take a long time.
-    if (!navigator.onLine) this.#show({ screen: "signed-out-here" });
-    else await this.#finishSignOut();
-  }
-
-  async #finishSignOut(): Promise<void> {
-    const result = await checkSession();
-    if (result.status === "unreachable") {
-      this.#show({ screen: "signed-out-here" });
-      return;
-    }
-    setSignOutWaiting(false);
-    // Already signed out elsewhere: going to VoidAuth's sign-out page would only ask to sign in.
-    if (result.status === "signed-out") await this.#goToSignIn();
-    else location.assign(SIGN_OUT_PATH);
   }
 
   async #checkSession(): Promise<void> {
@@ -104,8 +66,7 @@ export class Notes {
 
   async #reconnected(): Promise<void> {
     const { screen } = this.#view;
-    if (screen === "signed-out-here") await this.#finishSignOut();
-    else if (screen === "home" || screen === "needs-connection")
+    if (screen === "home" || screen === "needs-connection")
       await this.#checkSession();
   }
 

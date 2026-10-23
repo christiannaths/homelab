@@ -1,0 +1,30 @@
+{
+  "name": "@homelab/app-switcher",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "app-switcher",
+    "tags": [
+      "scope:shared",
+      "platform:browser"
+    ]
+  },
+  "exports": {
+    "./caching": "./src/caching.ts",
+    "./react": "./src/react.ts"
+  },
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@homelab/theme": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

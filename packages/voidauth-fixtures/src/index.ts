@@ -1,5 +1,6 @@
 export { VoidAuthClient, type VoidAuthAddress } from "./client.ts";
 export {
+  changeGroups,
   loadFixtures,
   parseFirstRunLink,
   type App,

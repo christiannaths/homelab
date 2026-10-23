@@ -33,8 +33,6 @@ export const HOMELAB_ADMIN: Account = {
   groups: ["auth_admins"],
 };
 
-export const VOIDAUTH_URL = "https://accounts.home.test";
-
 /** The headers the gateway adds after VoidAuth lets a request through. */
 export function gatewayHeaders(account: Account): Record<string, string> {
   return {
@@ -72,7 +70,6 @@ export async function start(
   const server = await startServer({
     dataDir,
     port,
-    voidauthUrl: VOIDAUTH_URL,
     clientDir,
   });
   return { ...server, url: `http://localhost:${port}`, dataDir };

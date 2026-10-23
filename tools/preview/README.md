@@ -1,6 +1,6 @@
 # Previews
 
-A preview is the whole homelab, built from one branch and running on Fly.io for trying by hand: one per open pull request, and `staging` on request. How previews work, and why, is in [ADR-PLAT-008](../../docs/adr/ADR-PLAT-008-work-previews.md).
+A preview is the whole homelab, built from one branch and running on Fly.io for trying by hand: one per open pull request, and `staging`, which follows `main`. How previews work, and why, is in [ADR-PLAT-008](../../docs/adr/ADR-PLAT-008-work-previews.md).
 
 ## Set up
 
@@ -30,10 +30,10 @@ None of these go in the repo. The script keeps its answers in `tools/preview/.en
 | Workflow | When | Does |
 | --- | --- | --- |
 | **Preview** | Each push to a pull request from this repo, and its closing | Tests the image, deploys `pr-<number>`, and keeps one comment on the pull request with its links; removes the preview when the pull request closes |
-| **Deploy to staging** | Run by hand, with a branch | Deploys that branch as `staging` and lists the links in the run's summary |
+| **Deploy to staging** | Each push to `main`, or run by hand with a branch | Deploys `main` (or that branch) as `staging` and lists the links in the run's summary |
 | **Reset preview** | Run by hand, with a preview's name | Wipes that preview's accounts and data and starts it with fresh test accounts |
 
-Inside the machine, [`start.ts`](start.ts) runs VoidAuth, the Notes server and the gateway ([`Caddyfile`](Caddyfile)), with all their data under `/data`, and loads the test accounts in [`fixtures.ts`](fixtures.ts). `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
+Inside the machine, [`start.ts`](start.ts) runs VoidAuth, the Home and Notes servers and the gateway ([`Caddyfile`](Caddyfile)), with all their data under `/data`, and loads the test accounts in [`fixtures.ts`](fixtures.ts). `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
 
 ## Adding an app
 
@@ -42,7 +42,7 @@ An app added to the homelab is added in four places together, or previews fall b
 - `tools/dev/` (the compose service, the gateway site and the test accounts' groups in `start.ts`).
 - [`Dockerfile`](Dockerfile): building the app and copying in what it runs.
 - [`Caddyfile`](Caddyfile): its site, importing the sign-in check, and [`start.ts`](start.ts) if it runs a server.
-- [`fixtures.ts`](fixtures.ts): the app and the groups the test people get.
+- [`fixtures.ts`](fixtures.ts): the app and the groups the test people get, named after its subdomain.
 
 ## Test the image
 
@@ -50,4 +50,4 @@ An app added to the homelab is added in four places together, or previews fall b
 npm run e2e -w @homelab/tools
 ```
 
-It needs Docker. It builds the image, runs it with a made-up preview domain the way Fly would, and drives it over HTTP: signing in as each test account, the sign-in check, forged headers, data surviving a restart, and a reset. `KEEP_PREVIEW=1` leaves the container running afterwards. Behind a proxy that intercepts TLS, set `NODE_EXTRA_CA_CERTS` to its CA so the build trusts it.
+It needs Docker. It builds the image, runs it with a made-up preview domain the way Fly would, and drives it over HTTP: signing in as each test account, the apps Home lists for each, the sign-in check, forged headers, data surviving a restart, and a reset. `KEEP_PREVIEW=1` leaves the container running afterwards. Behind a proxy that intercepts TLS, set `NODE_EXTRA_CA_CERTS` to its CA so the build trusts it.
