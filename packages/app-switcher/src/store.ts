@@ -50,6 +50,15 @@ export function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/**
+ * Forgets the kept answer and icons, as a signed-out answer does, when this page signs out. The
+ * menu stays as it is while the page goes to sign in.
+ */
+export function forget(): void {
+  keep(undefined);
+  forgetIcons();
+}
+
 /** Asks Home again, unless a question is already on its way. */
 export function refresh(): Promise<void> {
   asking ??= ask(homeOrigin(location))

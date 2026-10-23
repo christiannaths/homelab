@@ -1,6 +1,6 @@
 // The App switcher in a real Chromium behind the gateway and the accounts service (issues #88, #102
-// and #104): the tab at the top of every app, the menu it opens, signing out of every app, the
-// keyboard, and how it renders.
+// and #104): the tab at the top of every app, the menu it opens, the keyboard, and how it renders.
+// Its Sign out is in sign-out.test.ts.
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,6 @@ import {
   menuItems,
   newDevice,
   NOTES_URL,
-  onSignInPage,
   SESSION_COOKIE,
   signIn,
   startHome,
@@ -231,20 +230,6 @@ describe("the menu", () => {
     // The signed-in person's own page, not the sign-in page.
     await page.waitForURL(`${ACCOUNTS_URL}/`);
     await page.getByRole("heading", { name: ADA.name }).waitFor();
-  });
-
-  it("signs the homelab account out of every app", async () => {
-    const page = await newDevice(browser);
-    await signIn(page, ADA);
-    await tab(page).click();
-    await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await onSignInPage(page);
-
-    for (const app of [HOME_URL, NOTES_URL, ENCYCLOPEDIA_URL]) {
-      const other = await page.context().newPage();
-      await other.goto(app);
-      await onSignInPage(other);
-    }
   });
 
   it("closes on Escape and on a click outside it", async () => {

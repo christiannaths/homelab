@@ -3,7 +3,7 @@
 import type { Icons } from "./icons.ts";
 import type { App, Me } from "./me.ts";
 import { colourFor, initials } from "./person.ts";
-import { current, refresh, subscribe } from "./store.ts";
+import { current, forget, refresh, subscribe } from "./store.ts";
 import { STYLES } from "./styles.ts";
 
 /**
@@ -162,23 +162,35 @@ export class HomelabSwitcher extends HTMLElement {
       );
     });
     // The account page and signing out are on the accounts site, which needs a connection.
-    const atAccounts = (label: string, href: string) =>
+    const atAccounts = <K extends "a" | "button">(
+      tag: K,
+      label: string,
+      props: Partial<Record<string, string>>,
+    ) =>
       element(
-        "a",
+        tag,
         {
           "class": "item",
           "role": "menuitem",
           "tabindex": "-1",
-          "href": offline ? undefined : href,
           "aria-disabled": offline ? "true" : undefined,
+          ...props,
         },
         element("span", { class: "label" }, label),
         ...(offline
           ? [element("span", { class: "note" }, "Needs a connection")]
           : []),
       );
-    const account = atAccounts("Account settings", accountUrl);
-    const signOut = atAccounts("Sign out", signOutUrl);
+    const account = atAccounts("a", "Account settings", {
+      href: offline ? undefined : accountUrl,
+    });
+    // A button rather than a link, since signing out is a POST (ADR-PLAT-004). An "Are you
+    // sure?" step, if one comes, goes before #signOut.
+    const signOut = atAccounts("button", "Sign out", { type: "button" });
+    signOut.addEventListener("click", () => {
+      if (!offline && !signOut.hasAttribute("aria-busy"))
+        void this.#signOut(signOut, signOutUrl);
+    });
     this.#items = [...items, account, signOut];
 
     const avatar = element(
@@ -222,6 +234,39 @@ export class HomelabSwitcher extends HTMLElement {
     this.#root.replaceChildren(button, panel);
     if (wasOpen)
       this.#open(Math.min(Math.max(focused, 0), this.#items.length - 1));
+  }
+
+  /**
+   * Signs this browser out of every app, then shows the sign-in page, which brings the person back
+   * to this page. If the accounts service can't be reached, the person stays signed in and the
+   * button says so.
+   */
+  async #signOut(button: HTMLElement, signOutUrl: string): Promise<void> {
+    button.setAttribute("aria-busy", "true");
+    let done = false;
+    try {
+      const response = await fetch(signOutUrl, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      done = response.ok;
+    } catch {
+      // Unreachable, or an answer without CORS headers: `done` stays false.
+    }
+    button.removeAttribute("aria-busy");
+    if (!done) {
+      button.querySelector(".note")?.remove();
+      button.append(
+        element("span", { class: "note" }, "Didn't work, try again"),
+      );
+      return;
+    }
+    forget();
+    const signIn = new URL("/sign-in", signOutUrl);
+    signIn.searchParams.set("return-to", location.href);
+    location.assign(signIn.href);
   }
 
   #toggle(): void {

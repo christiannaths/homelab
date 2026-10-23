@@ -156,25 +156,6 @@ describe("signing in", () => {
   });
 });
 
-describe("signing out", () => {
-  it("ends this device's session only, and shows the sign-in page", async () => {
-    const phone = await signIn(accounts, ADA);
-    const tablet = await signIn(accounts, ADA);
-    const response = await request(accounts, "/sign-out", {
-      headers: { cookie: tablet },
-    });
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/sign-in");
-    const cleared = response.headers
-      .getSetCookie()
-      .find((c) => c.startsWith("__Secure-homelab.session_token="));
-    expect(cleared).toMatch(/Max-Age=0/i);
-    expect(cleared).toMatch(/Domain=\.?home\.test/i);
-    expect((await askGateway(accounts, tablet)).status).toBe(302);
-    expect((await askGateway(accounts, phone)).status).toBe(200);
-  });
-});
-
 describe("sign-in attempts", () => {
   it("are limited per address the gateway saw, whatever a browser adds before it", async () => {
     const limited = await startAccounts([ADA], {

@@ -129,8 +129,13 @@ ${
     ? `<ul>${apps.map(([app, level]) => `<li>${escape(appName(app))}${level === "admin" ? ' <span class="dimmed">admin</span>' : ""}</li>`).join("")}</ul>`
     : '<p class="dimmed">No apps yet.</p>'
 }
-<p><a href="/sign-out">Sign out</a></p>`,
+${signOutForm("/sign-out")}`,
   );
+}
+
+/** A POST, since a link or an image on any site could otherwise sign the browser out. */
+function signOutForm(action: string): string {
+  return `<form method="post" action="${escape(action)}"><button>Sign out</button></form>`;
 }
 
 /** `app` is an app's subdomain, or a hostname that isn't an app's. */
@@ -140,7 +145,8 @@ export function noAccessPage(app: string, accountsUrl: string): string {
     "No access",
     `<h1>You don't have access to ${escape(appName(app))}</h1>
 <p>Ask a homelab admin to give you access to it.</p>
-<p><a href="${escape(account)}">Your account</a></p>`,
+<p><a href="${escape(account)}">Your account</a></p>
+${signOutForm(new URL("/sign-out", accountsUrl).href)}`,
   );
 }
 
