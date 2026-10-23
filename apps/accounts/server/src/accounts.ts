@@ -99,9 +99,21 @@ export async function createAccounts(config: Config) {
     return new Response(null, { status: 303, headers });
   });
 
-  // A plain link for now, as VoidAuth's was. Signs out this device only.
-  app.get("/sign-out", async (c) => {
-    const headers = new Headers({ location: "/sign-in" });
+  // A link or an image on any site could otherwise sign the browser out.
+  app.get("/sign-out", (c) =>
+    c.text("Sign out from the App switcher.", 405, { allow: "POST" }),
+  );
+
+  // Sent by the App switcher's fetch from an app's page, or by a form on this site. Signs out
+  // this device only.
+  app.post("/sign-out", async (c) => {
+    const origin = c.req.header("origin");
+    if (
+      c.req.header("sec-fetch-site") === "cross-site" ||
+      !isHomelabOrigin(origin, config.domain)
+    )
+      return c.text("Forbidden", 403);
+    const headers = new Headers();
     if (await sessionOf(c.req.raw.headers)) {
       const signedOut = await betterAuth.api.signOut({
         headers: c.req.raw.headers,
@@ -110,7 +122,18 @@ export async function createAccounts(config: Config) {
       for (const cookie of signedOut.headers.getSetCookie())
         headers.append("set-cookie", cookie);
     }
-    return new Response(null, { status: 302, headers });
+    const fromForm = c.req
+      .header("content-type")
+      ?.startsWith("application/x-www-form-urlencoded");
+    if (fromForm) {
+      headers.set("location", "/sign-in");
+      return new Response(null, { status: 303, headers });
+    }
+    // The switcher reads the answer from another app's origin, then shows the sign-in page.
+    headers.set("access-control-allow-origin", origin);
+    headers.set("access-control-allow-credentials", "true");
+    headers.set("vary", "Origin");
+    return new Response(null, { status: 204, headers });
   });
 
   app.get("/", async (c) => {
@@ -129,6 +152,21 @@ export async function createAccounts(config: Config) {
 }
 
 export type Accounts = Awaited<ReturnType<typeof createAccounts>>;
+
+/** Whether a request's Origin is an https page of the homelab: an app's, or this site's. */
+function isHomelabOrigin(
+  origin: string | undefined,
+  domain: string,
+): origin is string {
+  if (!origin) return false;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  return url.protocol === "https:" && url.hostname.endsWith(`.${domain}`);
+}
 
 /**
  * The client address the gateway put last in X-Forwarded-For. Anything before it came from the
