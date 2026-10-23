@@ -1,5 +1,6 @@
 // <homelab-switcher>: the tab at the top of the page and the menu it opens (GLOSSARY.md: App
 // switcher). Its own shadow DOM keeps the app's styles and its own apart.
+import type { Icons } from "./icons.ts";
 import type { App, Me } from "./me.ts";
 import { colourFor, initials } from "./person.ts";
 import { current, refresh, subscribe } from "./store.ts";
@@ -60,6 +61,7 @@ export class HomelabSwitcher extends HTMLElement {
   readonly #shadow = this.attachShadow({ mode: "open" });
   readonly #root = element("div", { class: "root" });
   #me: Me | undefined;
+  #icons: Icons | undefined;
   #offline = false;
   #button: HTMLButtonElement | undefined;
   #panel: HTMLDivElement | undefined;
@@ -87,19 +89,23 @@ export class HomelabSwitcher extends HTMLElement {
   #show(): void {
     const state = current();
     const me = state.status === "signed-in" ? state.me : undefined;
+    const icons = state.status === "signed-in" ? state.icons : undefined;
     // Offline is as the browser says: Home being unreachable alone greys nothing out.
     const offline = !navigator.onLine;
     // Signed out, the switcher shows nothing and leaves signing in to the app or its page.
     this.hidden = !me;
-    if (me === this.#me && offline === this.#offline) return;
+    if (me === this.#me && icons === this.#icons && offline === this.#offline)
+      return;
     this.#me = me;
+    this.#icons = icons;
     this.#offline = offline;
-    if (me) this.#render(me, offline);
+    if (me) this.#render(me, icons, offline);
     else this.#root.replaceChildren();
   }
 
   #render(
     { person, apps, accountUrl, signOutUrl }: Me,
+    icons: Icons | undefined,
     offline: boolean,
   ): void {
     const wasOpen = this.#panel ? !this.#panel.hidden : false;
@@ -145,7 +151,11 @@ export class HomelabSwitcher extends HTMLElement {
           "aria-current": here ? "page" : undefined,
         },
         app.icon
-          ? element("img", { src: app.icon, alt: "", crossorigin: "anonymous" })
+          ? element("img", {
+              src: icons?.[app.icon] ?? app.icon,
+              alt: "",
+              crossorigin: "anonymous",
+            })
           : element("span", { class: "no-icon" }),
         element("span", { class: "label" }, app.name),
         ...(here ? [element("span", { class: "note" }, "Current")] : []),

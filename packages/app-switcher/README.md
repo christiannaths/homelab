@@ -6,17 +6,7 @@ The tab at the top of every app and the menu it opens: the person's name and ema
 
 An app does nothing to get the switcher beyond its site in the gateway, and the switcher has no options: every app gets the same tab in the same place. It never changes the app's layout, since it floats over the page.
 
-An offline-first app also adds the switcher's route to its Workbox config, so the other apps' icons show when it opens offline:
-
-```ts
-import { switcherCaching } from "@homelab/app-switcher/caching";
-
-VitePWA({
-  workbox: { clientsClaim: true, runtimeCaching: switcherCaching /* … */ },
-});
-```
-
-`clientsClaim` lets the service worker keep the icons on the very first visit. The app's saved page carries the switcher the gateway put in it, so an offline-first app shows the switcher from its last saved page, online too, until the app next updates that page.
+An offline-first app's saved page carries the switcher the gateway put in it, so the app shows the switcher from its last saved page, online too, until the app next updates that page. Nothing in the app's offline caching is needed for the switcher.
 
 The switcher renders in its own shadow DOM, styled by a constructed style sheet, so the app's styles and its own don't reach each other and a page's style policy doesn't block it. The gateway lets its script, and its requests to Home and for icons, through a page's security policy.
 
@@ -33,7 +23,7 @@ On VoidAuth's pages (at `accounts.`) it also marks VoidAuth's "add a passkey?" q
 
 The switcher keeps Home's last answer in the app's `localStorage` (`homelab.switcher`) and shows it when the device is offline or Home can't be reached. While the device is offline, apps whose manifest doesn't mark them as opening offline are greyed out and can't be opened, and Account settings and Sign out are greyed out with **Needs a connection**. It asks Home again on every load and when the device comes back online, so apps granted or removed meanwhile show up then. A signed-out answer clears what it kept.
 
-The service-worker route in [`src/caching.ts`](src/caching.ts) keeps the other apps' icons (from the copy kept, refreshed in the background). Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
+With each answer from Home it also keeps the apps' icons (`homelab.switcher.icons`), drawn at 40 pixels as data addresses, and shows them with the kept answer. A signed-out answer clears them too. Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
 
 ## Building and testing
 

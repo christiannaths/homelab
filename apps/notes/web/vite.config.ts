@@ -1,7 +1,6 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { switcherCaching } from "@homelab/app-switcher/caching";
 import { tokens } from "@homelab/theme/tokens";
 
 declare module "vite-plugin-pwa" {
@@ -61,10 +60,6 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/sync/],
-        // The first visit is controlled at once, so the App switcher's icons are kept from then
-        // on (packages/app-switcher/src/caching.ts).
-        clientsClaim: true,
-        runtimeCaching: switcherCaching,
       },
     }),
   ],

@@ -28,7 +28,7 @@ forward_auth @needs-sign-in {$VOIDAUTH_UPSTREAM:voidauth:3000} {
 }
 
 # The manifest and icons are public, and readable from every other app's page: the App switcher
-# and Home keep icons for offline with CORS (packages/app-switcher/src/caching.ts), and the
+# and Home keep icons for offline with CORS (packages/app-switcher/src/icons.ts), and the
 # switcher reads Home's manifest to tell a signed-out browser from one that can't reach Home.
 @homelab-public path /manifest.webmanifest /icons/*
 header @homelab-public Access-Control-Allow-Origin "*"
