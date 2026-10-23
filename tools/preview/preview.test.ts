@@ -15,7 +15,8 @@ import { VoidAuthClient } from "@homelab/voidauth-fixtures";
 import { ADMIN, PEOPLE } from "./fixtures.ts";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
-const IMAGE = "homelab-preview:test";
+// The preview workflow builds the image itself and passes it in, so the image tested is the one deployed.
+const IMAGE = process.env.PREVIEW_IMAGE ?? "homelab-preview:test";
 const CONTAINER = "homelab-preview-test";
 const VOLUME = "homelab-preview-test";
 const DOMAIN = "pr-1.preview.test";
@@ -170,7 +171,8 @@ async function openDocument(cookie: string, name: string) {
   await new Promise<void>((resolve, reject) => {
     provider.on("synced", () => resolve());
     provider.on("authenticationFailed", () => reject(new Error("denied")));
-    setTimeout(() => reject(new Error("no sync in 20 s")), 20_000);
+    // Unref'd, or the test process waits out the 20 s after the last test passes.
+    setTimeout(() => reject(new Error("no sync in 20 s")), 20_000).unref();
   });
   return {
     text: doc.getText("body"),
@@ -192,16 +194,17 @@ async function restart(): Promise<void> {
 before(async () => {
   // Behind a proxy that intercepts TLS, as in a cloud environment, npm in the build needs its CA.
   const ca = process.env.NODE_EXTRA_CA_CERTS;
-  docker(
-    "build",
-    "--quiet",
-    ...(ca ? ["--secret", `id=ca-certs,src=${ca}`] : []),
-    "-f",
-    "tools/preview/Dockerfile",
-    "-t",
-    IMAGE,
-    ".",
-  );
+  if (!process.env.PREVIEW_IMAGE)
+    docker(
+      "build",
+      "--quiet",
+      ...(ca ? ["--secret", `id=ca-certs,src=${ca}`] : []),
+      "-f",
+      "tools/preview/Dockerfile",
+      "-t",
+      IMAGE,
+      ".",
+    );
   execFileSync("docker", ["rm", "--force", "--volumes", CONTAINER], {
     stdio: "ignore",
   });

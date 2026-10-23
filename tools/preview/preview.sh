@@ -9,6 +9,9 @@
 #
 # Needs flyctl (as `flyctl`, the name every install provides), curl and jq, and FLY_API_TOKEN, FLY_ORG, FLY_REGION, PREVIEW_DOMAIN, DNSIMPLE_TOKEN
 # and DNSIMPLE_ACCOUNT_ID in the environment.
+#
+# With PREVIEW_IMAGE set to an image in the local Docker, deploy pushes that image instead of
+# having Fly build one, so a workflow deploys the image it tested.
 set -euo pipefail
 
 command=${1:?Usage: preview.sh deploy|reset|remove <name>}
@@ -96,8 +99,13 @@ deploy() {
   sed -e "s/{{APP}}/$app/" -e "s/{{REGION}}/$FLY_REGION/" \
     -e "s/{{NAME}}/$name/" -e "s/{{DOMAIN}}/$PREVIEW_DOMAIN/" \
     "$root/tools/preview/fly.toml" >"$config"
-  flyctl deploy "$root" --config "$config" --dockerfile "$root/tools/preview/Dockerfile" \
-    --app "$app" --remote-only --ha=false --yes
+  if [[ -n "${PREVIEW_IMAGE:-}" ]]; then
+    flyctl deploy "$root" --config "$config" --image "$PREVIEW_IMAGE" --local-only \
+      --app "$app" --ha=false --yes
+  else
+    flyctl deploy "$root" --config "$config" --dockerfile "$root/tools/preview/Dockerfile" \
+      --app "$app" --remote-only --ha=false --yes
+  fi
 
   # A new app gets its addresses on its first deploy; these are for one that lost them.
   if flyctl ips list --app "$app" --json | jq -e 'length == 0' >/dev/null; then
