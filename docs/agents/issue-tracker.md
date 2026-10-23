@@ -2,6 +2,8 @@
 
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
+**Cloud sessions:** `gh auth status` reports an invalid token, but `gh api` calls still work through the session's proxy. Use them for what the GitHub tools can't do, such as native blocking links (see **Blocking** below).
+
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
