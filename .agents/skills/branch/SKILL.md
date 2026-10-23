@@ -25,8 +25,9 @@ A branch name is `<type>/<slug>`, for example `feat/offline-sync` or `fix/42-log
 ## Steps
 
 1. If the session already names a branch to work on, check it out (create it if missing) and stop here.
-2. Pick the type and slug from the task, or from `$ARGUMENTS` when invoked as `/branch <description>`. When two types fit, take the one describing the main change.
-3. Confirm the name is free: `git branch --list <name>` and `git ls-remote --heads origin <name>` both print nothing.
-4. Create it from the latest `main` unless the user named another base: `git fetch origin main && git switch -c <name> origin/main`.
+2. If the work is a ticket whose spec already has a branch or open PR, check out that branch and stop here: a spec ships as one PR (see `docs/agents/issue-tracker.md`).
+3. Pick the type and slug from the task, or from `$ARGUMENTS` when invoked as `/branch <description>`. When two types fit, take the one describing the main change.
+4. Confirm the name is free: `git branch --list <name>` and `git ls-remote --heads origin <name>` both print nothing.
+5. Create it from the latest `main` unless the user named another base: `git fetch origin main && git switch -c <name> origin/main`.
 
 Done when `git branch --show-current` prints the new name.

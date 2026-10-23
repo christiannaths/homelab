@@ -8,6 +8,10 @@ Matt Pocock's skills (`mattpocock/skills`) are installed in `.agents/skills/` (r
 
 Issues are tracked in this repo's GitHub Issues (`christiannaths/homelab`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Feature builds
+
+A spec from `/to-spec` and its tickets from `/to-tickets` ship as **one PR**, not one per ticket. Prefer `/implement-spec` for the whole spec; when working ticket by ticket with `/implement`, check out the spec's branch first and commit there. Build a spec in one thread where possible, since each cloud thread gets its own branch. See "How work is closed" in `docs/agents/issue-tracker.md`.
+
 ### Triage labels
 
 The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
