@@ -14,11 +14,13 @@ export interface TestPerson {
 
 /**
  * Makes each person, or brings an existing one (by email) to exactly what is given: name,
- * password, homelab admin and App access. Returns each person's account id, by email.
+ * password, homelab admin and App access. With `onlyMissing`, an existing person is left as they
+ * are. Returns each person's account id, by email.
  */
 export async function loadTestPeople(
   accounts: Accounts,
   people: TestPerson[],
+  { onlyMissing = false }: { onlyMissing?: boolean } = {},
 ): Promise<Record<string, string>> {
   const ctx = await accounts.betterAuth.$context;
   const { minPasswordLength, maxPasswordLength } = ctx.password.config;
@@ -32,12 +34,16 @@ export async function loadTestPeople(
       throw new Error(
         `${email}: a password needs at least ${minPasswordLength} characters`,
       );
+    const found = await ctx.internalAdapter.findUserByEmail(email);
+    if (found && onlyMissing) {
+      ids[email] = found.user.id;
+      continue;
+    }
     const fields = {
       name: person.name,
       homelabAdmin: person.homelabAdmin ?? false,
     };
     const hash = await ctx.password.hash(person.password);
-    const found = await ctx.internalAdapter.findUserByEmail(email);
     let id: string;
     if (found) {
       id = found.user.id;

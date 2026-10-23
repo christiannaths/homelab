@@ -1,19 +1,22 @@
 // Starts the whole homelab on this machine for trying it by hand (see README.md), and loads the test
-// people below into VoidAuth. Running it again only fills in what is missing.
+// people (tools/test-people.ts) into the accounts service. Running it again only adds the people
+// missing.
 //
 //   node tools/dev/start.ts      build the apps and the gateway, run everything with its logs until Ctrl+C
 //
 //   node tools/dev/start.ts reset stop the containers and delete their data
 import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { buildGatewayImage } from "@homelab/gateway/image";
-import {
-  loadFixtures,
-  VoidAuthClient,
-  type Person,
-} from "@homelab/voidauth-fixtures";
+import { APPS, LOAD_TEST_PEOPLE, PEOPLE } from "../test-people.ts";
 
 const HERE = import.meta.dirname;
 const ROOT = path.join(HERE, "..", "..");
@@ -23,57 +26,7 @@ const CA_FILE = path.join(HERE, "data", "gateway-root-ca.crt");
 const DOMAIN = process.env.HOMELAB_DOMAIN ?? "homelab.localhost";
 const PORT = Number(process.env.GATEWAY_PORT ?? 8443);
 const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${PORT}`;
-
-/**
- * The instance admin VoidAuth creates on first run. VoidAuth lets it into every app, but Home lists
- * only the apps whose groups it has (ADR-PLAT-004).
- */
-const ADMIN = {
-  username: "auth_admin",
-  password: "violet-quartz-harbour-71",
-  groups: ["notes-admins", "encyclopedia"],
-};
-
-/**
- * Each app's VoidAuth groups, named after its subdomain: being in any of them lets a person into
- * the app. Home has none, so every account reaches it.
- */
-const APPS = [
-  { host: `home.${DOMAIN}`, name: "Home", groups: [] },
-  { host: `notes.${DOMAIN}`, name: "Notes", groups: ["notes", "notes-admins"] },
-  {
-    host: `encyclopedia.${DOMAIN}`,
-    name: "Encyclopedia",
-    groups: ["encyclopedia"],
-  },
-];
-
-/** The test people, each with what their groups get them, for the summary. */
-const PEOPLE: (Person & { gets: string })[] = [
-  {
-    username: "ada",
-    password: "lantern-meadow-copper-48",
-    name: "Ada Lovelace",
-    email: "ada@example.com",
-    groups: ["notes-admins", "encyclopedia"],
-    gets: "Notes as an owner, and the Encyclopedia",
-  },
-  {
-    username: "dana",
-    password: "quartz-ember-willow-27",
-    name: "Dana Scully",
-    email: "dana@example.com",
-    groups: ["notes"],
-    gets: "Notes as a member, no Encyclopedia",
-  },
-  {
-    username: "bob",
-    password: "harbour-violet-thistle-93",
-    name: "Bob Ross",
-    groups: [],
-    gets: "a homelab account but no apps: Home only",
-  },
-];
+const appUrl = (site: string) => `https://${site}.${DOMAIN}:${PORT}/`;
 
 function compose(...args: string[]): string {
   return execFileSync("docker", ["compose", ...args], {
@@ -117,36 +70,69 @@ async function startHomelab(): Promise<void> {
     const ca = await gatewayCa();
     mkdirSync(path.dirname(CA_FILE), { recursive: true });
     writeFileSync(CA_FILE, ca);
-    await loadFixtures(new VoidAuthClient({ url: ACCOUNTS_URL, ca }), {
-      admin: ADMIN,
-      apps: APPS,
-      people: PEOPLE,
-      readLog: () => compose("logs", "voidauth"),
-    });
+    await loadTestPeople();
   })().then(printSummary, (error: unknown) =>
     console.error(
-      `\nSetting VoidAuth up failed: ${String(error)}\nIf it keeps failing, \`npm run dev:reset\` starts over.\n`,
+      `\nLoading the test people failed: ${String(error)}\nIf it keeps failing, \`npm run dev:reset\` starts over.\n`,
     ),
   );
 
   process.exit(await exited);
 }
 
+/**
+ * Makes the test people who are missing, with the accounts service's own loader, once the service
+ * has made its tables.
+ */
+async function loadTestPeople(): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      execFileSync(
+        "docker",
+        [
+          "compose",
+          "exec",
+          "accounts",
+          "wget",
+          "-q",
+          "--spider",
+          "http://127.0.0.1:3000/sign-in",
+        ],
+        { cwd: HERE, stdio: "ignore" },
+      );
+      break;
+    } catch (error) {
+      if (i >= 120) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  execFileSync(
+    "docker",
+    ["compose", "exec", "-T", "accounts", "node", ...LOAD_TEST_PEOPLE],
+    {
+      cwd: HERE,
+      input: JSON.stringify(PEOPLE),
+      stdio: ["pipe", "ignore", "inherit"],
+    },
+  );
+}
+
+/** A link that signs the browser in as the person, with no password, and opens Home. */
+const signInLink = (email: string) =>
+  `${ACCOUNTS_URL}/test-sign-in?email=${encodeURIComponent(email)}&return-to=${encodeURIComponent(appUrl("home"))}`;
+
 function printSummary(): void {
   console.log(`
 The homelab is running. Ctrl+C stops it, keeping its data.
 
-  Sign-in and admin pages  ${ACCOUNTS_URL}/admin
-  Home                     https://${APPS[0]?.host}:${PORT}/
-  Notes                    https://${APPS[1]?.host}:${PORT}/
-  Encyclopedia             https://${APPS[2]?.host}:${PORT}/
+  Accounts      ${ACCOUNTS_URL}/
+${APPS.map((app) => `  ${app.name.padEnd(13)} ${appUrl(app.site)}`).join("\n")}
 
-Accounts:
-  ${ADMIN.username.padEnd(10)} ${ADMIN.password.padEnd(26)} the homelab admin, every app`);
+Test people, signing in by email with the password, or in one click with their link:`);
   for (const person of PEOPLE)
-    console.log(
-      `  ${person.username.padEnd(10)} ${person.password.padEnd(26)} ${person.gets}`,
-    );
+    console.log(`
+  ${person.email.padEnd(18)} ${person.password.padEnd(26)} ${person.gets}
+    ${signInLink(person.email)}`);
   console.log(`
 The certificates come from the gateway's own CA, so the browser warns until you trust it. Trust
 ${path.relative(process.cwd(), CA_FILE)} to test installing the apps and opening them offline
@@ -171,13 +157,20 @@ async function gatewayCa(): Promise<string> {
   throw new Error("The gateway made no CA");
 }
 
-// VoidAuth encrypts its secrets with STORAGE_KEY, so it is made once and kept with the data.
-if (!existsSync(ENV_FILE))
-  writeFileSync(ENV_FILE, `STORAGE_KEY=${randomBytes(24).toString("hex")}\n`);
+// The accounts service signs its session cookies with ACCOUNTS_SECRET, so it is made once and kept
+// with the data. A file from before it, with another service's key, is made again.
+if (
+  !existsSync(ENV_FILE) ||
+  !readFileSync(ENV_FILE, "utf8").includes("ACCOUNTS_SECRET=")
+)
+  writeFileSync(
+    ENV_FILE,
+    `ACCOUNTS_SECRET=${randomBytes(32).toString("hex")}\n`,
+  );
 const command = process.argv[2] ?? "start";
 if (command === "reset") {
   compose("down", "--volumes", "--remove-orphans");
-  rmSync(ENV_FILE);
+  rmSync(ENV_FILE, { force: true });
   rmSync(path.dirname(CA_FILE), { recursive: true, force: true });
 } else if (command === "start") {
   await startHomelab();

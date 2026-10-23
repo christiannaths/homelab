@@ -3,7 +3,9 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { makeSignature } from "better-auth/crypto";
 import { Hono, type Context } from "hono";
+import { setCookie } from "hono/cookie";
 import { AppAccess } from "./app-access.ts";
 import { createBetterAuth } from "./better-auth.ts";
 import type { Config } from "./config.ts";
@@ -112,6 +114,27 @@ export async function createAccounts(config: Config) {
     }
     return new Response(null, { status: 302, headers });
   });
+
+  if (config.testSignInLinks)
+    app.get("/test-sign-in", async (c) => {
+      const ctx = await betterAuth.$context;
+      const email = (c.req.query("email") ?? "").trim().toLowerCase();
+      const found = await ctx.internalAdapter.findUserByEmail(email);
+      if (!found) return c.notFound();
+      const session = await ctx.internalAdapter.createSession(found.user.id);
+      // Signed as Better Auth signs its own session cookie, which it reads back on every request.
+      const signature = await makeSignature(session.token, ctx.secret);
+      const { name, attributes } = ctx.authCookies.sessionToken;
+      setCookie(c, name, `${session.token}.${signature}`, {
+        domain: attributes.domain,
+        path: attributes.path ?? "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+        maxAge: ctx.sessionConfig.expiresIn,
+      });
+      return c.redirect(safeReturnTo(c.req.query("return-to"), config), 302);
+    });
 
   app.get("/", async (c) => {
     const session = await sessionOf(c.req.raw.headers);

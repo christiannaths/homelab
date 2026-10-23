@@ -11,8 +11,15 @@ import {
 } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
-import { VoidAuthClient } from "@homelab/voidauth-fixtures";
-import { ADMIN, PEOPLE } from "./fixtures.ts";
+import {
+  ADA,
+  ADMIN,
+  BOB,
+  DANA,
+  INSTALLED_APPS,
+  PEOPLE,
+  type TestPerson,
+} from "../test-people.ts";
 
 const ROOT = new URL("../..", import.meta.url).pathname;
 // The preview workflow builds the image itself and passes it in, so the image tested is the one deployed.
@@ -20,10 +27,9 @@ const IMAGE = process.env.PREVIEW_IMAGE ?? "homelab-preview:test";
 const CONTAINER = "homelab-preview-test";
 const VOLUME = "homelab-preview-test";
 const DOMAIN = "pr-1.preview.test";
+const ACCOUNTS = `https://accounts.${DOMAIN}`;
 
 let port = 0;
-
-const byName = (a: unknown, b: unknown) => String(a).localeCompare(String(b));
 
 /** The value at `keys` in a JSON body, or undefined where the body has another shape. */
 function pick(text: string, ...keys: string[]): unknown {
@@ -71,12 +77,14 @@ function get(
   site: string,
   route: string,
   headers: Record<string, string> = {},
+  form?: string,
 ): Promise<Reply> {
   return new Promise((resolve, reject) => {
     request(
       {
         host: "127.0.0.1",
         port,
+        method: form === undefined ? "GET" : "POST",
         // A fresh connection each time, since a restart or reset closes the gateway's.
         agent: false,
         path: route,
@@ -101,32 +109,70 @@ function get(
       },
     )
       .on("error", reject)
-      .end();
+      .end(form);
   });
 }
 
+let addresses = 0;
+/** A new client address each time, so the tests' many sign-ins never reach the rate limit. */
+const nextAddress = () => `203.0.113.${(addresses++ % 250) + 1}`;
+
 /**
- * Signs in on VoidAuth's sign-in page as a browser does, through the gateway, and returns the
- * session cookies it sets and the cookie header that carries them.
+ * Submits the accounts sign-in page's form as a browser does, through the gateway, from the
+ * client address Fly's proxy appends to X-Forwarded-For.
  */
-async function signIn(username: string): Promise<{
-  cookie: string;
-  cookies: string[];
-}> {
-  const account = [ADMIN, ...PEOPLE].find(
-    (candidate) => candidate.username === username,
+function submitSignIn(
+  email: string,
+  password: string,
+  forwardedFor = nextAddress(),
+): Promise<Reply> {
+  return get(
+    "accounts",
+    "/sign-in",
+    {
+      "origin": ACCOUNTS,
+      "content-type": "application/x-www-form-urlencoded",
+      "x-forwarded-for": forwardedFor,
+    },
+    new URLSearchParams({ email, password }).toString(),
   );
-  assert.ok(account, `no test account ${username}`);
-  const browser = new VoidAuthClient({
-    url: `https://accounts.${DOMAIN}`,
-    port,
-  });
-  assert.ok(await browser.signIn(account), `VoidAuth refused ${username}`);
-  const cookies = browser.sessionCookies();
+}
+
+/**
+ * Signs in with the person's email and password, and returns the session cookies set and the
+ * cookie header that carries them.
+ */
+async function signIn(
+  person: Pick<TestPerson, "email" | "password">,
+): Promise<{ cookie: string; cookies: string[] }> {
+  const reply = await submitSignIn(person.email, person.password);
+  assert.equal(reply.status, 303, `${person.email} was refused: ${reply.body}`);
   return {
-    cookies,
-    cookie: cookies.map((cookie) => cookie.split(";")[0]).join("; "),
+    cookies: reply.cookies,
+    cookie: reply.cookies.map((cookie) => cookie.split(";")[0]).join("; "),
   };
+}
+
+/** Loads people with the accounts service's loader in the preview, bringing each to what is given. */
+function loadPeople(people: Omit<TestPerson, "gets">[]): void {
+  execFileSync(
+    "docker",
+    [
+      "exec",
+      "--interactive",
+      "--env",
+      `HOMELAB_DOMAIN=${DOMAIN}`,
+      "--env",
+      `HOMELAB_APPS=${INSTALLED_APPS}`,
+      "--env",
+      "DATA_DIR=/data/accounts",
+      CONTAINER,
+      "node",
+      "--no-experimental-webstorage",
+      "apps/accounts/server/src/load-test-people.ts",
+    ],
+    { input: JSON.stringify(people), stdio: ["pipe", "ignore", "inherit"] },
+  );
 }
 
 /** Notes' view of who is signed in, or where the gateway sent the request instead. */
@@ -139,9 +185,7 @@ async function notesSession(cookie: string): Promise<string> {
 /** Whether the Encyclopedia lets the cookie's person in. */
 async function encyclopedia(cookie: string): Promise<string> {
   const reply = await get("encyclopedia", "/", { cookie });
-  return reply.status === 200
-    ? "in"
-    : new URL(reply.location ?? "", "https://x").pathname;
+  return reply.status === 200 ? "in" : String(reply.status);
 }
 
 /** Opens a Notes document over the sync socket, through the gateway, as the cookie's person. */
@@ -226,7 +270,7 @@ before(async () => {
     "--env",
     "PREVIEW_DOMAIN=preview.test",
     "--env",
-    "STORAGE_KEY=preview-test-storage-key-0123456789abcdef",
+    "ACCOUNTS_SECRET=preview-test-accounts-secret-0123456789abcdef",
     IMAGE,
   );
   port = Number(docker("port", CONTAINER, "8080").split(":").at(-1));
@@ -244,46 +288,66 @@ after(() => {
 });
 
 describe("signing in", () => {
-  test("each account gets what its groups give it", async () => {
-    const ada = await signIn("ada");
+  test("each test person signs in by email and gets what their App access gives them", async () => {
+    const ada = await signIn(ADA);
     assert.equal(await notesSession(ada.cookie), "owner");
     assert.equal(await encyclopedia(ada.cookie), "in");
 
-    const dana = await signIn("dana");
+    const dana = await signIn(DANA);
     assert.equal(await notesSession(dana.cookie), "member");
-    assert.equal(await encyclopedia(dana.cookie), "/forbidden");
+    assert.equal(await encyclopedia(dana.cookie), "403");
 
-    const bob = await signIn("bob");
-    assert.match(await notesSession(bob.cookie), /^302 .*\/forbidden/);
-    assert.equal(await encyclopedia(bob.cookie), "/forbidden");
+    const bob = await signIn(BOB);
+    assert.match(await notesSession(bob.cookie), /^403 /);
+    assert.equal(await encyclopedia(bob.cookie), "403");
 
-    const admin = await signIn(ADMIN.username);
+    const admin = await signIn(ADMIN);
     assert.equal(await notesSession(admin.cookie), "owner");
     assert.equal(await encyclopedia(admin.cookie), "in");
   });
 
-  test("Home lists each account's apps, from their manifests, to every account", async () => {
-    const apps = async (username: string) => {
+  test("a wrong password is refused", async () => {
+    assert.equal((await submitSignIn(ADA.email, BOB.password)).status, 401);
+  });
+
+  test("attempts are limited per client address, which a browser can't choose", async () => {
+    const statuses = [];
+    // Fly's proxy appends the address it saw; whatever the browser sent comes before it.
+    for (let i = 0; i < 6; i++)
+      statuses.push(
+        (
+          await submitSignIn(
+            ADA.email,
+            BOB.password,
+            `198.51.100.${i + 1}, 192.0.2.77`,
+          )
+        ).status,
+      );
+    assert.deepEqual(statuses, [401, 401, 401, 401, 401, 429]);
+    assert.equal(
+      (await submitSignIn(ADA.email, ADA.password, "192.0.2.78")).status,
+      303,
+    );
+  });
+
+  test("Home lists each person's apps, from their manifests, to every account", async () => {
+    const apps = async (person: TestPerson) => {
       const reply = await get("home", "/api/me", {
-        cookie: (await signIn(username)).cookie,
+        cookie: (await signIn(person)).cookie,
       });
-      assert.equal(reply.status, 200, `${username}: ${reply.body}`);
+      assert.equal(reply.status, 200, `${person.email}: ${reply.body}`);
       const listed = pick(reply.body, "apps");
       assert.ok(Array.isArray(listed), reply.body);
       return listed.map((app) => pick(JSON.stringify(app), "name"));
     };
-    assert.deepEqual(await apps("ada"), ["Encyclopedia", "Home", "Notes"]);
-    assert.deepEqual(await apps("dana"), ["Home", "Notes"]);
-    assert.deepEqual(await apps("bob"), ["Home"]);
-    assert.deepEqual(await apps(ADMIN.username), [
-      "Encyclopedia",
-      "Home",
-      "Notes",
-    ]);
+    assert.deepEqual(await apps(ADA), ["Encyclopedia", "Home", "Notes"]);
+    assert.deepEqual(await apps(DANA), ["Home", "Notes"]);
+    assert.deepEqual(await apps(BOB), ["Home"]);
+    assert.deepEqual(await apps(ADMIN), ["Encyclopedia", "Home", "Notes"]);
   });
 
   test("every app's page has the App switcher in it, from the gateway", async () => {
-    const { cookie } = await signIn("ada");
+    const { cookie } = await signIn(ADA);
     for (const site of ["home", "notes", "encyclopedia"]) {
       const reply = await get(site, "/", { cookie });
       assert.equal(reply.status, 200, site);
@@ -291,12 +355,21 @@ describe("signing in", () => {
     }
   });
 
-  test("VoidAuth's session is scoped to the preview's domain", async () => {
-    const { cookies } = await signIn("dana");
+  test("the session is scoped to the preview's domain", async () => {
+    const { cookies } = await signIn(DANA);
     const session = cookies.find((cookie) =>
-      cookie.startsWith("x-voidauth-session="),
+      cookie.startsWith("__Secure-homelab.session_token="),
     );
     assert.match(session ?? "", new RegExp(`; domain=${DOMAIN};`, "i"));
+  });
+
+  test("has no one-click test sign-in links, which only dev has", async () => {
+    const reply = await get(
+      "accounts",
+      `/test-sign-in?email=${encodeURIComponent(ADA.email)}`,
+    );
+    assert.equal(reply.status, 404);
+    assert.deepEqual(reply.cookies, []);
   });
 });
 
@@ -308,9 +381,7 @@ describe("the gateway", () => {
     // Docker accepts and drops connections until the gateway listens; the first answer counts.
     let reply: Reply | undefined;
     for (let i = 0; i < 300 && !reply; i++) {
-      reply = await get("accounts", "/api/public/config").catch(
-        () => undefined,
-      );
+      reply = await get("accounts", "/sign-in").catch(() => undefined);
       if (!reply) await new Promise((resolve) => setTimeout(resolve, 100));
     }
     assert.equal(reply?.status, 200, reply?.body ?? "no answer");
@@ -321,12 +392,12 @@ describe("the gateway", () => {
     assert.equal((await get("login", "/")).status, 404);
   });
 
-  test("sends a request with no session to VoidAuth's sign-in", async () => {
+  test("sends a request with no session to the accounts sign-in page", async () => {
     const reply = await get("notes", "/");
     assert.equal(reply.status, 302);
     assert.match(
       reply.location ?? "",
-      new RegExp(`^https://accounts\\.${DOMAIN}/`),
+      new RegExp(`^https://accounts\\.${DOMAIN}/sign-in\\?`),
     );
   });
 
@@ -347,32 +418,35 @@ describe("the gateway", () => {
   });
 
   test("ignores Remote-* headers sent by the client", async () => {
+    const ada = await signIn(ADA);
+    const adaId = pick(
+      (await get("notes", "/api/session", { cookie: ada.cookie })).body,
+      "person",
+      "id",
+    );
     const forged = {
-      "remote-user": "ada",
+      "remote-user": String(adaId),
       "remote-groups": "notes-admins",
-      "remote-name": "Ada Lovelace",
+      "remote-name": ADA.name,
+      "remote-email": ADA.email,
     };
     const signedOut = await get("notes", "/api/session", forged);
     assert.equal(signedOut.status, 302);
 
-    const dana = await signIn("dana");
-    assert.equal(
-      await notesSession(dana.cookie),
-      "member",
-      "dana stays a member",
-    );
+    const dana = await signIn(DANA);
     const reply = await get("notes", "/api/session", {
       ...forged,
       cookie: dana.cookie,
     });
-    assert.equal(pick(reply.body, "person", "id"), "dana");
+    assert.notEqual(pick(reply.body, "person", "id"), adaId);
+    assert.equal(pick(reply.body, "person", "name"), DANA.name);
     assert.equal(pick(reply.body, "person", "role"), "member");
   });
 });
 
 describe("data", () => {
   test("accounts, sessions and Notes survive a restart on the same volume", async () => {
-    const ada = await signIn("ada");
+    const ada = await signIn(ADA);
     const written = await openDocument(ada.cookie, "preview-test");
     written.text.insert(0, "kept across restarts");
     // Notes writes a changed document after a second's debounce, and on shutdown.
@@ -385,11 +459,52 @@ describe("data", () => {
     const reread = await openDocument(ada.cookie, "preview-test");
     assert.equal(reread.text.toString(), "kept across restarts");
     reread.close();
-    assert.equal(await notesSession((await signIn("dana")).cookie), "member");
+    assert.equal(await notesSession((await signIn(DANA)).cookie), "member");
   });
 
-  test("reset leaves only the test accounts and no Notes data", async () => {
-    const ada = await signIn("ada");
+  test("a later start adds only the test people missing, keeping changes to the others", async () => {
+    const { gets: _, ...bob } = BOB;
+    loadPeople([{ ...bob, password: "a-password-bob-chose-later" }]);
+
+    await restart();
+
+    assert.equal((await submitSignIn(BOB.email, BOB.password)).status, 401);
+    await signIn({ email: BOB.email, password: "a-password-bob-chose-later" });
+    for (const person of [ADMIN, ADA, DANA]) await signIn(person);
+  });
+
+  test("a preview from before the accounts service starts fresh", async () => {
+    const ada = await signIn(ADA);
+    const written = await openDocument(ada.cookie, "preview-test-cutover");
+    written.text.insert(0, "from before the cutover");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    written.close();
+    // A volume as the previews had it: no accounts data, and Notes data from other accounts.
+    docker("exec", CONTAINER, "rm", "-r", "/data/accounts");
+
+    await restart();
+
+    const fresh = await signIn(ADA);
+    const reread = await openDocument(fresh.cookie, "preview-test-cutover");
+    assert.equal(reread.text.toString(), "");
+    reread.close();
+  });
+
+  test("reset leaves only the test people, as published, and no Notes data", async () => {
+    loadPeople([
+      {
+        email: "eve@example.com",
+        password: "eve-was-added-in-the-preview",
+        name: "Eve",
+        apps: { notes: "member" },
+      },
+      { ...DANA, password: "a-password-dana-chose-later" },
+    ]);
+    await signIn({
+      email: "eve@example.com",
+      password: "eve-was-added-in-the-preview",
+    });
+    const ada = await signIn(ADA);
     const written = await openDocument(ada.cookie, "preview-test-reset");
     written.text.insert(0, "gone after a reset");
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -402,26 +517,16 @@ describe("data", () => {
       /^302 https:\/\/accounts\./,
       "the old session is gone",
     );
-    const fresh = await signIn("ada");
+    const fresh = await signIn(ADA);
     assert.equal(await notesSession(fresh.cookie), "owner");
     const reread = await openDocument(fresh.cookie, "preview-test-reset");
     assert.equal(reread.text.toString(), "");
     reread.close();
-    const admin = await signIn(ADMIN.username);
-    const users = await get(
-      "accounts",
-      "/api/admin/users?page=0&pageSize=1000",
-      {
-        cookie: admin.cookie,
-      },
+    assert.equal(
+      (await submitSignIn("eve@example.com", "eve-was-added-in-the-preview"))
+        .status,
+      401,
     );
-    const listed = pick(users.body, "users");
-    assert.ok(Array.isArray(listed), users.body);
-    assert.deepEqual(
-      listed
-        .map((user) => pick(JSON.stringify(user), "username"))
-        .toSorted(byName),
-      [ADMIN, ...PEOPLE].map((account) => account.username).toSorted(byName),
-    );
+    for (const person of PEOPLE) await signIn(person);
   });
 });
