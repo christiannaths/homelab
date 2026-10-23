@@ -1,6 +1,6 @@
 # Previews
 
-A preview is the whole homelab, built from one branch and running on Fly.io for trying by hand: one per open pull request, and `staging` on request. How previews work, and why, is in [ADR-PLAT-008](../../docs/adr/ADR-PLAT-008-work-previews.md).
+A preview is the whole homelab, built from one branch and running on Fly.io for trying by hand: one per open pull request, and `staging`, which follows `main`. How previews work, and why, is in [ADR-PLAT-008](../../docs/adr/ADR-PLAT-008-work-previews.md).
 
 ## Set up
 
@@ -30,7 +30,7 @@ None of these go in the repo. The script keeps its answers in `tools/preview/.en
 | Workflow | When | Does |
 | --- | --- | --- |
 | **Preview** | Each push to a pull request from this repo, and its closing | Tests the image, deploys `pr-<number>`, and keeps one comment on the pull request with its links; removes the preview when the pull request closes |
-| **Deploy to staging** | Run by hand, with a branch | Deploys that branch as `staging` and lists the links in the run's summary |
+| **Deploy to staging** | Each push to `main`, or run by hand with a branch | Deploys `main` (or that branch) as `staging` and lists the links in the run's summary |
 | **Reset preview** | Run by hand, with a preview's name | Wipes that preview's accounts and data and starts it with fresh test accounts |
 
 Inside the machine, [`start.ts`](start.ts) runs VoidAuth, the Home and Notes servers and the gateway ([`Caddyfile`](Caddyfile)), with all their data under `/data`, and loads the test accounts in [`fixtures.ts`](fixtures.ts). `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
