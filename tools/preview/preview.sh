@@ -88,11 +88,18 @@ prepare() {
     echo "Creating the Fly app $app…"
     flyctl apps create "$app" --org "$FLY_ORG"
   fi
-  # VoidAuth encrypts its secrets with this key, so it is made once per preview and kept. It is
-  # checked apart from the app, since a run cancelled between the two leaves an app without it.
-  if ! flyctl secrets list --app "$app" --json | jq -e 'any(.[]; .name == "STORAGE_KEY")' >/dev/null; then
+  # The accounts service signs its session cookies with this, so it is made once per preview and
+  # kept. It is checked apart from the app, since a run cancelled between the two leaves an app
+  # without it.
+  local secrets
+  secrets=$(flyctl secrets list --app "$app" --json)
+  if ! jq -e 'any(.[]; .name == "ACCOUNTS_SECRET")' <<<"$secrets" >/dev/null; then
     # Read from stdin, so it never appears in a command line or the public workflow log.
-    flyctl secrets import --app "$app" --stage <<<"STORAGE_KEY=$(openssl rand -hex 24)"
+    flyctl secrets import --app "$app" --stage <<<"ACCOUNTS_SECRET=$(openssl rand -hex 32)"
+  fi
+  # The previous sign-in service's key, which nothing reads any more.
+  if jq -e 'any(.[]; .name == "STORAGE_KEY")' <<<"$secrets" >/dev/null; then
+    flyctl secrets unset STORAGE_KEY --app "$app" --stage
   fi
   if ! flyctl volumes list --app "$app" --json | jq -e 'length > 0' >/dev/null; then
     flyctl volumes create data --app "$app" --region "$FLY_REGION" --size 1 --yes
@@ -141,7 +148,7 @@ deploy() {
   # Done once a browser would accept the certificate, whatever Fly's status field is called.
   echo "Waiting for the certificate for $certificate…"
   for _ in $(seq 1 60); do
-    if curl -fsS --max-time 30 -o /dev/null "https://accounts.$domain/api/public/config" 2>/dev/null; then
+    if curl -fsS --max-time 30 -o /dev/null "https://accounts.$domain/sign-in" 2>/dev/null; then
       echo "The preview is at https://accounts.$domain/"
       return
     fi

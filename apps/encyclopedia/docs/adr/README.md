@@ -9,7 +9,7 @@ An ADR is written only once a decision is settled. Open questions go in **Not de
 | [ADR-ENCY-001](ADR-ENCY-001-content-source.md) | How does an install get Wikipedia's content? | The app downloads and updates one Kiwix Wikipedia ZIM file, picked by the admin, starting from a small starter file | Accepted |
 | [ADR-ENCY-002](ADR-ENCY-002-article-serving.md) | How are articles and search served to readers? | The app's own Node server reads the ZIM file with libzim; kiwix-serve is not used | Accepted |
 | [ADR-ENCY-003](ADR-ENCY-003-licensing.md) | How does the app meet the licences of the code and content it uses? | The app is GPLv3, keeps each article's attribution footer, and is never named "Wikipedia" | Accepted |
-| [ADR-ENCY-004](ADR-ENCY-004-identity.md) | How does the app know who is reading? | People sign in with their homelab account; only the homelab admin changes the content | Accepted |
+| [ADR-ENCY-004](ADR-ENCY-004-identity.md) | How does the app know who is reading? | People sign in with their homelab account, identified by account id; only people with admin-level App access change the content | Accepted |
 | [ADR-ENCY-005](ADR-ENCY-005-offline-use.md) | How does the app keep working without a network? | Devices keep saved articles and recently read ones; offline search covers only those | Accepted |
 | [ADR-ENCY-006](ADR-ENCY-006-article-presentation.md) | How do articles look inside the homelab? | The app wears the homelab's look; articles keep Wikipedia's layout, restyled | Accepted |
 

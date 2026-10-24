@@ -6,7 +6,7 @@
     "name": "theme",
     "tags": [
       "scope:shared",
-      "platform:browser"
+      "platform:any"
     ]
   },
   "exports": {

@@ -4,26 +4,31 @@ import { colourFor, initials } from "./person.ts";
 
 describe("a user icon's initials", () => {
   test("are the first letters of the first and last words of the name", () => {
-    expect(initials("Ada Lovelace", "ada")).toBe("AL");
-    expect(initials("Ada King Lovelace", "ada")).toBe("AL");
-    expect(initials("  zoë   ångström ", "zoe")).toBe("ZÅ");
-    expect(initials("Cher", "cher")).toBe("C");
+    expect(initials("Ada Lovelace", "ada@example.com")).toBe("AL");
+    expect(initials("Ada King Lovelace", "ada@example.com")).toBe("AL");
+    expect(initials("  zoë   ångström ", "zoe@example.com")).toBe("ZÅ");
+    expect(initials("Cher", "cher@example.com")).toBe("C");
   });
 
-  test("come from the username when there is no name", () => {
-    expect(initials(null, "auth_admin")).toBe("AA");
-    expect(initials("", "dana")).toBe("D");
+  test("come from the email when there is no name", () => {
+    expect(initials(null, "dana.scully@example.com")).toBe("DS");
+    expect(initials("", "dana@example.com")).toBe("D");
   });
 });
 
 describe("a user icon's colour", () => {
-  test("depends only on the username, from the homelab palette", () => {
-    expect(colourFor("ada")).toBe(colourFor("ada"));
-    expect(tokens.avatar).toContain(colourFor("ada"));
+  test("depends only on the account id, from the homelab palette", () => {
+    const id = "dGHO77nKOy2qDMol5ww1hm15mNm0xTvB";
+    expect(colourFor(id)).toBe(colourFor(id));
+    expect(tokens.avatar).toContain(colourFor(id));
   });
 
-  test("differs between the test accounts", () => {
-    const colours = ["ada", "dana", "bob", "auth_admin"].map(colourFor);
+  test("differs between accounts", () => {
+    const colours = [
+      "dGHO77nKOy2qDMol5ww1hm15mNm0xTvB",
+      "1HMAJyQ5WZ4ooxQ1CQNbDtKCd1xcrEfK",
+      "qUXwqqHYesIj3YE0ZcGtzN09OaYFIeHj",
+    ].map(colourFor);
     expect(new Set(colours).size).toBe(colours.length);
   });
 });

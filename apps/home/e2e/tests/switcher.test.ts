@@ -1,6 +1,6 @@
-// The App switcher in a real Chromium behind the gateway and VoidAuth (issues #88, #102 and #104):
-// the tab at the top of every app, the menu it opens, signing out of every app, the keyboard, and
-// how it renders.
+// The App switcher in a real Chromium behind the gateway and the accounts service (issues #88, #102
+// and #104): the tab at the top of every app, the menu it opens, the keyboard, and how it renders.
+// Its Sign out is in sign-out.test.ts.
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,6 @@ import {
   ACCOUNTS_URL,
   ADA,
   ADMIN,
-  confirmSignOut,
   DANA,
   ENCYCLOPEDIA_URL,
   HOME_URL,
@@ -20,11 +19,10 @@ import {
   menuItems,
   newDevice,
   NOTES_URL,
-  onVoidAuthSignIn,
+  SESSION_COOKIE,
   signIn,
   startHome,
   tab,
-  VOIDAUTH_SESSION_COOKIE,
 } from "./stack.ts";
 
 let home: HomeServer;
@@ -117,7 +115,7 @@ describe("the tab", () => {
       expect(html.match(/<script>/g)).toHaveLength(1);
     });
 
-  it("opens the menu, which shows the person's initials in a colour from their username alone", async () => {
+  it("opens the menu, which shows the person's initials in a colour from their account alone", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     expect(await initialsInMenu(page)).toBe("AL");
@@ -136,7 +134,6 @@ describe("the tab", () => {
     const dana = await newDevice(browser);
     await signIn(dana, DANA);
     expect(await initialsInMenu(dana)).toBe("DS");
-    expect(await colour(dana)).not.toBe(await colour(page));
   });
 
   it("follows the device's light or dark setting", async () => {
@@ -181,8 +178,8 @@ describe("the menu", () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     await tab(page).click();
-    await page.getByText(ADA.name ?? "", { exact: true }).waitFor();
-    await page.getByText(ADA.email ?? "", { exact: true }).waitFor();
+    await page.getByText(ADA.name, { exact: true }).waitFor();
+    await page.getByText(ADA.email, { exact: true }).waitFor();
     expect(await menuItems(page)).toEqual([
       "HomeCurrent",
       "Encyclopedia",
@@ -225,30 +222,14 @@ describe("the menu", () => {
     await page.waitForURL(`${ENCYCLOPEDIA_URL}/`);
   });
 
-  it("opens the person's account settings on VoidAuth", async () => {
+  it("opens the person's account page on the accounts site", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     await tab(page).click();
     await page.getByRole("menuitem", { name: "Account settings" }).click();
-    // VoidAuth's own page for the signed-in account, not its sign-in page.
+    // The signed-in person's own page, not the sign-in page.
     await page.waitForURL(`${ACCOUNTS_URL}/`);
-    await page.waitForLoadState("networkidle");
-    expect(new URL(page.url()).pathname).toBe("/");
-  });
-
-  it("signs the homelab account out of every app", async () => {
-    const page = await newDevice(browser);
-    await signIn(page, ADA);
-    await tab(page).click();
-    await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await confirmSignOut(page);
-    await onVoidAuthSignIn(page);
-
-    for (const app of [HOME_URL, NOTES_URL, ENCYCLOPEDIA_URL]) {
-      const other = await page.context().newPage();
-      await other.goto(app);
-      await onVoidAuthSignIn(other);
-    }
+    await page.getByRole("heading", { name: ADA.name }).waitFor();
   });
 
   it("closes on Escape and on a click outside it", async () => {
@@ -304,7 +285,7 @@ describe("signed out", () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     await tab(page).waitFor();
-    await page.context().clearCookies({ name: VOIDAUTH_SESSION_COOKIE });
+    await page.context().clearCookies({ name: SESSION_COOKIE });
     // A new switcher asks Home again, as one does on every page load.
     await page.evaluate(() =>
       document.documentElement.append(

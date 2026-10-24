@@ -6,7 +6,7 @@ The `home` app in the [homelab monorepo](../../README.md). Words such as **App a
 
 - [`server/`](server/README.md): answers who is signed in and lists their apps, read from the gateway's headers and each app's manifest, and serves the web client.
 - [`web/`](web): the tiles, as an installable app that opens offline, with the [App switcher](../../packages/app-switcher/README.md) at the top, which the gateway adds.
-- [`e2e/`](e2e): end-to-end tests that cross apps: Home, Notes and the Encyclopedia behind the real gateway and VoidAuth.
+- [`e2e/`](e2e): end-to-end tests that cross apps: Home, Notes and the Encyclopedia behind the real gateway and the accounts service.
 
 How Home finds a person's apps, and why every account reaches it, is in [ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md). Home keeps no data of its own, so it has no ADRs of its own yet.
 
@@ -15,6 +15,6 @@ How Home finds a person's apps, and why every account reaches it, is in [ADR-PLA
 Nothing changes in Home. An app shows up for everyone with **App access** to it once:
 
 - it is served at `<app>.<parent domain>`, with its manifest at `/manifest.webmanifest` and its icons under `/icons/`;
-- its VoidAuth groups are `<app>` and, if it has an admin level, `<app>-admins`, and its ProxyAuth domain is open to them.
+- its subdomain is in the accounts service's installed apps (`HOMELAB_APPS`), so a homelab admin can give people App access to it.
 
 Its manifest's `homelab` member says whether it opens offline: `"homelab": { "opens_offline": true }`. Without it, the app's tile and its App switcher entry are greyed out while the device is offline.

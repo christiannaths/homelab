@@ -71,11 +71,12 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
   app.get("/api/health", (c) => c.json({ ok: true }));
 
   // A page load the service worker leaves to the network, so a signed-out browser meets the
-  // gateway, which sends it to VoidAuth's sign-in page and back here. By then it is signed in.
+  // gateway, which sends it to the accounts service's sign-in page and back here. By then it is
+  // signed in.
   app.get("/api/sign-in", (c) => c.redirect("/", 302));
 
   // The PWA calls this whenever it starts online or reconnects. A signed-out browser never gets
-  // here: the gateway answers with a redirect to VoidAuth instead.
+  // here: the gateway answers with a redirect to sign in instead.
   app.get("/api/session", (c) => {
     const person = admitted(c);
     if (!person) return c.json({ error: "signed_out" }, 401);

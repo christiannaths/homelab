@@ -20,51 +20,47 @@ export const NOTES_PORT = 4120;
 export const DOMAIN = "home.test";
 export const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${GATEWAY_PORT}`;
 export const NOTES_URL = `https://notes.${DOMAIN}:${GATEWAY_PORT}`;
-/** VoidAuth's session cookie, on the parent domain. */
-export const VOIDAUTH_SESSION_COOKIE = "x-voidauth-session";
+/** The accounts service's session cookie, on the parent domain. */
+export const SESSION_COOKIE = "__Secure-homelab.session_token";
 
-/** The instance admin VoidAuth creates on first run. */
-export const ADMIN = {
-  username: "auth_admin",
-  password: "violet-quartz-harbour-71",
-};
-
+/**
+ * A test person, as the accounts service's loader takes them
+ * (apps/accounts/server/src/test-people.ts).
+ */
 export interface Account {
-  username: string;
+  email: string;
   password: string;
-  name: string | null;
-  /** The homelab admin's grants: `notes` lets a person in, `notes-admins` as an owner. */
-  groups: string[];
+  name: string;
+  /** App access to Notes: `member`, or `admin` for an owner. */
+  apps: { notes?: "member" | "admin" };
 }
 
 export const ADA: Account = {
-  username: "ada",
+  email: "ada@example.com",
   password: "lantern-meadow-copper-48",
   name: "Ada Lovelace",
-  groups: ["notes-admins"],
+  apps: { notes: "admin" },
 };
 export const DANA: Account = {
-  username: "dana",
+  email: "dana@example.com",
   password: "quartz-ember-willow-27",
   name: "Dana Scully",
-  groups: ["notes"],
+  apps: { notes: "member" },
 };
 /** Has a homelab account but was not given Notes. */
 export const BOB: Account = {
-  username: "bob",
+  email: "bob@example.com",
   password: "harbour-violet-thistle-93",
   name: "Bob Ross",
-  groups: [],
+  apps: {},
 };
-/** Has no name, so VoidAuth sends no Remote-Name for her. */
 export const EVE: Account = {
-  username: "eve",
+  email: "eve@example.com",
   password: "ember-thistle-lantern-62",
-  name: null,
-  groups: ["notes"],
+  name: "Eve Moneypenny",
+  apps: { notes: "member" },
 };
 export const ACCOUNTS = [ADA, DANA, BOB, EVE];
-export const NOTES_GROUPS = ["notes", "notes-admins"];
 
 export async function compose(
   env: Record<string, string>,
@@ -76,6 +72,51 @@ export async function compose(
     { env: { ...process.env, ...env }, maxBuffer: 16 * 1024 * 1024 },
   );
   return stdout + stderr;
+}
+
+/**
+ * Makes the people in the accounts service, or brings them to exactly what is given, with its
+ * loader for test people. A change in App access takes effect on the person's next request.
+ * Resolves to each person's account id, by email.
+ */
+export function loadPeople(
+  composeEnv: Record<string, string>,
+  people: Account[],
+): Promise<Record<string, string>> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      "docker",
+      [
+        "compose",
+        "-f",
+        COMPOSE_FILE,
+        "exec",
+        "-T",
+        "accounts",
+        "node",
+        "--no-experimental-webstorage",
+        "apps/accounts/server/src/load-test-people.ts",
+      ],
+      { env: { ...process.env, ...composeEnv } },
+      (error, stdout, stderr) => {
+        if (error) reject(new Error(`Loading people failed: ${stderr}`));
+        // The ids are the last line, after anything Better Auth logs.
+        else resolve(idsFrom(stdout.trim().split("\n").at(-1) ?? ""));
+      },
+    );
+    child.stdin?.end(JSON.stringify(people));
+  });
+}
+
+function idsFrom(line: string): Record<string, string> {
+  const ids: unknown = JSON.parse(line);
+  if (typeof ids !== "object" || ids === null)
+    throw new Error(`No account ids in ${line}`);
+  return Object.fromEntries(
+    Object.entries(ids).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }
 
 export function startNotes(): Promise<NotesServer> {
@@ -108,36 +149,27 @@ export async function newDevice(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-/** Resolves once the page has arrived on VoidAuth's sign-in page. */
-export function onVoidAuthSignIn(page: Page): Promise<void> {
+/** Resolves once the page has arrived on the accounts site's sign-in page. */
+export function onSignInPage(page: Page): Promise<void> {
   return page.waitForURL(
-    (url) => url.origin === ACCOUNTS_URL && url.pathname === "/login",
+    (url) => url.origin === ACCOUNTS_URL && url.pathname === "/sign-in",
   );
 }
 
-/** Types a password on VoidAuth's sign-in page, which the page must already be on. */
+/** Types an email and password on the sign-in page, which the page must already be on. */
 export async function typePassword(
   page: Page,
-  account: Pick<Account, "username" | "password">,
+  account: Pick<Account, "email" | "password">,
 ): Promise<void> {
-  await page.getByLabel("Username or Email").fill(account.username);
-  await page.getByLabel("Password", { exact: true }).fill(account.password);
-  await page.getByRole("button", { name: "Login", exact: true }).click();
-  // VoidAuth offers to set up a passkey after a password sign-in; a person would skip it.
-  const skip = page.getByRole("button", { name: "Skip", exact: true });
-  const offered = await Promise.race([
-    skip.waitFor().then(() => true),
-    page
-      .waitForURL((url) => !url.pathname.startsWith("/login"))
-      .then(() => false),
-  ]).catch(() => false);
-  if (offered) await skip.click();
+  await page.getByLabel("Email").fill(account.email);
+  await page.getByLabel("Password").fill(account.password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** Opens Notes and signs in on VoidAuth's page; resolves once the protected page shows. */
+/** Opens Notes and signs in on the sign-in page; resolves once the protected page shows. */
 export async function signIn(page: Page, account: Account): Promise<void> {
   await page.goto(NOTES_URL);
-  await onVoidAuthSignIn(page);
+  await onSignInPage(page);
   await typePassword(page, account);
   await page.getByText("Signed in as").waitFor();
 }
@@ -147,12 +179,4 @@ export async function waitUntilOfflineReady(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
-}
-
-/** Answers Yes on VoidAuth's "sign out?" page, which the browser must be on or on its way to. */
-export async function confirmSignOut(page: Page): Promise<void> {
-  await page.waitForURL(
-    (url) => url.origin === ACCOUNTS_URL && url.pathname.startsWith("/logout"),
-  );
-  await page.getByRole("button", { name: "Yes", exact: true }).click();
 }

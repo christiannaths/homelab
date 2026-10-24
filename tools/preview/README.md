@@ -31,18 +31,20 @@ None of these go in the repo. The script keeps its answers in `tools/preview/.en
 | --- | --- | --- |
 | **Preview** | Each push to a pull request from this repo that changes what the image is built from, and its closing | Builds and tests the image, deploys that image as `pr-<number>`, and keeps one comment on the pull request with its links; removes the preview when the pull request closes |
 | **Deploy to staging** | Each push to `main` that changes what the image is built from, or run by hand with a branch | Deploys `main` (or that branch) as `staging` and lists the links in the run's summary |
-| **Reset preview** | Run by hand, with a preview's name | Wipes that preview's accounts and data and starts it with fresh test accounts |
+| **Reset preview** | Run by hand, with a preview's name | Wipes that preview's accounts and data and starts it with fresh test people |
 
-Inside the machine, [`start.ts`](start.ts) runs VoidAuth, the Home and Notes servers and the gateway ([`Caddyfile`](Caddyfile)), built into the image as in [`packages/gateway`](../../packages/gateway/README.md) so every app's pages get the App switcher, with all their data under `/data`, and loads the test accounts in [`fixtures.ts`](fixtures.ts). `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
+Inside the machine, [`start.ts`](start.ts) runs the accounts service, the Home and Notes servers and the gateway ([`Caddyfile`](Caddyfile)), built into the image as in [`packages/gateway`](../../packages/gateway/README.md) so every app's pages get the App switcher, with all their data under `/data`. It then makes the test people in [`tools/test-people.ts`](../test-people.ts) that are missing, with the accounts service's own loader, so people and data changed in the preview are kept across restarts and deploys. A volume with no accounts data (from before the accounts service) is wiped first. `node tools/preview/start.ts reset`, run in the machine, is what **Reset preview** runs over `fly ssh`.
+
+The test people sign in with their email and published password, which the pull request comment lists. The accounts service signs its session cookies with `ACCOUNTS_SECRET`, a Fly secret that `preview.sh prepare` makes once per preview.
 
 ## Adding an app
 
 An app added to the homelab is added in four places together, or previews fall behind `npm run dev`:
 
-- `tools/dev/` (the compose service, the gateway site and the test accounts' groups in `start.ts`).
+- `tools/dev/` (the compose service, its subdomain in the accounts service's `HOMELAB_APPS`, and the gateway site).
 - [`Dockerfile`](Dockerfile): building the app and copying in what it runs.
 - [`Caddyfile`](Caddyfile): its site, importing the sign-in check and the App switcher, and [`start.ts`](start.ts) if it runs a server.
-- [`fixtures.ts`](fixtures.ts): the app and the groups the test people get, named after its subdomain.
+- [`tools/test-people.ts`](../test-people.ts): the app, named after its subdomain, and the App access the test people get to it.
 
 ## Test the image
 
@@ -50,4 +52,4 @@ An app added to the homelab is added in four places together, or previews fall b
 npm run e2e -w @homelab/tools
 ```
 
-It needs Docker. It builds the image, runs it with a made-up preview domain the way Fly would, and drives it over HTTP: signing in as each test account, the apps Home lists for each, the sign-in check, forged headers, data surviving a restart, and a reset. `KEEP_PREVIEW=1` leaves the container running afterwards, and `PREVIEW_IMAGE=<image>` tests an image already built instead of building one, as the Preview workflow does. Behind a proxy that intercepts TLS, set `NODE_EXTRA_CA_CERTS` to its CA so the build trusts it.
+It needs Docker. It builds the image, runs it with a made-up preview domain the way Fly would, and drives it over HTTP: signing in as each test person by email, the sign-in rate limit, the apps Home lists for each, the sign-in check, forged headers, data surviving a restart, a later start adding only the missing people, and a reset. `KEEP_PREVIEW=1` leaves the container running afterwards, and `PREVIEW_IMAGE=<image>` tests an image already built instead of building one, as the Preview workflow does. Behind a proxy that intercepts TLS, set `NODE_EXTRA_CA_CERTS` to its CA so the build trusts it.

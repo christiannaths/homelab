@@ -15,7 +15,7 @@ func TestAllowSwitcher(t *testing.T) {
 			"script-src 'self' 'sha256-SWITCHER'",
 		},
 		{
-			"hashes and 'strict-dynamic', as VoidAuth's page has",
+			"hashes and 'strict-dynamic', as a sign-in page may have",
 			"script-src 'strict-dynamic' 'sha256-A=' https: 'unsafe-inline';object-src 'none';base-uri 'self';",
 			"script-src 'strict-dynamic' 'sha256-A=' https: 'unsafe-inline' 'sha256-SWITCHER'; object-src 'none'; base-uri 'self'",
 		},

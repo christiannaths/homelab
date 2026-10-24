@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { afterEach, describe, expect, test } from "vitest";
 import { startServer, type HomeServer } from "../src/server.ts";
-import { manifestReader, type ReadManifest } from "../src/manifests.ts";
+import { manifestReader, type ReadManifest } from "@homelab/app-manifests";
 
 const HOMELAB = "https://home.test";
 
@@ -61,6 +61,9 @@ afterEach(async () => {
   for (const s of others.splice(0)) s.close();
 });
 
+/** An account id, as the accounts service makes them. */
+const ADA_ID = "dGHO77nKOy2qDMol5ww1hm15mNm0xTvB";
+
 async function home(
   readManifest: ReadManifest = fromTable,
   homelabUrl = HOMELAB,
@@ -70,11 +73,11 @@ async function home(
   return server;
 }
 
-/** A request as it arrives from the gateway; with no `username`, as if it had not. */
+/** A request as it arrives from the gateway; with no `person`, as if it had not. */
 function me(
   server: HomeServer,
   person?: {
-    username: string;
+    id: string;
     name?: string;
     email?: string;
     groups?: string[];
@@ -85,7 +88,7 @@ function me(
     headers: {
       ...headers,
       ...(person && {
-        "remote-user": person.username,
+        "remote-user": person.id,
         ...(person.name && { "remote-name": encodeURIComponent(person.name) }),
         ...(person.email && { "remote-email": person.email }),
         ...(person.groups?.length && {
@@ -107,7 +110,7 @@ async function appsIn(res: Response): Promise<Record<string, unknown>[]> {
 }
 
 async function appsOf(server: HomeServer, groups: string[]) {
-  const apps = await appsIn(await me(server, { username: "ada", groups }));
+  const apps = await appsIn(await me(server, { id: ADA_ID, groups }));
   return apps.map((app) => app.id);
 }
 
@@ -115,7 +118,7 @@ describe("who is signed in", () => {
   test("names the person, where to sign out, and their apps", async () => {
     const s = await home();
     const res = await me(s, {
-      username: "ada",
+      id: ADA_ID,
       name: "Ada Lovelace",
       email: "ada@example.com",
       groups: ["notes-admins", "encyclopedia"],
@@ -124,20 +127,20 @@ describe("who is signed in", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({
       person: {
-        username: "ada",
+        id: ADA_ID,
         name: "Ada Lovelace",
         email: "ada@example.com",
       },
       accountUrl: "https://accounts.home.test/",
-      signOutUrl: "https://accounts.home.test/logout",
+      signOutUrl: "https://accounts.home.test/sign-out",
       apps: [ENCYCLOPEDIA_APP, HOME_APP, NOTES_APP],
     });
   });
 
-  test("has no name or email when VoidAuth has none", async () => {
+  test("has no name or email when the gateway sends none", async () => {
     const s = await home();
-    expect(await (await me(s, { username: "eve" })).json()).toMatchObject({
-      person: { username: "eve", name: null, email: null },
+    expect(await (await me(s, { id: ADA_ID })).json()).toMatchObject({
+      person: { id: ADA_ID, name: null, email: null },
     });
   });
 
@@ -163,9 +166,9 @@ describe("a person's apps", () => {
     expect(await appsOf(s, [])).toEqual(["home"]);
   });
 
-  test("skip groups with no app, so auth_admins alone lists nothing", async () => {
+  test("skip groups with no app", async () => {
     const s = await home();
-    expect(await appsOf(s, ["auth_admins"])).toEqual(["home"]);
+    expect(await appsOf(s, ["family"])).toEqual(["home"]);
     expect(await appsOf(s, ["auth_admins", "encyclopedia", "family"])).toEqual([
       "encyclopedia",
       "home",
@@ -174,9 +177,7 @@ describe("a person's apps", () => {
 
   test("count an app without the homelab member as not opening offline", async () => {
     const s = await home();
-    const apps = await appsIn(
-      await me(s, { username: "ada", groups: ["vault"] }),
-    );
+    const apps = await appsIn(await me(s, { id: ADA_ID, groups: ["vault"] }));
     expect(apps).toContainEqual({
       id: "vault",
       url: "https://vault.home.test/",
@@ -188,8 +189,8 @@ describe("a person's apps", () => {
 
   test("keep the port of the homelab's address", async () => {
     const s = await home(fromTable, "https://home.test:8443");
-    expect(await (await me(s, { username: "ada" })).json()).toMatchObject({
-      signOutUrl: "https://accounts.home.test:8443/logout",
+    expect(await (await me(s, { id: ADA_ID })).json()).toMatchObject({
+      signOutUrl: "https://accounts.home.test:8443/sign-out",
       apps: [{ url: "https://home.home.test:8443/" }],
     });
   });
@@ -222,7 +223,7 @@ describe("a person's apps", () => {
 });
 
 describe("other apps reading the answer", () => {
-  const ADA = { username: "ada", groups: ["notes"] };
+  const ADA = { id: ADA_ID, groups: ["notes"] };
 
   test("is allowed, with credentials, for an app under the parent domain", async () => {
     const s = await home();

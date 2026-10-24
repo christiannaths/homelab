@@ -9,7 +9,7 @@ export interface App {
 }
 
 export interface Me {
-  person: { username: string; name: string | null; email: string | null };
+  person: { id: string; name: string | null; email: string | null };
   signOutUrl: string;
   apps: App[];
 }
@@ -29,12 +29,12 @@ const stringOrNull = (value: unknown): string | null =>
 export function parseMe(value: unknown): Me | undefined {
   if (!isRecord(value) || !isRecord(value.person)) return undefined;
   const { person, signOutUrl, apps } = value;
-  if (typeof person.username !== "string" || typeof signOutUrl !== "string")
+  if (typeof person.id !== "string" || typeof signOutUrl !== "string")
     return undefined;
   if (!Array.isArray(apps)) return undefined;
   return {
     person: {
-      username: person.username,
+      id: person.id,
       name: stringOrNull(person.name),
       email: stringOrNull(person.email),
     },
@@ -58,7 +58,7 @@ export function parseMe(value: unknown): Me | undefined {
 }
 
 /**
- * Asks who is signed in. A signed-out browser gets the gateway's redirect to VoidAuth instead of
+ * Asks who is signed in. A signed-out browser gets the gateway's redirect to sign in instead of
  * an answer; it is not followed, since only a page load can sign in.
  */
 export async function checkMe(): Promise<MeCheck> {

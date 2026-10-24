@@ -5,8 +5,8 @@ import { afterEach, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 import {
   device,
-  HOMELAB_ADMIN,
   MEMBER,
+  OTHER_APPS_ADMIN,
   OWNER,
   request,
   start,
@@ -54,14 +54,14 @@ describe("the person the gateway signed in", () => {
     });
   });
 
-  test("is an owner as a homelab admin, with no name when VoidAuth has none", async () => {
+  test("is a member as another app's admin, with no name when the gateway sends none", async () => {
     const s = await server();
     expect(
-      await (await request(s, "/api/session", HOMELAB_ADMIN)).json(),
-    ).toEqual({ person: { id: "auth_admin", role: "owner", name: null } });
+      await (await request(s, "/api/session", OTHER_APPS_ADMIN)).json(),
+    ).toEqual({ person: { id: "kim", role: "member", name: null } });
   });
 
-  test("keeps their name and role in step with VoidAuth", async () => {
+  test("keeps their name and role in step with the accounts service", async () => {
     const s = await server();
     await request(s, "/api/session", OWNER);
     const renamed = { ...OWNER, name: "Zoë Ångström", groups: ["notes"] };

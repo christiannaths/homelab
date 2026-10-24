@@ -1,39 +1,41 @@
-// Builds the gateway, starts it and VoidAuth with empty data and loads the test people into VoidAuth as a
-// homelab admin would grant them Notes (ADR-PLAT-004).
+// Builds the gateway, starts it and the accounts service with empty data, and loads the test people
+// into the accounts service with their App access to Notes (ADR-PLAT-004).
 import { X509Certificate, createHash, randomBytes } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildGatewayImage } from "@homelab/gateway/image";
-import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
 import type { TestProject } from "vitest/node";
 import {
   ACCOUNTS,
-  ADMIN,
-  ACCOUNTS_URL,
   DOMAIN,
   GATEWAY_PORT,
-  NOTES_GROUPS,
   NOTES_PORT,
   compose,
+  loadPeople,
 } from "./stack.ts";
 
 declare module "vitest" {
   export interface ProvidedContext {
     gatewayCaSpki: string;
+    /** Each test person's account id, by email. */
+    accountIds: Record<string, string>;
   }
 }
 
 export default async function setup(project: TestProject) {
   buildGatewayImage();
   const dataDir = await mkdtemp(join(tmpdir(), "notes-e2e-stack-"));
+  // Made here rather than by Docker, so they belong to this user and can be deleted afterwards.
+  for (const dir of ["caddy", "accounts"])
+    await mkdir(join(dataDir, dir), { recursive: true });
   const env = {
     COMPOSE_PROJECT_NAME: "notes-e2e",
     DATA_DIR: dataDir,
     GATEWAY_PORT: String(GATEWAY_PORT),
     NOTES_PORT: String(NOTES_PORT),
     HOMELAB_DOMAIN: DOMAIN,
-    STORAGE_KEY: randomBytes(24).toString("hex"),
+    ACCOUNTS_SECRET: randomBytes(24).toString("hex"),
   };
   const stop = async () => {
     if (process.env.KEEP_STACK) return;
@@ -48,20 +50,7 @@ export default async function setup(project: TestProject) {
       "gatewayCaSpki",
       spkiHash(await gatewayFile(join(pki, "intermediate.crt"))),
     );
-    await loadFixtures(
-      new VoidAuthClient({
-        url: ACCOUNTS_URL,
-        ca: await gatewayFile(join(pki, "root.crt")),
-      }),
-      {
-        admin: ADMIN,
-        apps: [
-          { name: "Notes", host: `notes.${DOMAIN}`, groups: NOTES_GROUPS },
-        ],
-        people: ACCOUNTS,
-        readLog: () => compose(env, "logs", "voidauth"),
-      },
-    );
+    project.provide("accountIds", await loadPeople(env, ACCOUNTS));
   } catch (error) {
     await stop();
     throw error;

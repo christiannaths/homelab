@@ -6,9 +6,19 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Homelab account**: The one account a person signs in with to every app. Signing out of it signs the browser out of every app. _Avoid_: user account, app account, login
 
-**Homelab admin**: A person who invites people and decides which apps each of them can use, and at what level. _Avoid_: superuser, root
+**Homelab admin**: A person who invites people and decides which apps each of them can use, and at what level. Being one opens no app by itself. _Avoid_: superuser, root
 
-**App access**: A homelab admin's grant letting one person use one app, at a member or admin level. _Avoid_: permission, role, group (VoidAuth's name for how it is stored)
+**App access**: A homelab admin's grant letting one person use one app, at a member or admin level. Apps read it as groups in `Remote-Groups`: `<app>` for a member, `<app>-admins` for an admin. _Avoid_: permission, role
+
+**Account id**: The permanent id the accounts service gives a homelab account, which apps receive in `Remote-User` and key a person's data by. It never changes, even when the person's email or name does. _Avoid_: username, user id
+
+**Accounts service**: The homelab's own service at `accounts.<domain>`, on Better Auth, where people sign in and manage their homelab account, and which tells the gateway who is signed in. _Avoid_: auth server, identity provider, VoidAuth
+
+**Account page**: A person's own page on the accounts service, which Account settings in the App switcher opens. It shows their name, email and apps, and lets them change their name and password. _Avoid_: profile, settings page, account settings
+
+**People page**: The homelab admins' page on the accounts service, linked from their account page, where they see everyone with their apps, change App access and who is a homelab admin, sign people out everywhere, remove accounts, and make, list and cancel invites. Nobody else can open it. _Avoid_: admin panel, user management, dashboard
+
+**Invite**: A link a homelab admin makes for one email, granting App access, that lets that person make their homelab account once, within a week. The admin passes it on themselves, since the homelab sends no email. On an install with no accounts, the accounts service prints a setup invite that makes the first homelab admin. _Avoid_: invitation code, sign-up link, registration
 
 ## Apps
 
