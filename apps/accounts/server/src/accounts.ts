@@ -21,6 +21,12 @@ import type { Config } from "./config.ts";
 import { formFields, fromOurPages } from "./forms.ts";
 import { answer, safeReturnTo } from "./forward-auth.ts";
 import { noAccessPage, signInPage, tooManyAttemptsPage } from "./pages.ts";
+import {
+  extendedSessionOf,
+  redirectWithCookies,
+  sessionOf,
+  withCookiesOf,
+} from "./sessions.ts";
 
 export interface Options {
   /** Replaces reading manifests through the gateway, for tests. */
@@ -41,13 +47,11 @@ export async function createAccounts(
   const invites = new Invites(db);
   const directory = new AppDirectory(homelabUrl(config), readManifest);
 
-  const sessionOf = (headers: Headers) =>
-    betterAuth.api.getSession({ headers });
-
   const app = new Hono();
 
   app.get("/api/authz/forward-auth", async (c) => {
-    const session = await sessionOf(c.req.raw.headers);
+    // Caddy's forward_auth passes none of this answer's cookies to the browser.
+    const session = await sessionOf(betterAuth, c.req.raw.headers);
     const result = answer(
       session
         ? {
@@ -72,7 +76,11 @@ export async function createAccounts(
 
   app.get("/sign-in", async (c) => {
     const returnTo = safeReturnTo(c.req.query("return-to"), config);
-    if (await sessionOf(c.req.raw.headers)) return c.redirect(returnTo, 302);
+    const { session, cookies } = await extendedSessionOf(
+      betterAuth,
+      c.req.raw.headers,
+    );
+    if (session) return redirectWithCookies(returnTo, cookies, 302);
     return c.html(signInPage({ returnTo }));
   });
 
@@ -105,10 +113,7 @@ export async function createAccounts(
         signInPage({ ...view, error: "Wrong email or password." }),
         401,
       );
-    const headers = new Headers({ location: view.returnTo });
-    for (const cookie of signedIn.headers.getSetCookie())
-      headers.append("set-cookie", cookie);
-    return new Response(null, { status: 303, headers });
+    return redirectWithCookies(view.returnTo, signedIn.headers);
   });
 
   // A link or an image on any site could otherwise sign the browser out.
@@ -125,27 +130,28 @@ export async function createAccounts(
       !isHomelabOrigin(origin, config.domain)
     )
       return c.text("Forbidden", 403);
-    const headers = new Headers();
-    if (await sessionOf(c.req.raw.headers)) {
-      const signedOut = await betterAuth.api.signOut({
-        headers: c.req.raw.headers,
-        returnHeaders: true,
-      });
-      for (const cookie of signedOut.headers.getSetCookie())
-        headers.append("set-cookie", cookie);
-    }
+    const cookies = (await sessionOf(betterAuth, c.req.raw.headers))
+      ? (
+          await betterAuth.api.signOut({
+            headers: c.req.raw.headers,
+            returnHeaders: true,
+          })
+        ).headers
+      : new Headers();
     const fromForm = c.req
       .header("content-type")
       ?.startsWith("application/x-www-form-urlencoded");
-    if (fromForm) {
-      headers.set("location", "/sign-in");
-      return new Response(null, { status: 303, headers });
-    }
+    if (fromForm) return redirectWithCookies("/sign-in", cookies);
     // The switcher reads the answer from another app's origin, then shows the sign-in page.
-    headers.set("access-control-allow-origin", origin);
-    headers.set("access-control-allow-credentials", "true");
-    headers.set("vary", "Origin");
-    return new Response(null, { status: 204, headers });
+    const cors = {
+      "access-control-allow-origin": origin,
+      "access-control-allow-credentials": "true",
+      "vary": "Origin",
+    };
+    return withCookiesOf(
+      new Response(null, { status: 204, headers: cors }),
+      cookies,
+    );
   });
 
   if (config.testSignInLinks)
@@ -233,12 +239,16 @@ function isHomelabOrigin(
 
 /**
  * The client address the gateway put last in X-Forwarded-For. Anything before it came from the
- * browser, which could otherwise pick a fresh rate-limit bucket for every attempt.
+ * browser, which could otherwise pick a fresh rate-limit bucket for every attempt. A request with
+ * no address shares one bucket with every other such request, so the limit never stops applying.
  */
 function addressGatewaySaw(c: Context): string {
   const addresses = (c.req.header("x-forwarded-for") ?? "")
     .split(",")
     .map((address) => address.trim())
     .filter(Boolean);
-  return addresses.at(-1) ?? "";
+  return addresses.at(-1) ?? NO_ADDRESS;
 }
+
+/** A documentation address (RFC 5737), which no real client has. */
+const NO_ADDRESS = "192.0.2.0";

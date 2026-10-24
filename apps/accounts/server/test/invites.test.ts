@@ -240,6 +240,52 @@ describe("joining with an invite", () => {
     expect(await page.text()).toContain("This invite can't be used");
   });
 
+  it("makes nothing and keeps the invite when making the account fails part way", async () => {
+    const link = await newInviteLink("sophie@example.com", { notes: "member" });
+    const fields = {
+      name: "Sophie Germain",
+      password: "prime-numbers-of-hers",
+    };
+    const failing = vi
+      .spyOn(accounts.appAccess, "set")
+      .mockImplementationOnce(() => {
+        throw new Error("disk full");
+      });
+    expect((await join(link, fields)).status).toBe(500);
+    failing.mockRestore();
+
+    const refused = await submitSignIn(accounts, {
+      email: "sophie@example.com",
+      password: fields.password,
+    });
+    expect(refused.status).toBe(401);
+    expect((await request(accounts, link)).status).toBe(200);
+    const joined = await join(link, fields);
+    expect(joined.status).toBe(303);
+    expect(
+      (await askGateway(accounts, cookiesOf(joined))).headers.get(
+        "remote-groups",
+      ),
+    ).toBe("notes");
+  });
+
+  it("makes one account when two invites for one email join at once, and refuses the other", async () => {
+    const first = await newInviteLink("grace@example.com");
+    const second = await newInviteLink("grace@example.com");
+    const answers = await Promise.all([
+      join(first, { name: "Grace One", password: "first-of-the-two" }),
+      join(second, { name: "Grace Two", password: "second-of-the-two" }),
+    ]);
+    expect(
+      answers.map((answer) => answer.status).toSorted((a, b) => a - b),
+    ).toEqual([303, 410]);
+    const ctx = await accounts.betterAuth.$context;
+    const users = await ctx.internalAdapter.listUsers(1000);
+    expect(
+      users.filter((user) => user.email === "grace@example.com"),
+    ).toHaveLength(1);
+  });
+
   it("expires after a week", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
     const link = await newInviteLink("mary@example.com");

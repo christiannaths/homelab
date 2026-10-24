@@ -47,24 +47,31 @@ export class AppAccess {
     return grants;
   }
 
-  /** Replaces the person's App access. Throws for an app that isn't installed. */
+  /**
+   * Replaces the person's App access to installed apps. Access stored for an app no longer
+   * installed is kept, as `of` promises. Throws for an app that isn't installed. Joins a
+   * transaction already open on the database, so it rolls back with it.
+   */
   set(userId: string, grants: Grants): void {
     for (const [app, level] of Object.entries(grants)) {
       if (!this.isInstalled(app))
         throw new Error(`${app} isn't an installed app`);
       if (!isLevel(level)) throw new Error(`${app} needs member or admin`);
     }
-    this.#db.exec("BEGIN");
+    this.#db.exec("SAVEPOINT set_app_access");
     try {
-      this.#db.prepare("DELETE FROM app_access WHERE user_id = ?").run(userId);
+      const remove = this.#db.prepare(
+        "DELETE FROM app_access WHERE user_id = ? AND app = ?",
+      );
+      for (const app of this.#installed) remove.run(userId, app);
       const insert = this.#db.prepare(
         "INSERT INTO app_access (user_id, app, level) VALUES (?, ?, ?)",
       );
       for (const [app, level] of Object.entries(grants))
         insert.run(userId, app, level);
-      this.#db.exec("COMMIT");
+      this.#db.exec("RELEASE set_app_access");
     } catch (error) {
-      this.#db.exec("ROLLBACK");
+      this.#db.exec("ROLLBACK TO set_app_access; RELEASE set_app_access");
       throw error;
     }
   }

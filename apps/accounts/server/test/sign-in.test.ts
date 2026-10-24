@@ -192,6 +192,28 @@ describe("sign-in attempts", () => {
   });
 });
 
+describe("sign-in attempts with no client address", () => {
+  it("share one limit, rather than having none", async () => {
+    const limited = await startAccounts([ADA], {
+      signInRateLimit: { window: 60, max: 3 },
+    });
+    const attempt = (headers: Record<string, string>) =>
+      limited.app.request(`${ACCOUNTS}/sign-in`, {
+        method: "POST",
+        headers: {
+          "origin": ACCOUNTS,
+          "content-type": "application/x-www-form-urlencoded",
+          ...headers,
+        },
+        body: new URLSearchParams({ email: ADA.email, password: "guess" }),
+      });
+    expect((await attempt({})).status).toBe(401);
+    expect((await attempt({ "x-forwarded-for": "" })).status).toBe(401);
+    expect((await attempt({ "x-forwarded-for": " , " })).status).toBe(401);
+    expect((await attempt({})).status).toBe(429);
+  });
+});
+
 describe("passwords", () => {
   it("are accepted at 8 characters or more, and refused below", async () => {
     const short = {
@@ -200,6 +222,9 @@ describe("passwords", () => {
       name: "Short",
     };
     await expect(loadAnother(short)).rejects.toThrow(/at least 8/);
+    await expect(
+      loadAnother({ ...short, password: "x".repeat(129) }),
+    ).rejects.toThrow(/at most 128/);
     const eight = { ...short, password: "eight888" };
     await loadAnother(eight);
     expect((await submitSignIn(accounts, eight)).status).toBe(303);

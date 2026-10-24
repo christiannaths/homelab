@@ -1,6 +1,9 @@
 // Managing people on the People page (ADR-PLAT-004): a homelab admin sees everyone with their
 // apps, changes their App access, makes or unmakes homelab admins, signs people out everywhere
 // and removes accounts. The homelab always keeps at least one homelab admin.
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ADA,
@@ -105,6 +108,34 @@ describe("changing someone's App access", () => {
         "remote-groups",
       ),
     ).toBe("encyclopedia-admins");
+  });
+
+  it("keeps App access to an app no longer installed, for when it is installed again", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "accounts-"));
+    const withWiki = await startAccounts(
+      [{ ...ADA, apps: { notes: "member", wiki: "admin" } }],
+      { dataDir, apps: ["notes", "encyclopedia", "wiki"] },
+    );
+    const adaId = withWiki.ids[ADA.email];
+    withWiki.close();
+
+    const without = await startAccounts([ADMIN], { dataDir });
+    const admin = await signIn(without, ADMIN);
+    const saved = await submitForm(without, `/people/${adaId}/apps`, admin, {
+      "app-notes": "admin",
+    });
+    expect(saved.status).toBe(303);
+    without.close();
+
+    const again = await startAccounts([], {
+      dataDir,
+      apps: ["notes", "encyclopedia", "wiki"],
+    });
+    expect(again.appAccess.of(adaId)).toEqual({
+      notes: "admin",
+      wiki: "admin",
+    });
+    again.close();
   });
 
   it("lets admins give themselves apps the same way", async () => {

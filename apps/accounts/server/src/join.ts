@@ -3,9 +3,11 @@
 import type { Hono } from "hono";
 import type { AppAccess } from "./app-access.ts";
 import type { BetterAuth } from "./better-auth.ts";
+import { createAccount } from "./create-account.ts";
 import { formFields, fromOurPages } from "./forms.ts";
-import type { Invite, Invites } from "./invites.ts";
+import type { Invites } from "./invites.ts";
 import { inviteCantBeUsedPage, joinPage } from "./pages.ts";
+import { redirectWithCookies } from "./sessions.ts";
 
 export interface JoinDeps {
   accountsUrl: string;
@@ -59,50 +61,30 @@ export function addJoinPage(
     if (await ctx.internalAdapter.findUserByEmail(typed.email))
       return cantBeUsed();
 
-    const invite = invites.take(token);
-    if (!invite) return cantBeUsed();
-    await makeAccount(betterAuth, appAccess, invite, { ...typed, password });
+    // Another join for the same email may have made the account since the check above; then
+    // the invite is left as it was.
+    const made = await createAccount(
+      { betterAuth, appAccess },
+      {
+        ...typed,
+        password,
+        homelabAdmin: found.homelabAdmin,
+        // An app uninstalled since the invite was made is left out rather than refusing the
+        // person.
+        grants: Object.fromEntries(
+          Object.entries(found.grants).filter(([id]) =>
+            appAccess.isInstalled(id),
+          ),
+        ),
+      },
+      { method: "invite", claim: () => invites.take(token) !== undefined },
+    );
+    if (!made) return cantBeUsed();
 
     const signedIn = await betterAuth.api.signInEmail({
       body: { email: typed.email, password },
       returnHeaders: true,
     });
-    const headers = new Headers({ location: "/" });
-    for (const cookie of signedIn.headers.getSetCookie())
-      headers.append("set-cookie", cookie);
-    return new Response(null, { status: 303, headers });
+    return redirectWithCookies("/", signedIn.headers);
   });
-}
-
-async function makeAccount(
-  betterAuth: BetterAuth,
-  appAccess: AppAccess,
-  invite: Invite,
-  person: { email: string; name: string; password: string },
-): Promise<void> {
-  const ctx = await betterAuth.$context;
-  const user = await ctx.internalAdapter.createUser(
-    {
-      email: person.email,
-      name: person.name,
-      emailVerified: true,
-      homelabAdmin: invite.homelabAdmin,
-    },
-    { method: "invite" },
-  );
-  await ctx.internalAdapter.linkAccount({
-    userId: user.id,
-    providerId: "credential",
-    accountId: user.id,
-    password: await ctx.password.hash(person.password),
-  });
-  // An app uninstalled since the invite was made is left out rather than refusing the person.
-  appAccess.set(
-    user.id,
-    Object.fromEntries(
-      Object.entries(invite.grants).filter(([app]) =>
-        appAccess.isInstalled(app),
-      ),
-    ),
-  );
 }

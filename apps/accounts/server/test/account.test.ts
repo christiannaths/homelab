@@ -1,6 +1,6 @@
 // A person's account page on the accounts site: what it shows, and changing their own name and
 // password from it.
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { loadTestPeople } from "../src/test-people.ts";
 import {
   ACCOUNTS,
@@ -47,6 +47,17 @@ describe("the account page", () => {
   it("says so when the person has no apps", async () => {
     const html = await accountPage(await signIn(accounts, BOB));
     expect(html).toContain("No apps yet.");
+  });
+
+  it("says nothing changed for an unknown change, whatever its name", async () => {
+    const cookie = await signIn(accounts, BOB);
+    for (const changed of ["toString", "constructor", "__proto__", "other"]) {
+      const response = await request(accounts, `/?changed=${changed}`, {
+        headers: { cookie },
+      });
+      expect(response.status, changed).toBe(200);
+      expect(await response.text(), changed).not.toContain("is changed");
+    }
   });
 
   it("sends a signed-out browser to sign in, and back to the account page", async () => {
@@ -236,5 +247,56 @@ describe("the account page's forms", () => {
     expect(response.headers.get("location")).toBe(
       `${ACCOUNTS}/sign-in?return-to=${encodeURIComponent(`${ACCOUNTS}/`)}`,
     );
+  });
+});
+
+describe("the session cookie", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const sessionCookieOf = (response: Response) =>
+    response.headers
+      .getSetCookie()
+      .find((cookie) => cookie.startsWith("__Secure-homelab.session_token="));
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("gets another year on the account page a day or more after the last time", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
+    const cookie = await signIn(accounts, BOB);
+    const sameDay = await request(accounts, "/", { headers: { cookie } });
+    expect(sessionCookieOf(sameDay)).toBeUndefined();
+
+    vi.setSystemTime(Date.now() + 2 * DAY);
+    const later = await request(accounts, "/", { headers: { cookie } });
+    expect(later.status).toBe(200);
+    const renewed = sessionCookieOf(later);
+    expect(renewed).toContain("Max-Age=31536000");
+    expect(renewed).toContain(`Domain=${DOMAIN}`);
+    expect(renewed).toContain("HttpOnly");
+    expect(renewed).toContain("Secure");
+  });
+
+  it("gets another year when a signed-in browser opens the sign-in page", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
+    const cookie = await signIn(accounts, BOB);
+    vi.setSystemTime(Date.now() + 2 * DAY);
+    const response = await request(accounts, "/sign-in", {
+      headers: { cookie },
+    });
+    expect(response.status).toBe(302);
+    expect(sessionCookieOf(response)).toContain("Max-Age=31536000");
+  });
+
+  it("isn't extended by the gateway's check, which can't pass a cookie on", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
+    const cookie = await signIn(accounts, BOB);
+    vi.setSystemTime(Date.now() + 2 * DAY);
+    const checked = await askGateway(accounts, cookie, `home.${DOMAIN}`);
+    expect(checked.status).toBe(200);
+    expect(checked.headers.getSetCookie()).toEqual([]);
+    // Still due an extension, so the next accounts page gives it.
+    const page = await request(accounts, "/", { headers: { cookie } });
+    expect(sessionCookieOf(page)).toContain("Max-Age=31536000");
   });
 });

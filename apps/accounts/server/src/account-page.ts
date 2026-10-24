@@ -7,6 +7,13 @@ import type { BetterAuth } from "./better-auth.ts";
 import { formFields, fromOurPages } from "./forms.ts";
 import { signInUrl } from "./forward-auth.ts";
 import { accountPage, appName, type AccountForms } from "./pages.ts";
+import {
+  extendedSessionOf,
+  redirectWithCookies,
+  sessionOf,
+  withCookiesOf,
+  type Session,
+} from "./sessions.ts";
 
 export interface AccountPageDeps {
   accountsUrl: string;
@@ -15,24 +22,17 @@ export interface AccountPageDeps {
   directory: AppDirectory;
 }
 
-type Session = NonNullable<
-  Awaited<ReturnType<BetterAuth["api"]["getSession"]>>
->;
-
 /** Where a confirmed change sends the browser, and what the page then says. */
-const CHANGED: Record<string, string> = {
-  name: "Your name is changed.",
-  password: "Your password is changed.",
-};
+const CHANGED = new Map([
+  ["name", "Your name is changed."],
+  ["password", "Your password is changed."],
+]);
 
 export function addAccountPage(
   app: Hono,
   { accountsUrl, betterAuth, appAccess, directory }: AccountPageDeps,
 ): void {
   const signIn = signInUrl(accountsUrl, "/");
-
-  const sessionOf = (headers: Headers) =>
-    betterAuth.api.getSession({ headers });
 
   const page = async (session: Session, forms: AccountForms = {}) =>
     accountPage({
@@ -56,15 +56,18 @@ export function addAccountPage(
     });
 
   app.get("/", async (c) => {
-    const session = await sessionOf(c.req.raw.headers);
-    if (!session) return c.redirect(signIn, 302);
-    const changed = CHANGED[c.req.query("changed") ?? ""];
-    return c.html(await page(session, { changed }));
+    const { session, cookies } = await extendedSessionOf(
+      betterAuth,
+      c.req.raw.headers,
+    );
+    if (!session) return redirectWithCookies(signIn, cookies, 302);
+    const changed = CHANGED.get(c.req.query("changed") ?? "");
+    return withCookiesOf(c.html(await page(session, { changed })), cookies);
   });
 
   app.post("/name", async (c) => {
     if (!fromOurPages(c, accountsUrl)) return c.text("Forbidden", 403);
-    const session = await sessionOf(c.req.raw.headers);
+    const session = await sessionOf(betterAuth, c.req.raw.headers);
     if (!session) return c.redirect(signIn, 303);
     const name = (await formFields(c))("name").trim();
     if (!name)
@@ -74,15 +77,12 @@ export function addAccountPage(
       body: { name },
       returnHeaders: true,
     });
-    const headers = new Headers({ location: "/?changed=name" });
-    for (const cookie of updated.headers.getSetCookie())
-      headers.append("set-cookie", cookie);
-    return new Response(null, { status: 303, headers });
+    return redirectWithCookies("/?changed=name", updated.headers);
   });
 
   app.post("/password", async (c) => {
     if (!fromOurPages(c, accountsUrl)) return c.text("Forbidden", 403);
-    const session = await sessionOf(c.req.raw.headers);
+    const session = await sessionOf(betterAuth, c.req.raw.headers);
     if (!session) return c.redirect(signIn, 303);
     const field = await formFields(c);
     const changed = await betterAuth.api.changePassword({
@@ -93,7 +93,8 @@ export function addAccountPage(
       },
       asResponse: true,
     });
-    if (changed.ok) return c.redirect("/?changed=password", 303);
+    if (changed.ok)
+      return redirectWithCookies("/?changed=password", changed.headers);
     const passwordError = await passwordErrorOf(changed);
     return c.html(await page(session, { passwordError }), 400);
   });

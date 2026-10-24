@@ -7,6 +7,7 @@ import type { BetterAuth } from "./better-auth.ts";
 import { fromOurPages } from "./forms.ts";
 import { signInUrl } from "./forward-auth.ts";
 import type { Invites } from "./invites.ts";
+import { sessionOf } from "./sessions.ts";
 import {
   adminsOnlyPage,
   appName,
@@ -34,9 +35,7 @@ export function addPeoplePage(app: Hono, deps: PeoplePageDeps): void {
 
   /** The signed-in homelab admin, or the answer for anyone else. */
   const adminOf = async (c: Context, method: "GET" | "POST") => {
-    const session = await betterAuth.api.getSession({
-      headers: c.req.raw.headers,
-    });
+    const session = await sessionOf(betterAuth, c.req.raw.headers);
     if (!session)
       return { refused: c.redirect(signIn, method === "GET" ? 302 : 303) };
     if (session.user.homelabAdmin !== true)
@@ -75,13 +74,13 @@ export function addPeoplePage(app: Hono, deps: PeoplePageDeps): void {
 
   const page = async (
     view: Pick<PeopleView, "made" | "inviteForm" | "error"> = {},
-  ) =>
-    peoplePage({
-      installed: await Promise.all(
+  ) => {
+    const [apps, people, pending] = await Promise.all([
+      Promise.all(
         installed.map(async (id) => ({ id, name: await nameOf(id) })),
       ),
-      people: await everyone(),
-      invites: await Promise.all(
+      everyone(),
+      Promise.all(
         invites.pending().map(async (invite) => ({
           id: invite.id,
           email: invite.email ?? "",
@@ -94,8 +93,9 @@ export function addPeoplePage(app: Hono, deps: PeoplePageDeps): void {
           expiresAt: invite.expiresAt,
         })),
       ),
-      ...view,
-    });
+    ]);
+    return peoplePage({ installed: apps, people, invites: pending, ...view });
+  };
 
   app.get("/people", async (c) => {
     const { refused } = await adminOf(c, "GET");

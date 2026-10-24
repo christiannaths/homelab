@@ -2,6 +2,7 @@
 // whose test people sign in with published passwords. A real install makes people from invites.
 import { isLevel, type Grants } from "./app-access.ts";
 import type { Accounts } from "./accounts.ts";
+import { createAccount } from "./create-account.ts";
 
 export interface TestPerson {
   email: string;
@@ -27,12 +28,13 @@ export async function loadTestPeople(
   const ids: Record<string, string> = {};
   for (const person of people) {
     const email = person.email.trim().toLowerCase();
-    if (
-      person.password.length < minPasswordLength ||
-      person.password.length > maxPasswordLength
-    )
+    if (person.password.length < minPasswordLength)
       throw new Error(
         `${email}: a password needs at least ${minPasswordLength} characters`,
+      );
+    if (person.password.length > maxPasswordLength)
+      throw new Error(
+        `${email}: a password has at most ${maxPasswordLength} characters`,
       );
     const found = await ctx.internalAdapter.findUserByEmail(email);
     if (found && onlyMissing) {
@@ -43,26 +45,25 @@ export async function loadTestPeople(
       name: person.name,
       homelabAdmin: person.homelabAdmin ?? false,
     };
-    const hash = await ctx.password.hash(person.password);
+    const grants = person.apps ?? {};
     let id: string;
     if (found) {
       id = found.user.id;
       await ctx.internalAdapter.updateUser(id, fields);
-      await ctx.internalAdapter.updatePassword(id, hash);
+      await ctx.internalAdapter.updatePassword(
+        id,
+        await ctx.password.hash(person.password),
+      );
+      accounts.appAccess.set(id, grants);
     } else {
-      const user = await ctx.internalAdapter.createUser(
-        { email, emailVerified: true, ...fields },
+      const made = await createAccount(
+        accounts,
+        { email, password: person.password, grants, ...fields },
         { method: "test-people" },
       );
-      id = user.id;
-      await ctx.internalAdapter.linkAccount({
-        userId: id,
-        providerId: "credential",
-        accountId: id,
-        password: hash,
-      });
+      if (!made) throw new Error(`${email}: made by someone else meanwhile`);
+      id = made;
     }
-    accounts.appAccess.set(id, person.apps ?? {});
     ids[email] = id;
   }
   return ids;
