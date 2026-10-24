@@ -116,3 +116,19 @@ async function reachable(home: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Extends the person's session, cookie included, which the gateway's check on each request can't
+ * do (ADR-PLAT-004). Signed in, the switcher sends it on every load, so a session in use never
+ * runs out. The accounts service is at `accountUrl`, where the person's account page is.
+ */
+export function keepSessionGoing(accountUrl: string): void {
+  void fetch(new URL("/session", accountUrl), {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => {
+    // Offline or unreachable: the session goes on until a later load reaches the service.
+  });
+}

@@ -124,12 +124,8 @@ export async function createAccounts(
   // Sent by the App switcher's fetch from an app's page, or by a form on this site. Signs out
   // this device only.
   app.post("/sign-out", async (c) => {
-    const origin = c.req.header("origin");
-    if (
-      c.req.header("sec-fetch-site") === "cross-site" ||
-      !isHomelabOrigin(origin, config.domain)
-    )
-      return c.text("Forbidden", 403);
+    const origin = homelabPageOf(c, config.domain);
+    if (!origin) return c.text("Forbidden", 403);
     const cookies = (await sessionOf(betterAuth, c.req.raw.headers))
       ? (
           await betterAuth.api.signOut({
@@ -143,15 +139,16 @@ export async function createAccounts(
       ?.startsWith("application/x-www-form-urlencoded");
     if (fromForm) return redirectWithCookies("/sign-in", cookies);
     // The switcher reads the answer from another app's origin, then shows the sign-in page.
-    const cors = {
-      "access-control-allow-origin": origin,
-      "access-control-allow-credentials": "true",
-      "vary": "Origin",
-    };
-    return withCookiesOf(
-      new Response(null, { status: 204, headers: cors }),
-      cookies,
-    );
+    return withCookiesOf(answerForPage(origin), cookies);
+  });
+
+  // Sent by the App switcher on every page load. Caddy's forward auth can't pass a cookie back to
+  // the browser, so this is how a person who only uses apps keeps their session going.
+  app.post("/session", async (c) => {
+    const origin = homelabPageOf(c, config.domain);
+    if (!origin) return c.text("Forbidden", 403);
+    const { cookies } = await extendedSessionOf(betterAuth, c.req.raw.headers);
+    return withCookiesOf(answerForPage(origin), cookies);
   });
 
   if (config.testSignInLinks)
@@ -220,6 +217,30 @@ function homelabUrl({ domain, accountsUrl }: Config): URL {
   return new URL(
     `${accounts.protocol}//${domain}${accounts.port ? `:${accounts.port}` : ""}/`,
   );
+}
+
+/**
+ * The Origin of a request sent from an https page of the homelab, an app's or this site's, or
+ * undefined for anything another site could send.
+ */
+function homelabPageOf(c: Context, domain: string): string | undefined {
+  const origin = c.req.header("origin");
+  return c.req.header("sec-fetch-site") !== "cross-site" &&
+    isHomelabOrigin(origin, domain)
+    ? origin
+    : undefined;
+}
+
+/** An empty answer that the page at `origin` may read, having sent the homelab's cookie. */
+function answerForPage(origin: string): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": origin,
+      "access-control-allow-credentials": "true",
+      "vary": "Origin",
+    },
+  });
 }
 
 /** Whether a request's Origin is an https page of the homelab: an app's, or this site's. */

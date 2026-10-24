@@ -23,6 +23,8 @@ It asks Home for the person on load, and shows nothing when they turn out to be 
 
 The switcher keeps Home's last answer in the app's `localStorage` (`homelab.switcher`) and shows it when the device is offline or Home can't be reached. While the device is offline, apps whose manifest doesn't mark them as opening offline are greyed out and can't be opened, and Account settings and Sign out are greyed out with **Needs a connection**. It asks Home again on every load and when the device comes back online, so apps granted or removed meanwhile show up then. A signed-out answer clears what it kept.
 
+Whenever Home says the person is signed in, the switcher also posts to the accounts site's `/session`, which extends the session and refreshes its cookie once a day, so using any app keeps the person signed in. The gateway's check on each request can't refresh the cookie itself.
+
 With each answer from Home it also keeps the apps' icons (`homelab.switcher.icons`), drawn at 40 pixels as data addresses, and shows them with the kept answer. A signed-out answer clears them too. Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
 
 ## Building and testing

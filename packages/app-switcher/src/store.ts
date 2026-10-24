@@ -1,7 +1,7 @@
 // The one answer from Home that every <homelab-switcher> on the page shows. The last answer is kept
 // on the device, so the switcher still shows when the app opens offline or Home can't be reached.
 import { forgetIcons, keepIcons, keptIcons, type Icons } from "./icons.ts";
-import { ask, homeOrigin, parseMe, type Me } from "./me.ts";
+import { ask, homeOrigin, keepSessionGoing, parseMe, type Me } from "./me.ts";
 
 export type State =
   | { status: "asking" }
@@ -64,6 +64,7 @@ export function refresh(): Promise<void> {
   asking ??= ask(homeOrigin(location))
     .then((answer) => {
       if (answer.status === "signed-in") {
+        keepSessionGoing(answer.me.accountUrl);
         keep(answer.me);
         void keepIcons(answer.me.apps);
         set({ status: "signed-in", me: answer.me });
