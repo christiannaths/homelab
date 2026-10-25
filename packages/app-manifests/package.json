@@ -1,9 +1,9 @@
 {
-  "name": "@homelab/voidauth-fixtures",
+  "name": "@homelab/app-manifests",
   "private": true,
   "type": "module",
   "nx": {
-    "name": "voidauth-fixtures",
+    "name": "app-manifests",
     "tags": [
       "scope:shared",
       "platform:node"
@@ -13,7 +13,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

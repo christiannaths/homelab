@@ -1,0 +1,30 @@
+{
+  "name": "@homelab/accounts-server",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "accounts-server",
+    "tags": [
+      "scope:accounts",
+      "platform:node"
+    ]
+  },
+  "scripts": {
+    "start": "node --no-experimental-webstorage src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run"
+  },
+  "dependencies": {
+    "@better-auth/core": "1.7.12",
+    "@homelab/app-manifests": "*",
+    "@homelab/theme": "*",
+    "@hono/node-server": "^2.1.5",
+    "better-auth": "1.7.12",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

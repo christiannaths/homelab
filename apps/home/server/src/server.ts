@@ -3,18 +3,19 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono, type Context } from "hono";
 import { identityFrom } from "@homelab/gateway";
-import { AppDirectory } from "./apps.ts";
 import {
+  AppDirectory,
   manifestReader,
   type GatewayAddress,
   type ReadManifest,
-} from "./manifests.ts";
+} from "@homelab/app-manifests";
+import { appsFor } from "./apps.ts";
 
 export interface ServerOptions {
   /**
    * The homelab's parent address, such as `https://home.example`: every app is a subdomain of
-   * it, VoidAuth is `accounts.` and Home itself `home.` (ADR-PLAT-004). Its port, if any, is every
-   * app's port.
+   * it, the accounts service is `accounts.` and Home itself `home.` (ADR-PLAT-004). Its port, if
+   * any, is every app's port.
    */
   homelabUrl: string;
   /** 0 picks a free port. */
@@ -37,7 +38,7 @@ export async function startServer({
   const homelab = new URL(homelabUrl);
   const apps = new AppDirectory(homelab, readManifest);
   const accountUrl = apps.urlOf("accounts").href;
-  const signOutUrl = new URL("/logout", accountUrl).href;
+  const signOutUrl = new URL("/sign-out", accountUrl).href;
 
   /** Any app under the parent domain, on its scheme and port, may read the answer. */
   const isHomelabApp = (origin: string): boolean => {
@@ -75,7 +76,7 @@ export async function startServer({
   app.get("/api/health", (c) => c.json({ ok: true }));
 
   // A page load the service worker leaves to the network, so a signed-out browser meets the
-  // gateway, which sends it to VoidAuth's sign-in page and back here.
+  // gateway, which sends it to the accounts service's sign-in page and back here.
   app.get("/api/sign-in", (c) => c.redirect("/", 302));
 
   // Who is signed in and which apps they have, for Home's tiles and every app's App switcher.
@@ -85,13 +86,13 @@ export async function startServer({
     c.header("cache-control", "no-store");
     return c.json({
       person: {
-        username: identity.username,
+        id: identity.id,
         name: identity.name,
         email: identity.email,
       },
       accountUrl,
       signOutUrl,
-      apps: await apps.appsFor(identity.groups),
+      apps: await appsFor(apps, identity.groups),
     });
   });
 

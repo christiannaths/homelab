@@ -19,7 +19,7 @@ export const tokens = {
   hover: { light: "#f1f3f5", dark: "#2e2e2e" },
   /**
    * User icons' colours, each dark enough for white initials (at least 4.5:1). The App switcher
-   * picks one from the username, so a person's icon is the same colour in every app.
+   * picks one from the account id, so a person's icon is the same colour in every app.
    */
   avatar: [
     "#b91c1c",

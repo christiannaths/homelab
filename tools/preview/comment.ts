@@ -1,9 +1,9 @@
 // Prints the Markdown that the preview workflows post on a pull request and in a run's summary:
-// the preview's addresses, the commit it runs, and its test accounts.
+// the preview's addresses, the commit it runs, and its test people.
 //
 //   node tools/preview/comment.ts <name> <preview domain> <commit>
 //   node tools/preview/comment.ts <name> <preview domain> --removed
-import { ADMIN, APPS, PEOPLE } from "./fixtures.ts";
+import { APPS, PEOPLE } from "../test-people.ts";
 
 /** Marks the one comment the workflows create and then keep editing on a pull request. */
 export const MARKER = "<!-- homelab-preview -->";
@@ -23,7 +23,6 @@ if (commit === "--removed") {
 
 The preview \`${name}\` was removed when this pull request closed. Reopening it brings up a fresh one.`);
 } else {
-  const accounts = [ADMIN, ...PEOPLE];
   console.log(`${MARKER}
 ### Preview
 
@@ -32,13 +31,13 @@ This pull request runs on commit \`${commit}\`. It wakes in a few seconds when o
 | App | Address |
 | --- | --- |
 ${APPS.map((app) => `| ${app.name} | https://${app.site}.${domain}/ |`).join("\n")}
-| Accounts and admin pages | https://accounts.${domain}/ |
+| Accounts | https://accounts.${domain}/ |
 
-Opening an app asks you to sign in on the accounts page, as on a real install. The passwords are public: anyone can sign in, so put nothing real here.
+Opening an app asks you to sign in with an email and password, as on a real install. The passwords are public: anyone can sign in, so put nothing real here.
 
-| Account | Password | Gets |
+| Email | Password | Gets |
 | --- | --- | --- |
-${accounts.map((account) => `| \`${account.username}\` | \`${account.password}\` | ${account.gets} |`).join("\n")}
+${PEOPLE.map((person) => `| \`${person.email}\` | \`${person.password}\` | ${person.gets} |`).join("\n")}
 
 Accounts and data are kept across pushes. The **Reset preview** workflow wipes them.`);
 }

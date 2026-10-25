@@ -22,7 +22,7 @@
 
 - Only workspace owners can invite people to the workspace as **members**. A workspace setting, **Allow members to request adding other members**, lets members ask; a workspace owner approves or declines. Here it is off by default.
 - Anyone with **Full access** to a page can invite a **guest** to it. If the person has no account yet, the invite creates a guest account. A workspace owner can turn off guest invites for the whole workspace.
-- An invite is a link that works once and grants what it was made for. The person opening it signs in through the homelab's VoidAuth, creating their account there if they have none, and is then admitted ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)).
+- An invite is a link that works once and grants what it was made for. The person opening it signs in through the homelab's accounts service, joining from a homelab invite if they have no account, and is then admitted ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)).
 - New members automatically join the workspace's **default teamspaces** (see [Teamspaces](teamspaces.md)).
 
 ## Changing roles

@@ -1,7 +1,6 @@
 // The App switcher with no connection (issues #91 and #102): it shows the answer Home last gave, in
 // the page each app's service worker saved with the switcher in it, greys out what needs a
 // connection, and catches up once back online.
-import { changeGroups } from "@homelab/voidauth-fixtures";
 import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
@@ -14,14 +13,14 @@ import {
   HOME_URL,
   initialsInMenu,
   launchChromium,
+  loadPeople,
   menuItems,
   newDevice,
   NOTES_URL,
+  SESSION_COOKIE,
   signIn,
-  signInAsAdmin,
   startHome,
   tab,
-  VOIDAUTH_SESSION_COOKIE,
   waitUntilOfflineReady,
 } from "./stack.ts";
 
@@ -185,7 +184,7 @@ describe("the App switcher offline", () => {
 
 describe("the App switcher catching up", () => {
   it("shows apps granted or removed on the next online load or coming back online", async () => {
-    const admin = await signInAsAdmin(inject("dataDir"));
+    const composeEnv = inject("composeEnv");
     const page = await newDevice(browser);
     try {
       await signIn(page, HEDY);
@@ -196,9 +195,8 @@ describe("the App switcher catching up", () => {
         "Sign out",
       ]);
 
-      await changeGroups(admin, HEDY.username, (has) => [
-        ...has,
-        "encyclopedia",
+      await loadPeople(composeEnv, [
+        { ...HEDY, apps: { ...HEDY.apps, encyclopedia: "member" } },
       ]);
       await page.reload();
       await tab(page).waitFor();
@@ -210,11 +208,10 @@ describe("the App switcher catching up", () => {
         "Sign out",
       ]);
 
-      // Only the browser goes offline here: VoidAuth's admin API is reached through the gateway.
       await page.context().setOffline(true);
-      await changeGroups(admin, HEDY.username, (has) =>
-        has.filter((group) => group !== "notes"),
-      );
+      await loadPeople(composeEnv, [
+        { ...HEDY, apps: { encyclopedia: "member" } },
+      ]);
       await page.context().setOffline(false);
       await expect
         .poll(() => menuItems(page))
@@ -226,7 +223,7 @@ describe("the App switcher catching up", () => {
         ]);
     } finally {
       await page.context().close();
-      await changeGroups(admin, HEDY.username, () => HEDY.groups);
+      await loadPeople(composeEnv, [HEDY]);
     }
   });
 
@@ -259,7 +256,7 @@ describe("the App switcher catching up", () => {
 
 describe("the icons the App switcher keeps", () => {
   it("follow apps granted or removed, and go when the person signs out", async () => {
-    const admin = await signInAsAdmin(inject("dataDir"));
+    const composeEnv = inject("composeEnv");
     const page = await newDevice(browser);
     const icon = (app: string) => `${app}.home.test`;
     try {
@@ -268,13 +265,15 @@ describe("the icons the App switcher keeps", () => {
         .poll(() => keptIcons(page))
         .toEqual([icon("home"), icon("notes")]);
 
-      await changeGroups(admin, HEDY.username, () => ["encyclopedia"]);
+      await loadPeople(composeEnv, [
+        { ...HEDY, apps: { encyclopedia: "member" } },
+      ]);
       await page.reload();
       await expect
         .poll(() => keptIcons(page))
         .toEqual([icon("encyclopedia"), icon("home")]);
 
-      await page.context().clearCookies({ name: VOIDAUTH_SESSION_COOKIE });
+      await page.context().clearCookies({ name: SESSION_COOKIE });
       // A new switcher asks Home again, as one does on every page load.
       await page.evaluate(() =>
         document.documentElement.append(
@@ -284,7 +283,7 @@ describe("the icons the App switcher keeps", () => {
       await expect.poll(() => keptIcons(page)).toEqual([]);
     } finally {
       await page.context().close();
-      await changeGroups(admin, HEDY.username, () => HEDY.groups);
+      await loadPeople(composeEnv, [HEDY]);
     }
   });
 });

@@ -1,4 +1,4 @@
-// Home in a real Chromium, behind the homelab gateway and the real VoidAuth image, next to Notes
+// Home in a real Chromium, behind the homelab gateway and the accounts service, next to Notes
 // and the Encyclopedia: the apps each account sees, and opening offline (issue #87, ADR-PLAT-004).
 import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
@@ -76,7 +76,7 @@ describe("Home's tiles", () => {
     await page.getByText(`Signed in as ${ADA.name}`).waitFor();
   });
 
-  it("show an admin only the apps they were given, not every app they can reach", async () => {
+  it("show a homelab admin only the apps they were given", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADMIN);
     expect((await tiles(page)).map((tile) => tile.name)).toEqual([

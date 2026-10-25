@@ -1,7 +1,6 @@
-# The homelab around Notes for its end-to-end tests: the gateway (Caddy) and VoidAuth, the official
-# image unmodified and pinned by digest (ADR-PLAT-004). The Notes server runs in the test process
-# on the host, and the gateway reaches it there. Both move to apps/accounts/ with the containers
-# work (issue #41).
+# The homelab around Notes for its end-to-end tests: the gateway (Caddy) and the accounts service,
+# which runs from this checkout. The Notes server runs in the test process on the host, and the
+# gateway reaches it there.
 name: ${COMPOSE_PROJECT_NAME:-notes-e2e}
 services:
   gateway:
@@ -18,21 +17,25 @@ services:
       NOTES_UPSTREAM: host.docker.internal:${NOTES_PORT:-4120}
     extra_hosts:
       - host.docker.internal:host-gateway
-    depends_on: [voidauth]
+    depends_on: [accounts]
 
-  voidauth:
-    image: voidauth/voidauth:1.16.0@sha256:189ef16fe81f9de0753d1da610813465b2b09412506c2e96f1e0384ee2ca4a97
+  accounts:
+    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+    working_dir: /repo
+    command: node --no-experimental-webstorage apps/accounts/server/src/index.ts
     volumes:
-      - ${DATA_DIR:?set DATA_DIR}/voidauth/config:/app/config
-      - ${DATA_DIR:?set DATA_DIR}/voidauth/db:/app/db
+      - ../../..:/repo:ro
+      - ${DATA_DIR:?set DATA_DIR}/accounts:/data
     environment:
-      APP_URL: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8463}
-      # The session cookie goes on the parent domain, so every app's hostname receives it.
-      SESSION_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
-      STORAGE_KEY: ${STORAGE_KEY:?set STORAGE_KEY to at least 32 random characters}
-      DB_ADAPTER: sqlite
-      DEFAULT_REDIRECT: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8463}/
-      # Registration is closed: accounts come only from invite links (ADR-PLAT-004).
-      SIGNUP: "false"
-      # The suite signs many people in from one address; VoidAuth limits per address.
-      API_RATELIMIT: "1000"
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      ACCOUNTS_URL: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8463}
+      ACCOUNTS_SECRET: ${ACCOUNTS_SECRET:?set ACCOUNTS_SECRET to at least 32 random characters}
+      DATA_DIR: /data
+      PORT: "3000"
+      HOMELAB_APPS: notes
+      # The suite signs many people in from one address.
+      SIGN_IN_RATE_MAX: "1000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/sign-in"]
+      interval: 1s
+      retries: 30

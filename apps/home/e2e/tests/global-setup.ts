@@ -1,5 +1,6 @@
-// Builds the gateway and the apps the stack serves, starts the gateway, VoidAuth and Notes with empty data, and
-// loads the test people into VoidAuth as a homelab admin would grant them apps (ADR-PLAT-004).
+// Builds the gateway and the apps the stack serves, starts the gateway, the accounts service and
+// Notes with empty data, and loads the test people into the accounts service with their App access
+// (ADR-PLAT-004).
 import { execFileSync } from "node:child_process";
 import { X509Certificate, createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
@@ -7,18 +8,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildGatewayImage } from "@homelab/gateway/image";
-import { loadFixtures, VoidAuthClient } from "@homelab/voidauth-fixtures";
 import type { TestProject } from "vitest/node";
 import {
-  ACCOUNTS_URL,
-  ADMIN,
-  APPS,
   DOMAIN,
   GATEWAY_PORT,
   HOME_PORT,
   PEOPLE,
   compose,
-  gatewayCaFile,
+  loadPeople,
 } from "./stack.ts";
 
 declare module "vitest" {
@@ -48,7 +45,7 @@ export default async function setup(project: TestProject) {
   buildGatewayImage();
   const dataDir = await mkdtemp(join(tmpdir(), "home-e2e-stack-"));
   // Made here rather than by Docker, so they belong to this user and can be deleted afterwards.
-  for (const dir of ["caddy", "voidauth/config", "voidauth/db", "notes"])
+  for (const dir of ["caddy", "accounts", "notes"])
     await mkdir(join(dataDir, dir), { recursive: true });
   const env = {
     COMPOSE_PROJECT_NAME: "home-e2e",
@@ -56,7 +53,7 @@ export default async function setup(project: TestProject) {
     GATEWAY_PORT: String(GATEWAY_PORT),
     HOME_PORT: String(HOME_PORT),
     HOMELAB_DOMAIN: DOMAIN,
-    STORAGE_KEY: randomBytes(24).toString("hex"),
+    ACCOUNTS_SECRET: randomBytes(24).toString("hex"),
   };
   const stop = async () => {
     if (process.env.KEEP_STACK) return;
@@ -73,18 +70,9 @@ export default async function setup(project: TestProject) {
     );
     project.provide("dataDir", dataDir);
     project.provide("composeEnv", env);
-    await loadFixtures(
-      new VoidAuthClient({
-        url: ACCOUNTS_URL,
-        ca: await gatewayFile(gatewayCaFile(dataDir)),
-      }),
-      {
-        admin: ADMIN,
-        apps: APPS,
-        people: PEOPLE,
-        readLog: () => compose(env, "logs", "voidauth"),
-      },
-    );
+    // Home reads apps' manifests through the gateway, trusting its root certificate.
+    await gatewayFile(join(pki, "root.crt"));
+    await loadPeople(env, PEOPLE);
   } catch (error) {
     await stop();
     throw error;

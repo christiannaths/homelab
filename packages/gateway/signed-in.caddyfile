@@ -1,27 +1,26 @@
 # The homelab's sign-in check (ADR-PLAT-004), imported first in the route of every app's site: the
-# gateway asks VoidAuth about each request and passes on who is signed in as Remote-* headers,
-# which apps trust. VoidAuth answers from its session cookie: 200 with the headers, a redirect to
-# its sign-in page, or a redirect to its "forbidden" page when the person's groups don't include
-# the app's.
+# gateway asks the accounts service about each request and passes on who is signed in as Remote-*
+# headers, which apps trust. The accounts service answers from its session cookie: 200 with the
+# headers, a redirect to its sign-in page, or its "no access" page when the person has no App
+# access to the app.
 #
-# forward_auth only overwrites the headers VoidAuth sends. It sends no Remote-Name, Remote-Email or
-# Remote-Groups for a person without one, so the browser's own would reach the app: they are
-# deleted first.
+# forward_auth only overwrites the headers the accounts service sends, so the browser's own would
+# reach the app if an answer left one out: they are deleted first.
 #
 # An app's web app manifest and the icons in /icons/ skip the check, so Home can read every app's
 # name and icon without a person's session. Every app keeps them at these paths. Caddy matches
 # the cleaned path, so /icons/../ goes through the check like any other path.
 #
-# VoidAuth is the `voidauth` container unless VOIDAUTH_UPSTREAM names another address, as in a
-# preview, where it runs in the same container as the gateway.
+# The accounts service is the `accounts` container unless ACCOUNTS_UPSTREAM names another address,
+# as in a preview, where it runs in the same container as the gateway.
 request_header -Remote-User
 request_header -Remote-Groups
 request_header -Remote-Name
 request_header -Remote-Email
 @needs-sign-in not path /manifest.webmanifest /icons/*
-forward_auth @needs-sign-in {$VOIDAUTH_UPSTREAM:voidauth:3000} {
+forward_auth @needs-sign-in {$ACCOUNTS_UPSTREAM:accounts:3000} {
 	uri /api/authz/forward-auth
-	# Waits out VoidAuth starting or restarting rather than failing the request at once.
+	# Waits out the accounts service starting or restarting rather than failing the request at once.
 	lb_try_duration 30s
 	lb_try_interval 250ms
 	copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
@@ -32,4 +31,3 @@ forward_auth @needs-sign-in {$VOIDAUTH_UPSTREAM:voidauth:3000} {
 # switcher reads Home's manifest to tell a signed-out browser from one that can't reach Home.
 @homelab-public path /manifest.webmanifest /icons/*
 header @homelab-public Access-Control-Allow-Origin "*"
-

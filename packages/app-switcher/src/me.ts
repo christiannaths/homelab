@@ -10,8 +10,8 @@ export interface App {
 }
 
 export interface Me {
-  person: { username: string; name: string | null; email: string | null };
-  /** VoidAuth's own pages, where the person changes their name, password and passkeys. */
+  person: { id: string; name: string | null; email: string | null };
+  /** The person's account page on the accounts site. */
   accountUrl: string;
   signOutUrl: string;
   apps: App[];
@@ -33,7 +33,7 @@ export function parseMe(value: unknown): Me | undefined {
   if (!isRecord(value) || !isRecord(value.person)) return undefined;
   const { person, accountUrl, signOutUrl, apps } = value;
   if (
-    typeof person.username !== "string" ||
+    typeof person.id !== "string" ||
     typeof accountUrl !== "string" ||
     typeof signOutUrl !== "string"
   )
@@ -41,7 +41,7 @@ export function parseMe(value: unknown): Me | undefined {
   if (!Array.isArray(apps)) return undefined;
   return {
     person: {
-      username: person.username,
+      id: person.id,
       name: stringOrNull(person.name),
       email: stringOrNull(person.email),
     },
@@ -75,7 +75,7 @@ export function homeOrigin(location: {
 }
 
 /**
- * Asks Home who is signed in. A signed-out browser gets the gateway's redirect to VoidAuth, which
+ * Asks Home who is signed in. A signed-out browser gets the gateway's redirect to sign in, which
  * is not followed: signing in is left to the app.
  */
 export async function ask(home: string): Promise<Answer> {
@@ -115,4 +115,20 @@ async function reachable(home: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Extends the person's session, cookie included, which the gateway's check on each request can't
+ * do (ADR-PLAT-004). Signed in, the switcher sends it on every load, so a session in use never
+ * runs out. The accounts service is at `accountUrl`, where the person's account page is.
+ */
+export function keepSessionGoing(accountUrl: string): void {
+  void fetch(new URL("/session", accountUrl), {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => {
+    // Offline or unreachable: the session goes on until a later load reaches the service.
+  });
 }
