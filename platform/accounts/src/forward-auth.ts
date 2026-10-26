@@ -1,7 +1,8 @@
 // The gateway's question about every request to an app (platform/gateway/signed-in.caddyfile):
 // Caddy's forward_auth sends the browser's cookies, and the app's address as X-Forwarded-*. A 2xx
 // lets the request through with the Remote-* headers below; anything else goes to the browser.
-import { groupsOf, type Grants } from "./app-access.ts";
+import { identityHeaders } from "@homelab/identity";
+import type { Grants } from "./app-access.ts";
 
 /** Who the session belongs to, as far as the gateway's answer needs. */
 export interface Person {
@@ -66,23 +67,8 @@ export function answer(
   if (!opens) return { kind: "no-access", app: app ?? forwarded.host };
   return {
     kind: "allow",
-    headers: {
-      // The account id, not the email: a person's email may change, and apps key their data by
-      // this.
-      "Remote-User": person.id,
-      "Remote-Email": headerValue(person.email),
-      "Remote-Name": headerValue(person.name),
-      "Remote-Groups": groupsOf(person.grants).join(","),
-    },
+    headers: identityHeaders({ ...person, access: person.grants }),
   };
-}
-
-// Percent-encoded only when it can't go as a raw header, so packages/identity/src/identity.ts
-// reads both the same way.
-function headerValue(value: string): string {
-  return /^[\x20-\x7e]*$/.test(value) && !value.includes("%")
-    ? value
-    : encodeURIComponent(value);
 }
 
 /** The sign-in page, which comes back to `returnTo` (an address, or a path on this site). */

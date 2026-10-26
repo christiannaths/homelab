@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import { afterEach, describe, expect, test } from "vitest";
 import { startServer, type HomeServer } from "../src/server.ts";
 import { manifestReader, type ReadManifest } from "@homelab/app-manifests";
+import { identityHeaders, type AppAccess } from "@homelab/identity";
 
 const HOMELAB = "https://home.test";
 
@@ -80,21 +81,20 @@ function me(
     id: string;
     name?: string;
     email?: string;
-    groups?: string[];
+    access?: AppAccess;
   },
   headers: Record<string, string> = {},
 ) {
   return fetch(`http://localhost:${server.port}/api/me`, {
     headers: {
       ...headers,
-      ...(person && {
-        "remote-user": person.id,
-        ...(person.name && { "remote-name": encodeURIComponent(person.name) }),
-        ...(person.email && { "remote-email": person.email }),
-        ...(person.groups?.length && {
-          "remote-groups": person.groups.join(","),
-        }),
-      }),
+      ...(person &&
+        identityHeaders({
+          id: person.id,
+          name: person.name ?? null,
+          email: person.email ?? null,
+          access: person.access ?? {},
+        })),
     },
   });
 }
@@ -109,8 +109,8 @@ async function appsIn(res: Response): Promise<Record<string, unknown>[]> {
   return Array.isArray(apps) ? apps.filter(isRecord) : [];
 }
 
-async function appsOf(server: HomeServer, groups: string[]) {
-  const apps = await appsIn(await me(server, { id: ADA_ID, groups }));
+async function appsOf(server: HomeServer, access: AppAccess) {
+  const apps = await appsIn(await me(server, { id: ADA_ID, access }));
   return apps.map((app) => app.id);
 }
 
@@ -121,7 +121,7 @@ describe("who is signed in", () => {
       id: ADA_ID,
       name: "Ada Lovelace",
       email: "ada@example.com",
-      groups: ["notes-admins", "encyclopedia"],
+      access: { notes: "admin", encyclopedia: "member" },
     });
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -151,33 +151,34 @@ describe("who is signed in", () => {
 });
 
 describe("a person's apps", () => {
-  test("come from their groups, the -admins ones included", async () => {
+  test("come from their App access, at either level", async () => {
     const s = await home();
-    expect(await appsOf(s, ["notes"])).toEqual(["home", "notes"]);
-    expect(await appsOf(s, ["notes-admins"])).toEqual(["home", "notes"]);
-    expect(await appsOf(s, ["notes", "notes-admins"])).toEqual([
-      "home",
-      "notes",
-    ]);
+    expect(await appsOf(s, { notes: "member" })).toEqual(["home", "notes"]);
+    expect(await appsOf(s, { notes: "admin" })).toEqual(["home", "notes"]);
   });
 
-  test("always include Home, even with no groups", async () => {
+  test("always include Home, even with no App access", async () => {
     const s = await home();
-    expect(await appsOf(s, [])).toEqual(["home"]);
+    expect(await appsOf(s, {})).toEqual(["home"]);
   });
 
-  test("skip groups with no app", async () => {
+  test("skip App access with no app", async () => {
     const s = await home();
-    expect(await appsOf(s, ["family"])).toEqual(["home"]);
-    expect(await appsOf(s, ["auth_admins", "encyclopedia", "family"])).toEqual([
-      "encyclopedia",
-      "home",
-    ]);
+    expect(await appsOf(s, { family: "member" })).toEqual(["home"]);
+    expect(
+      await appsOf(s, {
+        auth_admins: "member",
+        encyclopedia: "member",
+        family: "admin",
+      }),
+    ).toEqual(["encyclopedia", "home"]);
   });
 
   test("count an app without the homelab member as not opening offline", async () => {
     const s = await home();
-    const apps = await appsIn(await me(s, { id: ADA_ID, groups: ["vault"] }));
+    const apps = await appsIn(
+      await me(s, { id: ADA_ID, access: { vault: "member" } }),
+    );
     expect(apps).toContainEqual({
       id: "vault",
       url: "https://vault.home.test/",
@@ -201,8 +202,8 @@ describe("a person's apps", () => {
       reads.push(url.href);
       return MANIFESTS[url.hostname];
     });
-    await appsOf(s, ["notes"]);
-    await appsOf(s, ["notes", "auth_admins"]);
+    await appsOf(s, { notes: "member" });
+    await appsOf(s, { notes: "member", auth_admins: "member" });
     expect(reads.toSorted()).toEqual([
       "https://home.home.test/manifest.webmanifest",
       "https://notes.home.test/manifest.webmanifest",
@@ -216,14 +217,14 @@ describe("a person's apps", () => {
         ? MANIFESTS[url.hostname]
         : undefined,
     );
-    expect(await appsOf(s, ["notes"])).toEqual(["home", "notes"]);
+    expect(await appsOf(s, { notes: "member" })).toEqual(["home", "notes"]);
     up = false;
-    expect(await appsOf(s, ["notes"])).toEqual(["home", "notes"]);
+    expect(await appsOf(s, { notes: "member" })).toEqual(["home", "notes"]);
   });
 });
 
 describe("other apps reading the answer", () => {
-  const ADA = { id: ADA_ID, groups: ["notes"] };
+  const ADA = { id: ADA_ID, access: { notes: "member" } as const };
 
   test("is allowed, with credentials, for an app under the parent domain", async () => {
     const s = await home();

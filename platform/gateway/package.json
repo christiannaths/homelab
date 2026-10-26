@@ -17,6 +17,7 @@
     "e2e": "node --test \"test/*.test.ts\""
   },
   "devDependencies": {
+    "@homelab/identity": "*",
     "@types/node": "^26.6.5",
     "typescript": "^7.0.2"
   }

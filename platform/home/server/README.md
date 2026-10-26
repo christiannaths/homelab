@@ -4,8 +4,8 @@ Answers who is signed in and which apps they have, for Home's tiles and every ap
 
 ## Finding a person's apps
 
-- Each group in the person's App access (`Remote-Groups`) names an app at `<group>.<parent domain>`; `<app>-admins` counts as `<app>`.
-- Home reads that address's `/manifest.webmanifest` through the gateway, without anyone's cookie, which the gateway allows for manifests and icons. A group with no manifest there is not an app.
+- Each app in the person's App access, read with [`@homelab/identity`](../../../packages/identity), names an app at `<app>.<parent domain>`, whatever their level in it.
+- Home reads that address's `/manifest.webmanifest` through the gateway, without anyone's cookie, which the gateway allows for manifests and icons. An app id with no manifest there is not an app.
 - Manifests are kept for 5 minutes and shared by everyone's requests. An address with no manifest is asked again after a minute, and an app whose manifest stops answering stays listed for up to a day, in case it is restarting.
 - Home itself is always listed.
 
