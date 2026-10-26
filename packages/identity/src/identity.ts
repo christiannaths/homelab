@@ -26,14 +26,14 @@ const ADMINS = "-admins";
 /** The headers that tell an app who is there. All four are always written. */
 export function identityHeaders(person: Identity): Record<string, string> {
   return {
-    "Remote-User": person.id,
+    "Remote-User": headerValue(person.id),
     "Remote-Email": headerValue(person.email ?? ""),
     "Remote-Name": headerValue(person.name ?? ""),
     "Remote-Groups": Object.entries(person.access)
       .toSorted(([a], [b]) => a.localeCompare(b))
       .flatMap(([app, level]) => {
-        if (level === "admin") return [`${app}${ADMINS}`];
-        if (level === "member") return [app];
+        if (level === "admin") return [headerValue(`${app}${ADMINS}`)];
+        if (level === "member") return [headerValue(app)];
         // Callers outside TypeScript can pass anything; no group is safer than a guessed one.
         return [];
       })

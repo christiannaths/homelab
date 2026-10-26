@@ -30,10 +30,10 @@ describe("the identity headers", () => {
 
   test("carry values containing %", () => {
     const percent = {
-      id: "pc",
+      id: "p%41c",
       name: "100% Ada",
       email: "100%25@example.com",
-      access: {},
+      access: { "app%41": "admin" },
     } satisfies Identity;
     expect(roundTrip(percent)).toEqual(percent);
   });
