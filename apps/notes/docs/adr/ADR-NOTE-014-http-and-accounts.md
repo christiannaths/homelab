@@ -33,7 +33,7 @@ The server needs a real HTTP API: the signed-in person, invites, people and role
 
 - The server stack spike ([`research/09-server-stack-spike-findings.md`](../research/09-server-stack-spike-findings.md)), in `spikes/notes-server-stack-poc/`: static files and the client-side route fallback, co-editing across a server restart, and 300 documents on one socket.
 - The ProxyAuth spike ([`spikes/voidauth-proxyauth-poc/FINDINGS.md`](../../../../spikes/voidauth-proxyauth-poc/FINDINGS.md)): the gateway's redirect reaching a page's `fetch` as an `opaqueredirect`, and a WebSocket upgrade passing through the gateway with the person on it.
-- Notes' server tests (`apps/notes/server/test/`) and end-to-end suite (`apps/notes/e2e/`), the latter through the gateway and the accounts service in Chromium (issue #111).
+- Notes' server tests (`apps/notes/server/test/`) and end-to-end suite (`apps/notes/e2e/`), the latter in Chromium behind a stand-in front door that answers a signed-out `fetch` with a redirect, as the gateway does (issue #126). The platform's end-to-end suite opens Notes and its sync socket through the real gateway and accounts service (`platform/e2e/tests/notes.test.ts`).
 
 ## Consequences
 

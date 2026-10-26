@@ -7,7 +7,7 @@ The one way into every app ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.m
 
 ## The image
 
-[`Dockerfile`](Dockerfile) builds the gateway from this checkout: it builds the App switcher, then Caddy 2.10.2 with the module in [`caddy/`](caddy), which has the built switcher inside it, and puts both snippets in `/etc/caddy/`. Every version in it is pinned (images by digest, Go modules in `caddy/go.sum`), so a build is reproducible. Dev (`tools/dev/`), the Home and Notes end-to-end stacks and the preview image ([`tools/preview/Dockerfile`](../../tools/preview/Dockerfile), which builds the same gateway into one image) all run it.
+[`Dockerfile`](Dockerfile) builds the gateway from this checkout: it builds the App switcher, then Caddy 2.10.2 with the module in [`caddy/`](caddy), which has the built switcher inside it, and puts both snippets in `/etc/caddy/`. Every version in it is pinned (images by digest, Go modules in `caddy/go.sum`), so a build is reproducible. Dev (`tools/dev/`), the platform's end-to-end stack and the preview image ([`tools/preview/Dockerfile`](../../tools/preview/Dockerfile), which builds the same gateway into one image) all run it.
 
 ```sh
 docker build -f platform/gateway/Dockerfile .   # from the repository root

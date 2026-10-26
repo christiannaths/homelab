@@ -50,7 +50,7 @@ Without the gateway in front, nobody is signed in, and the client waits as if of
 
 ```sh
 npx nx test notes-server   # sends the gateway's headers itself; nothing to install
-npx nx e2e notes-e2e       # Caddy, the accounts service and Chromium; needs Docker, uses ports 8463 and 4120
+npx nx e2e notes-e2e       # Chromium, behind a stand-in for the gateway; no Docker
 ```
 
-The end-to-end suite drives Playwright's Chromium (`npx playwright install chromium`), or the one at `PLAYWRIGHT_CHROMIUM_PATH`. It reaches the gateway as `*.home.test` without DNS, and trusts the gateway's own CA. Set `KEEP_STACK=1` to leave the containers running afterwards.
+The end-to-end suite is described in [`../e2e/README.md`](../e2e/README.md).

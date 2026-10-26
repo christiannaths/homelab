@@ -23,6 +23,8 @@ declare module "vitest" {
     dataDir: string;
     /** compose()'s environment, for tests that stop and start a service. */
     composeEnv: Record<string, string>;
+    /** Each test person's account id, by email. */
+    accountIds: Record<string, string>;
   }
 }
 
@@ -57,7 +59,7 @@ export default async function setup(project: TestProject) {
     project.provide("composeEnv", env);
     // Home reads apps' manifests through the gateway, trusting its root certificate.
     await gatewayFile(join(pki, "root.crt"));
-    await loadPeople(env, PEOPLE);
+    project.provide("accountIds", await loadPeople(env, PEOPLE));
   } catch (error) {
     await stop();
     throw error;
