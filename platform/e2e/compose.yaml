@@ -35,7 +35,7 @@ services:
       PORT: "3000"
       # Vault is the stand-in bundled app in gateway.caddyfile.
       HOMELAB_APPS: notes,encyclopedia,vault
-      # The account page reads apps' manifests through the gateway, trusting its own CA.
+      # The service reads apps' manifests through the gateway, trusting its own CA.
       GATEWAY_URL: https://gateway
       GATEWAY_CA: /gateway/caddy/pki/authorities/local/root.crt
       # The suite signs many people in from one address.

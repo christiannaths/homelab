@@ -38,24 +38,19 @@ services:
       PORT: "3000"
       # The one-click sign-in links start.ts prints. Only dev turns them on.
       TEST_SIGN_IN_LINKS: "on"
-      # The account page reads each app's manifest through the gateway, as Home does.
+      # The service reads each app's manifest through the gateway, since *.homelab.localhost is
+      # this container itself, trusting the CA the gateway keeps in its volume.
       GATEWAY_URL: https://gateway:443
       GATEWAY_CA: /caddy/caddy/pki/authorities/local/root.crt
 
-  # The real Home server, run from this checkout. It serves platform/home/web/dist. It reads each app's
-  # manifest through the gateway, since *.homelab.localhost is this container itself, trusting the
-  # CA the gateway keeps in its volume.
+  # The real Home server, run from this checkout. It serves platform/home/web/dist.
   home:
     image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
     working_dir: /repo
     command: node platform/home/server/src/index.ts
     volumes:
       - ../..:/repo:ro
-      - caddy:/caddy:ro
     environment:
-      HOMELAB_URL: ${HOMELAB_URL:?start the stack with npm run dev}
-      GATEWAY_URL: https://gateway:443
-      GATEWAY_CA: /caddy/caddy/pki/authorities/local/root.crt
       PORT: "3000"
 
   # The real Notes server, run from this checkout. It serves apps/notes/web/dist.

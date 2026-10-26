@@ -12,7 +12,7 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Account id**: The permanent id the accounts service gives a homelab account, which apps receive in `Remote-User` and key a person's data by. It never changes, even when the person's email or name does. _Avoid_: username, user id
 
-**Accounts service**: The homelab's own service at `accounts.<domain>`, on Better Auth, where people sign in and manage their homelab account, and which tells the gateway who is signed in. _Avoid_: auth server, identity provider, VoidAuth
+**Accounts service**: The homelab's own service at `accounts.<domain>`, on Better Auth, where people sign in and manage their homelab account, which tells the gateway who is signed in, and which answers `/api/me`, who is signed in and their apps, for the App switcher and Home. _Avoid_: auth server, identity provider, VoidAuth
 
 **Account page**: A person's own page on the accounts service, which Account settings in the App switcher opens. It shows their name, email and apps, and lets them change their name and password. _Avoid_: profile, settings page, account settings
 
@@ -26,7 +26,7 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Bundled app**: An existing open-source app that homelab runs behind its sign-in instead of building its own, such as Vaultwarden. _Avoid_: third-party app, integration
 
-**Home**: The platform's own installable page at `home.<domain>`, which every homelab account can open and which shows the apps a person can use. It is part of the platform, since it needs a person's App access across every app, and an install can leave it out. _Avoid_: home page, dashboard, launcher, portal
+**Home**: The platform's own installable page at `home.<domain>`, which every homelab account can open and which shows the apps a person can use, from the accounts service's `/api/me`. It is part of the platform, since it shows a person's App access across every app, and it is optional: an install can leave it out, and the App switcher works without it. _Avoid_: home page, dashboard, launcher, portal
 
 **Platform**: Everything around apps that runs them for a household: the gateway, the accounts service, Home, the App switcher and the reading of apps' manifests. Code belongs to it when it needs platform knowledge, such as a person's App access across apps. _Avoid_: core, framework, infrastructure
 

@@ -4,7 +4,11 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ReadManifest } from "@homelab/app-manifests";
-import { createAccounts, type Accounts } from "../src/accounts.ts";
+import {
+  createAccounts,
+  type Accounts,
+  type Options,
+} from "../src/accounts.ts";
 import {
   homelabAddresses,
   type Config,
@@ -33,8 +37,16 @@ export const ADMIN: TestPerson = {
   homelabAdmin: true,
 };
 
-/** The installed apps' manifests, as the gateway would serve them, by hostname on any port. */
+/**
+ * Home's and the installed apps' manifests, as the gateway would serve them, by hostname on any
+ * port.
+ */
 const MANIFESTS: Record<string, unknown> = {
+  [`home.${DOMAIN}`]: {
+    name: "Home",
+    homelab: { opens_offline: true },
+    icons: [{ src: "icons/icon-192.png", sizes: "192x192" }],
+  },
   [`notes.${DOMAIN}`]: {
     name: "Notes",
     icons: [{ src: "icons/icon-192.png", sizes: "192x192" }],
@@ -45,7 +57,7 @@ const MANIFESTS: Record<string, unknown> = {
   },
 };
 
-const readManifest: ReadManifest = async (url) =>
+export const readManifest: ReadManifest = async (url) =>
   url.pathname === "/manifest.webmanifest"
     ? MANIFESTS[url.hostname]
     : undefined;
@@ -57,7 +69,8 @@ export interface TestAccounts extends Accounts {
 
 /**
  * A fresh service with the given people, and settings overridden by `config`. The homelab's
- * addresses all come from `homelabUrl`, as they do from HOMELAB_URL.
+ * addresses all come from `homelabUrl`, as they do from HOMELAB_URL. It reads the manifests in
+ * MANIFESTS, unless `options` gives another reader.
  */
 export async function startAccounts(
   people: TestPerson[] = [ADA, BOB, ADMIN],
@@ -67,6 +80,7 @@ export async function startAccounts(
   }: Partial<Omit<Config, keyof HomelabAddresses>> & {
     homelabUrl?: string;
   } = {},
+  options: Options = {},
 ): Promise<TestAccounts> {
   const accounts = await createAccounts(
     {
@@ -79,7 +93,7 @@ export async function startAccounts(
       signInRateLimit: { window: 60, max: 100 },
       ...config,
     },
-    { readManifest },
+    { readManifest, ...options },
   );
   const ids = await loadTestPeople(accounts, people);
   return Object.assign(accounts, { ids });

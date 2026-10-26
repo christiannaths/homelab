@@ -21,7 +21,6 @@ import {
 declare module "vitest" {
   export interface ProvidedContext {
     gatewayCaSpki: string;
-    dataDir: string;
     /** compose()'s environment, for tests that stop and start a service. */
     composeEnv: Record<string, string>;
     /** Each test person's account id, by email. */
@@ -58,9 +57,8 @@ export default async function setup(project: TestProject) {
       "gatewayCaSpki",
       spkiHash(await gatewayFile(join(pki, "intermediate.crt"))),
     );
-    project.provide("dataDir", dataDir);
     project.provide("composeEnv", env);
-    // Home reads apps' manifests through the gateway, trusting its root certificate.
+    // The accounts service reads manifests through the gateway, trusting its root certificate.
     await gatewayFile(join(pki, "root.crt"));
     project.provide("accountIds", await loadPeople(env, PEOPLE));
   } catch (error) {

@@ -2,7 +2,6 @@
 // everything through the gateway on GATEWAY_PORT, as a browser on the home network would.
 import { execFile } from "node:child_process";
 import { connect } from "node:tls";
-import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { startServer, type HomeServer } from "@homelab/home-server";
@@ -116,21 +115,9 @@ export async function compose(
   return stdout + stderr;
 }
 
-/** The gateway's root certificate, under the stack's data directory. */
-export const gatewayCaFile = (dataDir: string) =>
-  path.join(dataDir, "caddy/caddy/pki/authorities/local/root.crt");
-
-/** Starts Home, reading apps' manifests through the gateway on this machine. */
-export function startHome(dataDir: string): Promise<HomeServer> {
-  return startServer({
-    homelabUrl: HOMELAB_URL,
-    port: HOME_PORT,
-    gateway: {
-      url: new URL(`https://127.0.0.1:${GATEWAY_PORT}`),
-      caFile: gatewayCaFile(dataDir),
-    },
-    clientDir: CLIENT_DIR,
-  });
+/** Starts Home, which the gateway reaches on this machine. */
+export function startHome(): Promise<HomeServer> {
+  return startServer({ port: HOME_PORT, clientDir: CLIENT_DIR });
 }
 
 /**

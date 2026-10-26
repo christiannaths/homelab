@@ -22,8 +22,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@homelab/app-manifests": "*",
-    "@homelab/identity": "*",
     "@hono/node-server": "^2.1.5",
     "hono": "^4.13.13"
   },

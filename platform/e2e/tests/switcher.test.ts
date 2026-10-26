@@ -19,17 +19,19 @@ import {
   menuItems,
   newDevice,
   NOTES_URL,
+  onSignInPage,
   SESSION_COOKIE,
   signIn,
   startHome,
   tab,
+  typePassword,
 } from "./stack.ts";
 
 let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome(inject("dataDir"));
+  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
@@ -281,12 +283,12 @@ describe("the menu", () => {
 });
 
 describe("signed out", () => {
-  it("hides once Home says the person is signed out", async () => {
+  it("hides once the accounts site says the person is signed out", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
     await tab(page).waitFor();
     await page.context().clearCookies({ name: SESSION_COOKIE });
-    // A new switcher asks Home again, as one does on every page load.
+    // A new switcher asks the accounts site again, as one does on every page load.
     await page.evaluate(() =>
       document.documentElement.append(
         document.createElement("homelab-switcher"),
@@ -294,5 +296,30 @@ describe("signed out", () => {
     );
     await tab(page).first().waitFor({ state: "hidden" });
     expect(await tab(page).count()).toBe(0);
+  });
+});
+
+describe("an install without Home", () => {
+  it("still lists the person's apps, Account settings and Sign out", async () => {
+    await home.close();
+    try {
+      const page = await newDevice(browser);
+      await page.goto(NOTES_URL);
+      await onSignInPage(page);
+      await typePassword(page, ADA);
+      await tab(page).waitFor();
+      // Home stays listed while the accounts service keeps its manifest from earlier tests.
+      expect(await menuItems(page)).toEqual(
+        expect.arrayContaining([
+          "Encyclopedia",
+          "NotesCurrent",
+          "Account settings",
+          "Sign out",
+        ]),
+      );
+      await page.context().close();
+    } finally {
+      home = await startHome();
+    }
   });
 });

@@ -1,4 +1,5 @@
-// What Home's server says about the signed-in person (platform/home/server/README.md).
+// What the accounts site's `/api/me` says about the signed-in person and their apps
+// (platform/accounts/README.md), asked from Home's page with the homelab's cookie.
 
 export interface App {
   id: string;
@@ -58,22 +59,29 @@ export function parseMe(value: unknown): Me | undefined {
 }
 
 /**
- * Asks who is signed in. A signed-out browser gets the gateway's redirect to sign in instead of
- * an answer; it is not followed, since only a page load can sign in.
+ * The accounts site, `accounts.` beside Home under the parent domain (ADR-PLAT-004), on Home's own
+ * scheme and port.
+ */
+function accountsOrigin(): string {
+  const parent = location.host.split(".").slice(1).join(".");
+  return `${location.protocol}//accounts.${parent}`;
+}
+
+/**
+ * Asks the accounts site who is signed in. It is outside the gateway's sign-in check, so a
+ * signed-out browser gets a 401 it can read; signing in is left to a page load.
  */
 export async function checkMe(): Promise<MeCheck> {
   let response: Response;
   try {
-    response = await fetch("/api/me", {
+    response = await fetch(`${accountsOrigin()}/api/me`, {
+      credentials: "include",
       cache: "no-store",
-      redirect: "manual",
     });
   } catch {
     return { status: "unreachable" };
   }
-  if (response.type === "opaqueredirect") return { status: "signed-out" };
-  // A 401 means no gateway is in front of Home; treated as signed out, the sign-in would come
-  // straight back here.
+  if (response.status === 401) return { status: "signed-out" };
   if (!response.ok) return { status: "unreachable" };
   const me = parseMe(await response.json().catch(() => undefined));
   return me ? { status: "signed-in", me } : { status: "unreachable" };

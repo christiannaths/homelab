@@ -54,7 +54,7 @@ Set `HOMELAB_URL` (default `https://homelab.localhost:8443`) to use another doma
 
 ## Files
 
-- `compose.yaml`: the containers. Only the gateway publishes a port, since the apps trust the `Remote-*` headers the gateway sets. The accounts service, Home and Notes run from this checkout. Home reads apps' manifests from the gateway container, trusting the CA in its volume.
+- `compose.yaml`: the containers. Only the gateway publishes a port, since the apps trust the `Remote-*` headers the gateway sets. The accounts service, Home and Notes run from this checkout. The accounts service reads apps' manifests from the gateway container, trusting the CA in its volume.
 - `.env`: the accounts service's `ACCOUNTS_SECRET`, which signs its session cookies, made by `start.ts` on first run and deleted by `npm run dev:reset`, and the last run's `HOMELAB_URL` with the hostname and port the gateway gets from it, so `docker compose` commands run by hand get the same.
 - `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check and the App switcher from [`platform/gateway`](../../platform/gateway/README.md), whose image `npm run dev` builds first (as `homelab-gateway`).
 - `start.ts`: what `npm run dev` and `npm run dev:reset` run.

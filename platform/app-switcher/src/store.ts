@@ -1,7 +1,14 @@
-// The one answer from Home that every <homelab-switcher> on the page shows. The last answer is kept
-// on the device, so the switcher still shows when the app opens offline or Home can't be reached.
+// The one answer from the accounts site that every <homelab-switcher> on the page shows. The last
+// answer is kept on the device, so the switcher still shows when the app opens offline or the
+// accounts site can't be reached.
 import { forgetIcons, keepIcons, keptIcons, type Icons } from "./icons.ts";
-import { ask, homeOrigin, keepSessionGoing, parseMe, type Me } from "./me.ts";
+import {
+  accountsOrigin,
+  ask,
+  keepSessionGoing,
+  parseMe,
+  type Me,
+} from "./me.ts";
 
 export type State =
   | { status: "asking" }
@@ -29,8 +36,8 @@ function keep(me: Me | undefined): void {
   }
 }
 
-// The kept answer shows at once, and Home's answer replaces it, so a connection that hangs
-// instead of failing still shows the switcher.
+// The kept answer shows at once, and the accounts site's answer replaces it, so a connection that
+// hangs instead of failing still shows the switcher.
 const first = kept();
 let state: State = first
   ? { status: "signed-in", me: first, icons: keptIcons() }
@@ -59,9 +66,9 @@ export function forget(): void {
   forgetIcons();
 }
 
-/** Asks Home again, unless a question is already on its way. */
+/** Asks the accounts site again, unless a question is already on its way. */
 export function refresh(): Promise<void> {
-  asking ??= ask(homeOrigin(location))
+  asking ??= ask(accountsOrigin(location))
     .then((answer) => {
       if (answer.status === "signed-in") {
         keepSessionGoing(answer.me.accountUrl);

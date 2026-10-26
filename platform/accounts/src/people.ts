@@ -1,6 +1,5 @@
 // The People page, where homelab admins manage everyone's accounts and invite people
 // (ADR-PLAT-004). Only homelab admins may open it or use it.
-import type { AppDirectory } from "@homelab/app-manifests";
 import type { Context, Hono } from "hono";
 import { isLevel, type AppAccess, type Grants } from "./app-access.ts";
 import type { BetterAuth } from "./better-auth.ts";
@@ -8,9 +7,9 @@ import { fromOurPages } from "./forms.ts";
 import { signInUrl } from "./forward-auth.ts";
 import type { Invites } from "./invites.ts";
 import { sessionOf } from "./sessions.ts";
+import type { ShownApps } from "./shown-apps.ts";
 import {
   adminsOnlyPage,
-  appName,
   peoplePage,
   type PeopleView,
   type PersonEntry,
@@ -21,7 +20,7 @@ export interface PeoplePageDeps {
   betterAuth: BetterAuth;
   appAccess: AppAccess;
   invites: Invites;
-  directory: AppDirectory;
+  apps: ShownApps;
   /** The installed apps' subdomains. */
   installed: readonly string[];
 }
@@ -29,8 +28,7 @@ export interface PeoplePageDeps {
 const APP_FIELD = "app-";
 
 export function addPeoplePage(app: Hono, deps: PeoplePageDeps): void {
-  const { accountsUrl, betterAuth, appAccess, invites, directory, installed } =
-    deps;
+  const { accountsUrl, betterAuth, appAccess, invites, installed } = deps;
   const signIn = signInUrl(accountsUrl, "/people");
 
   /** The signed-in homelab admin, or the answer for anyone else. */
@@ -43,10 +41,9 @@ export function addPeoplePage(app: Hono, deps: PeoplePageDeps): void {
     return { admin: session.user };
   };
 
-  /** An app's name and icon from its manifest, or its subdomain when that can't be read. */
   const appOf = async (id: string) => {
-    const read = await directory.app(id);
-    return { id, name: read?.name ?? appName(id), icon: read?.icon ?? null };
+    const { name, icon } = await deps.apps.app(id);
+    return { id, name, icon };
   };
   const nameOf = async (id: string) => (await appOf(id)).name;
 

@@ -90,7 +90,8 @@ export class HomelabSwitcher extends HTMLElement {
     const state = current();
     const me = state.status === "signed-in" ? state.me : undefined;
     const icons = state.status === "signed-in" ? state.icons : undefined;
-    // Offline is as the browser says: Home being unreachable alone greys nothing out.
+    // Offline is as the browser says: the accounts site being unreachable alone greys
+    // nothing out.
     const offline = !navigator.onLine;
     // Signed out, the switcher shows nothing and leaves signing in to the app or its page.
     this.hidden = !me;
@@ -109,7 +110,7 @@ export class HomelabSwitcher extends HTMLElement {
     offline: boolean,
   ): void {
     const wasOpen = this.#panel ? !this.#panel.hidden : false;
-    // A re-render (an answer from Home, going on or off line) keeps focus where the person left it.
+    // A re-render (a new answer, going on or off line) keeps focus where the person left it.
     const focused = this.#items.findIndex(
       (item) => item === this.#shadow.activeElement,
     );
