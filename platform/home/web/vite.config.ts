@@ -10,9 +10,6 @@ declare module "vite-plugin-pwa" {
   }
 }
 
-// The Home server's address in development; it serves the API.
-const server = process.env.HOME_SERVER ?? "http://localhost:3000";
-
 export default defineConfig({
   plugins: [
     react(),
@@ -79,5 +76,4 @@ export default defineConfig({
       },
     }),
   ],
-  server: { proxy: { "/api": server } },
 });
