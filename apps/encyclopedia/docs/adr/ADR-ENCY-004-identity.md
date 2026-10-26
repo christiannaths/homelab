@@ -22,7 +22,7 @@ Saved lists belong to a person, and only the homelab admin should change which W
 
 - Platform sign-in decision and the accounts service's tests: [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md).
 - Christian, 2026-10-18, in the project thread: access to any app is set by the admin when inviting someone.
-- Home's end-to-end suite (`apps/home/e2e/`): the App switcher shows on the title page with Encyclopedia marked as current, and its Sign out signs out every app (PR for issue #90).
+- The platform's end-to-end suite (`platform/e2e/`): the App switcher shows on the title page with Encyclopedia marked as current, and its Sign out signs out every app (PR for issue #90).
 
 ## Consequences
 

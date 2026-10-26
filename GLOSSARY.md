@@ -22,10 +22,14 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 ## Apps
 
-**App**: One thing a household uses under the homelab's sign-in, at its own address, such as Notes or Encyclopedia. _Avoid_: service, module, site
+**App**: One thing a household uses under the homelab's sign-in, at its own address, such as Notes or Encyclopedia. It works through the app contract alone and knows only about itself, never about other apps or a person's App access to them. _Avoid_: service, module, site
 
 **Bundled app**: An existing open-source app that homelab runs behind its sign-in instead of building its own, such as Vaultwarden. _Avoid_: third-party app, integration
 
-**Home**: The app every homelab account can open, which shows the apps a person can use. _Avoid_: home page, dashboard, launcher, portal
+**Home**: The platform's own installable page at `home.<domain>`, which every homelab account can open and which shows the apps a person can use. It is part of the platform, since it needs a person's App access across every app, and an install can leave it out. _Avoid_: home page, dashboard, launcher, portal
+
+**Platform**: Everything around apps that runs them for a household: the gateway, the accounts service, Home, the App switcher and the reading of apps' manifests. Code belongs to it when it needs platform knowledge, such as a person's App access across apps. _Avoid_: core, framework, infrastructure
+
+**App contract**: What an app must provide and may rely on to plug into the homelab: its own subdomain, a manifest and icons readable signed out, the person on every request in headers, no signed-out requests, and the App switcher on its pages. _Avoid_: app API, plugin interface, integration
 
 **App switcher**: The tab at the top of every app and the menu it opens, listing the person's apps, Account settings and Sign out. _Avoid_: widget, apps menu, user menu, launcher

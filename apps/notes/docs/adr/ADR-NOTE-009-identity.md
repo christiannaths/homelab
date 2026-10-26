@@ -25,7 +25,7 @@ Each instance needs to know who is editing. The homelab's apps share one homelab
 ## Evidence
 
 - The ProxyAuth spike ([`spikes/voidauth-proxyauth-poc/FINDINGS.md`](../../../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68): a stand-in Notes reads the person from the gateway's headers, its levels come from `notes` and `notes-admins`, and one sign-out signs it and the Encyclopedia out.
-- Notes' end-to-end suite (`apps/notes/e2e/`): the real Notes server and web client behind the gateway and the accounts service in Chromium, covering sign-in, owners and members by their account id, the no-access page for a person without App access, signing out on the accounts site, and starting offline (issue #111). Home's end-to-end suite (`apps/home/e2e/`) signs out from the App switcher in Notes and checks that Home and the Encyclopedia are signed out too.
+- Notes' end-to-end suite (`apps/notes/e2e/`): the real Notes server and web client behind the gateway and the accounts service in Chromium, covering sign-in, owners and members by their account id, the no-access page for a person without App access, signing out on the accounts site, and starting offline (issue #111). the platform's end-to-end suite (`platform/e2e/`) signs out from the App switcher in Notes and checks that Home and the Encyclopedia are signed out too.
 
 ## Consequences
 
