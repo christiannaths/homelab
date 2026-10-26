@@ -17,6 +17,7 @@ import { addPeoplePage } from "./people.ts";
 import { Invites } from "./invites.ts";
 import { AppAccess } from "./app-access.ts";
 import { createBetterAuth } from "./better-auth.ts";
+import { ShownApps } from "./shown-apps.ts";
 import type { Config } from "./config.ts";
 import { formFields, fromOurPages } from "./forms.ts";
 import { answer, safeReturnTo } from "./forward-auth.ts";
@@ -31,11 +32,19 @@ import {
 export interface Options {
   /** Replaces reading manifests through the gateway, for tests. */
   readManifest?: ReadManifest;
+  /** Where warnings go, such as an app whose manifest can't be read; the console by default. */
+  warn?: (message: string) => void;
+  /** The clock that says when a manifest is read again, for tests. */
+  now?: () => number;
 }
 
 export async function createAccounts(
   config: Config,
-  { readManifest = manifestReader(config.gateway) }: Options = {},
+  {
+    readManifest = manifestReader(config.gateway),
+    warn = console.warn,
+    now = Date.now,
+  }: Options = {},
 ) {
   mkdirSync(config.dataDir, { recursive: true });
   const db = new DatabaseSync(path.join(config.dataDir, "accounts.sqlite"));
@@ -45,7 +54,10 @@ export async function createAccounts(
   const betterAuth = await createBetterAuth(db, config);
   const appAccess = new AppAccess(db, config.apps);
   const invites = new Invites(db);
-  const directory = new AppDirectory(homelabUrl(config), readManifest);
+  const apps = new ShownApps(
+    new AppDirectory(homelabUrl(config), readManifest, now),
+    warn,
+  );
 
   const app = new Hono();
 
@@ -151,6 +163,37 @@ export async function createAccounts(
     return withCookiesOf(answerForPage(origin), cookies);
   });
 
+  // Who is signed in and which apps they have, for the App switcher in every app and Home's tiles.
+  // The accounts site is outside the gateway's sign-in check, so a signed-out browser gets an
+  // answer its page can read rather than the gateway's redirect. A fetch from an app's page is a
+  // simple GET with no preflight; one from this site's own pages sends no Origin.
+  app.get("/api/me", async (c) => {
+    const origin = c.req.header("origin");
+    if (
+      c.req.header("sec-fetch-site") === "cross-site" ||
+      (origin !== undefined && !isHomelabOrigin(origin, config.domain))
+    )
+      return c.text("Forbidden", 403);
+    if (origin) {
+      c.header("access-control-allow-origin", origin);
+      c.header("access-control-allow-credentials", "true");
+    }
+    c.header("vary", "Origin");
+    c.header("cache-control", "no-store");
+    const session = await sessionOf(betterAuth, c.req.raw.headers);
+    if (!session) return c.json({ error: "signed_out" }, 401);
+    return c.json({
+      person: {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+      },
+      accountUrl: new URL("/", config.accountsUrl).href,
+      signOutUrl: new URL("/sign-out", config.accountsUrl).href,
+      apps: await apps.of(appAccess.of(session.user.id)),
+    });
+  });
+
   if (config.testSignInLinks)
     app.get("/test-sign-in", async (c) => {
       const ctx = await betterAuth.$context;
@@ -176,14 +219,14 @@ export async function createAccounts(
     accountsUrl: config.accountsUrl,
     betterAuth,
     appAccess,
-    directory,
+    apps,
   });
   addPeoplePage(app, {
     accountsUrl: config.accountsUrl,
     betterAuth,
     appAccess,
     invites,
-    directory,
+    apps,
     installed: config.apps,
   });
   addJoinPage(app, {

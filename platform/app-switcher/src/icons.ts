@@ -1,5 +1,6 @@
-// The other apps' icons, kept on the device with Home's last answer, so the menu shows them when
-// the app opens offline or Home can't be reached, without any app's service worker keeping them.
+// The other apps' icons, kept on the device with the accounts site's last answer, so the menu shows
+// them when the app opens offline or the site can't be reached, without any app's service worker
+// keeping them.
 // Each is kept small, as a data address, since the menu shows it at 20 pixels.
 import type { App } from "./me.ts";
 
@@ -33,7 +34,7 @@ function store(icons: Icons | undefined): void {
   }
 }
 
-// Counts Home's answers, so icons still loading for an older answer aren't kept over a newer one,
+// Counts the accounts site's answers, so icons still loading for an older answer aren't kept over a newer one,
 // such as a sign-out.
 let answers = 0;
 

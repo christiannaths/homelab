@@ -2,99 +2,22 @@ import path from "node:path";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono, type Context } from "hono";
-import { identityFrom } from "@homelab/identity";
-import {
-  AppDirectory,
-  manifestReader,
-  type GatewayAddress,
-  type ReadManifest,
-} from "@homelab/app-manifests";
-import { appsFor } from "./apps.ts";
 
 export interface ServerOptions {
-  /**
-   * The homelab's parent address, such as `https://home.example`: every app is a subdomain of
-   * it, the accounts service is `accounts.` and Home itself `home.` (ADR-PLAT-004). Its port, if
-   * any, is every app's port.
-   */
-  homelabUrl: string;
   /** 0 picks a free port. */
   port: number;
-  /** How Home reaches the gateway to read apps' manifests. By default, at each app's address. */
-  gateway?: GatewayAddress;
-  /** Replaces reading manifests through the gateway, for tests. */
-  readManifest?: ReadManifest;
   /** The web client's build (platform/home/web/dist). Without it, only the API is served. */
   clientDir?: string;
 }
 
-export async function startServer({
-  homelabUrl,
-  port,
-  gateway = {},
-  readManifest = manifestReader(gateway),
-  clientDir,
-}: ServerOptions) {
-  const homelab = new URL(homelabUrl);
-  const apps = new AppDirectory(homelab, readManifest);
-  const accountUrl = apps.urlOf("accounts").href;
-  const signOutUrl = new URL("/sign-out", accountUrl).href;
-
-  /** Any app under the parent domain, on its scheme and port, may read the answer. */
-  const isHomelabApp = (origin: string): boolean => {
-    let url: URL;
-    try {
-      url = new URL(origin);
-    } catch {
-      return false;
-    }
-    const [label, ...parent] = url.hostname.split(".");
-    return (
-      url.protocol === homelab.protocol &&
-      url.port === homelab.port &&
-      parent.join(".") === homelab.hostname &&
-      /^[a-z0-9-]+$/.test(label ?? "")
-    );
-  };
-
+export async function startServer({ port, clientDir }: ServerOptions) {
   const app = new Hono();
-
-  // Apps ask from their own pages, with the homelab's cookie, so the answer names their origin.
-  // A GET with no custom headers needs no preflight, which the gateway could not let through:
-  // a preflight carries no cookie.
-  const allowHomelabApps = async (c: Context, next: () => Promise<void>) => {
-    await next();
-    const origin = c.req.header("origin");
-    c.header("vary", "Origin", { append: true });
-    if (origin && isHomelabApp(origin)) {
-      c.header("access-control-allow-origin", origin);
-      c.header("access-control-allow-credentials", "true");
-    }
-  };
-  app.use("/api/*", allowHomelabApps);
 
   app.get("/api/health", (c) => c.json({ ok: true }));
 
   // A page load the service worker leaves to the network, so a signed-out browser meets the
   // gateway, which sends it to the accounts service's sign-in page and back here.
   app.get("/api/sign-in", (c) => c.redirect("/", 302));
-
-  // Who is signed in and which apps they have, for Home's tiles and every app's App switcher.
-  app.get("/api/me", async (c) => {
-    const identity = identityFrom(c.req.raw.headers);
-    if (!identity) return c.json({ error: "signed_out" }, 401);
-    c.header("cache-control", "no-store");
-    return c.json({
-      person: {
-        id: identity.id,
-        name: identity.name,
-        email: identity.email,
-      },
-      accountUrl,
-      signOutUrl,
-      apps: await appsFor(apps, identity.groups),
-    });
-  });
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
 

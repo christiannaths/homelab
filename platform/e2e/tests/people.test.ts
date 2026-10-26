@@ -35,7 +35,7 @@ let browser: Browser;
 let admin: Page;
 
 beforeAll(async () => {
-  home = await startHome(inject("dataDir"));
+  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
   admin = await newDevice(browser);
   await signIn(admin, ADMIN);

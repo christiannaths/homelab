@@ -21,7 +21,7 @@ let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome(inject("dataDir"));
+  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {

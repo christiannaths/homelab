@@ -39,7 +39,7 @@ The repo is a home for several homelab apps and the platform that runs them. Wha
 - **Turborepo**, on the maintainer's experience that it adds little.
 - **`@nx/enforce-module-boundaries`** for the boundary check. It needs typescript-eslint, which supports TypeScript up to 6.0, and the repo uses TypeScript 7.
 - **Platform services as apps in `apps/`**, as the accounts service and Home were. The folder names then did not say which code an app may import, and the boundary rule could not tell an app reaching into the platform from one using a library.
-- **Leaving-out-able as the test for platform code**, so that Home, which an install can leave out, would be an app. Home still needs every app's manifest and a person's App access across apps, which no app may rely on.
+- **Leaving-out-able as the test for platform code**, so that Home, which an install can leave out, would be an app. Home still shows every app from its manifest and a person's App access across apps, which no app may rely on.
 
 ## Evidence
 

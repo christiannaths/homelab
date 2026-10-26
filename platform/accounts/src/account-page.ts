@@ -1,12 +1,12 @@
 // A person's own account page on the accounts site (ADR-PLAT-004): their name, email and apps, and
 // the forms that change their name and password.
-import type { AppDirectory } from "@homelab/app-manifests";
 import type { Hono } from "hono";
 import type { AppAccess } from "./app-access.ts";
 import type { BetterAuth } from "./better-auth.ts";
 import { formFields, fromOurPages } from "./forms.ts";
 import { signInUrl } from "./forward-auth.ts";
-import { accountPage, appName, type AccountForms } from "./pages.ts";
+import { accountPage, type AccountForms } from "./pages.ts";
+import type { ShownApps } from "./shown-apps.ts";
 import {
   extendedSessionOf,
   redirectWithCookies,
@@ -19,7 +19,7 @@ export interface AccountPageDeps {
   accountsUrl: string;
   betterAuth: BetterAuth;
   appAccess: AppAccess;
-  directory: AppDirectory;
+  apps: ShownApps;
 }
 
 /** Where a confirmed change sends the browser, and what the page then says. */
@@ -30,7 +30,7 @@ const CHANGED = new Map([
 
 export function addAccountPage(
   app: Hono,
-  { accountsUrl, betterAuth, appAccess, directory }: AccountPageDeps,
+  { accountsUrl, betterAuth, appAccess, apps }: AccountPageDeps,
 ): void {
   const signIn = signInUrl(accountsUrl, "/");
 
@@ -42,13 +42,8 @@ export function addAccountPage(
       apps: await Promise.all(
         Object.entries(appAccess.of(session.user.id)).map(
           async ([id, level]) => {
-            const read = await directory.app(id);
-            return {
-              name: read?.name ?? appName(id),
-              url: read?.url ?? directory.urlOf(id).href,
-              icon: read?.icon ?? null,
-              level,
-            };
+            const { name, url, icon } = await apps.app(id);
+            return { name, url, icon, level };
           },
         ),
       ),

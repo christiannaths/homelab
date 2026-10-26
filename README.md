@@ -19,7 +19,7 @@ Everything around the apps, in `platform/`.
 | [`home`](platform/home/README.md) | **Home**: the apps each person can use, as tiles, open to every homelab account; an install can leave it out |
 | [`gateway`](platform/gateway/README.md) | **The gateway**: the homelab's Caddy, which asks the accounts service about every request and adds the App switcher |
 | [`app-switcher`](platform/app-switcher/README.md) | **App switcher**: the tab at the top of every app |
-| [`app-manifests`](platform/app-manifests) | Reading apps' manifests, for Home and the account page |
+| [`app-manifests`](platform/app-manifests) | Reading apps' manifests, for the accounts service's `/api/me`, account page and People page |
 | [`e2e`](platform/e2e) | The platform's end-to-end suite, across apps |
 
 ## App ideas

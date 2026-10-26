@@ -7,8 +7,8 @@ import (
 )
 
 // allowSwitcher returns a Content-Security-Policy value that also lets the switcher run: its script,
-// by hash, its requests to Home and the other apps' icons, by the homelab's wildcard source, and the
-// icons it keeps, as data: addresses.
+// by hash, its requests to the accounts site and the other apps' icons, by the homelab's wildcard
+// source, and the icons it keeps, as data: addresses.
 // A header may hold several policies, separated by commas, and each must allow it. A policy that
 // does not limit something is left to allow it.
 func allowSwitcher(value, hash, homelab string) string {
@@ -152,7 +152,8 @@ func allowInMetas(page []byte, hash, homelab string) []byte {
 }
 
 // homelabSource is a CSP source for every app under the homelab's parent domain, on the page's
-// own scheme and port: an app is <app>.<parent>, and Home is home.<parent> (ADR-PLAT-004).
+// own scheme and port: an app is <app>.<parent>, and the accounts site is accounts.<parent>
+// (ADR-PLAT-004).
 func homelabSource(host string) string {
 	_, parent, _ := strings.Cut(host, ".")
 	return "*." + parent

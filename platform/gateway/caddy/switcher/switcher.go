@@ -90,8 +90,8 @@ func (s *Switcher) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyh
 	if !rec.Buffered() {
 		return nil
 	}
-	// A page that limits scripts lets the switcher's run, and lets it reach Home and the other
-	// apps' icons, whether the policy comes in a header or in the page.
+	// A page that limits scripts lets the switcher's run, and lets it reach the accounts site and the
+	// other apps' icons, whether the policy comes in a header or in the page.
 	homelab := homelabSource(r.Host)
 	header := w.Header()
 	for _, name := range []string{"Content-Security-Policy", "Content-Security-Policy-Report-Only"} {

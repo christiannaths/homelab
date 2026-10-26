@@ -330,9 +330,9 @@ describe("signing in", () => {
     );
   });
 
-  test("Home lists each person's apps, from their manifests, to every account", async () => {
+  test("the accounts site lists each person's apps, from their manifests, with Home for every account", async () => {
     const apps = async (person: TestPerson) => {
-      const reply = await get("home", "/api/me", {
+      const reply = await get("accounts", "/api/me", {
         cookie: (await signIn(person)).cookie,
       });
       assert.equal(reply.status, 200, `${person.email}: ${reply.body}`);

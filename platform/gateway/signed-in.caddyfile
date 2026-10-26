@@ -7,8 +7,8 @@
 # forward_auth only overwrites the headers the accounts service sends, so the browser's own would
 # reach the app if an answer left one out: they are deleted first.
 #
-# An app's web app manifest and the icons in /icons/ skip the check, so Home can read every app's
-# name and icon without a person's session. Every app keeps them at these paths. Caddy matches
+# An app's web app manifest and the icons in /icons/ skip the check, so the accounts service can
+# read every app's name and icon without a person's session. Every app keeps them at these paths. Caddy matches
 # the cleaned path, so /icons/../ goes through the check like any other path.
 #
 # The accounts service is the `accounts` container unless ACCOUNTS_UPSTREAM names another address,
@@ -27,7 +27,6 @@ forward_auth @needs-sign-in {$ACCOUNTS_UPSTREAM:accounts:3000} {
 }
 
 # The manifest and icons are public, and readable from every other app's page: the App switcher
-# and Home keep icons for offline with CORS (platform/app-switcher/src/icons.ts), and the
-# switcher reads Home's manifest to tell a signed-out browser from one that can't reach Home.
+# and Home keep icons for offline with CORS (platform/app-switcher/src/icons.ts).
 @homelab-public path /manifest.webmanifest /icons/*
 header @homelab-public Access-Control-Allow-Origin "*"

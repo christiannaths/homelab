@@ -1,10 +1,11 @@
-// The App switcher with no connection (issues #91 and #102): it shows the answer Home last gave, in
-// the page each app's service worker saved with the switcher in it, greys out what needs a
-// connection, and catches up once back online.
+// The App switcher with no connection (issues #91 and #102): it shows the accounts site's last
+// answer, in the page each app's service worker saved with the switcher in it, greys out what needs
+// a connection, and catches up once back online.
 import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
+  compose,
   ENCYCLOPEDIA_URL,
   goOffline,
   goOnline,
@@ -28,7 +29,7 @@ let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome(inject("dataDir"));
+  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
@@ -227,12 +228,13 @@ describe("the App switcher catching up", () => {
     }
   });
 
-  it("falls back to the kept answer while Home can't be reached", async () => {
+  it("falls back to the kept answer while the accounts site can't be reached", async () => {
+    const composeEnv = inject("composeEnv");
     const page = await newDevice(browser);
     try {
       await signIn(page, GRACE);
       await visit(page, NOTES_URL);
-      await home.close();
+      await compose(composeEnv, "stop", "accounts");
       try {
         await page.reload();
         await tab(page).waitFor();
@@ -246,7 +248,7 @@ describe("the App switcher catching up", () => {
         ]);
         await expect.poll(() => keptIconsLoaded(page)).toBe(true);
       } finally {
-        home = await startHome(inject("dataDir"));
+        await compose(composeEnv, "up", "--detach", "--wait", "accounts");
       }
     } finally {
       await page.context().close();
@@ -274,7 +276,7 @@ describe("the icons the App switcher keeps", () => {
         .toEqual([icon("encyclopedia"), icon("home")]);
 
       await page.context().clearCookies({ name: SESSION_COOKIE });
-      // A new switcher asks Home again, as one does on every page load.
+      // A new switcher asks the accounts site again, as one does on every page load.
       await page.evaluate(() =>
         document.documentElement.append(
           document.createElement("homelab-switcher"),

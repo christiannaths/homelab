@@ -101,7 +101,8 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     HOMELAB_APPS: INSTALLED_APPS,
     DATA_DIR: path.join(DATA_DIR, "accounts"),
     PORT: "3000",
-    // The account page reads each app's manifest from the gateway in this container, as Home does.
+    // The service reads each app's manifest from the gateway in this container, over plain HTTP
+    // like Fly's proxy.
     GATEWAY_URL: `http://127.0.0.1:${PORT}`,
   };
   run(
@@ -111,15 +112,9 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     { cwd: ROOT, env: accountsEnv },
   );
 
-  // Home reads each app's manifest from the gateway in this container, over plain HTTP like
-  // Fly's proxy.
   run("Home", process.execPath, ["platform/home/server/src/index.ts"], {
     cwd: ROOT,
-    env: {
-      HOMELAB_URL: `https://${domain}`,
-      GATEWAY_URL: `http://127.0.0.1:${PORT}`,
-      PORT: "3002",
-    },
+    env: { PORT: "3002" },
   });
 
   run(
