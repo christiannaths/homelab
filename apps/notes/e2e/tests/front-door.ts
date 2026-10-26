@@ -129,7 +129,11 @@ export async function startFrontDoor({
         answer.pipe(response);
       },
     );
-    upstream.once("error", () => response.writeHead(502).end());
+    // Once Notes' answer has begun there is no 502 to send, so the browser sees the cut instead.
+    upstream.once("error", () => {
+      if (response.headersSent) response.destroy();
+      else response.writeHead(502).end();
+    });
     request.pipe(upstream);
   }
 
