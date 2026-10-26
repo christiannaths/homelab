@@ -4,6 +4,7 @@
 import { identityHeaders } from "@homelab/identity";
 import type { Grants } from "./app-access.ts";
 import { onHomelab, type Config } from "./config.ts";
+import { HOME } from "./shown-apps.ts";
 
 /** Who the session belongs to, as far as the gateway's answer needs. */
 export interface Person {
@@ -31,9 +32,6 @@ export type Answer =
   | { kind: "sign-in"; location: string }
   /** `app` is the app's subdomain, or the whole hostname when it isn't an app's. */
   | { kind: "no-access"; app: string };
-
-/** Home lists each person's apps, so every account opens it. */
-const HOME = "home";
 
 /** The app's id is its subdomain: `notes.home.example` is `notes` (ADR-PLAT-004). */
 export function appOf(host: string, domain: string): string | undefined {
