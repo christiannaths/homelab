@@ -61,9 +61,9 @@ describe("signing out from an app's App switcher", () => {
     expect(response.headers.get("vary")).toMatch(/origin/i);
   });
 
-  it("works from any homelab app's address, port included", async () => {
+  it("works from any homelab app's address", async () => {
     const cookie = await signIn(accounts, ADA);
-    const origin = `https://encyclopedia.${DOMAIN}:8443`;
+    const origin = `https://encyclopedia.${DOMAIN}`;
     const response = await signOut(cookie, {
       "origin": origin,
       "sec-fetch-site": "same-site",

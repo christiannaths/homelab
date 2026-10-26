@@ -8,12 +8,12 @@
 }
 
 # The accounts site gets the App switcher too, for people managing their account.
-accounts.{$HOMELAB_DOMAIN} {
+accounts.{$SITE_DOMAIN} {
 	import /etc/caddy/switcher.caddyfile
 	reverse_proxy accounts:3000
 }
 
-home.{$HOMELAB_DOMAIN} {
+home.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile
@@ -21,7 +21,7 @@ home.{$HOMELAB_DOMAIN} {
 	}
 }
 
-notes.{$HOMELAB_DOMAIN} {
+notes.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile
@@ -29,7 +29,7 @@ notes.{$HOMELAB_DOMAIN} {
 	}
 }
 
-encyclopedia.{$HOMELAB_DOMAIN} {
+encyclopedia.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile
@@ -41,7 +41,7 @@ encyclopedia.{$HOMELAB_DOMAIN} {
 
 # A stand-in for a bundled app such as Vaultwarden: its manifest doesn't say it opens offline, and
 # its page has a strict security policy, as Vaultwarden's does.
-vault.{$HOMELAB_DOMAIN} {
+vault.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile

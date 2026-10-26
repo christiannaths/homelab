@@ -23,14 +23,27 @@ const ROOT = path.join(HERE, "..", "..");
 const ENV_FILE = path.join(HERE, ".env");
 const CA_FILE = path.join(HERE, "data", "gateway-root-ca.crt");
 
-const DOMAIN = process.env.HOMELAB_DOMAIN ?? "homelab.localhost";
-const PORT = Number(process.env.GATEWAY_PORT ?? 8443);
-const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${PORT}`;
-const appUrl = (site: string) => `https://${site}.${DOMAIN}:${PORT}/`;
+const HOMELAB = new URL(
+  process.env.HOMELAB_URL ?? "https://homelab.localhost:8443",
+);
+const appUrl = (site: string) => `https://${site}.${HOMELAB.host}/`;
+const ACCOUNTS_URL = `https://accounts.${HOMELAB.host}`;
+
+/**
+ * compose.yaml's settings, all from HOMELAB_URL. Caddy names sites by hostname and Docker publishes
+ * a port number, so the gateway gets those parts of it.
+ */
+const STACK_ENV = {
+  HOMELAB_URL: HOMELAB.origin,
+  SITE_DOMAIN: HOMELAB.hostname,
+  GATEWAY_PORT: HOMELAB.port || "443",
+};
+const ENV = { ...process.env, ...STACK_ENV };
 
 function compose(...args: string[]): string {
   return execFileSync("docker", ["compose", ...args], {
     cwd: HERE,
+    env: ENV,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
   });
@@ -59,6 +72,7 @@ async function startHomelab(): Promise<void> {
   process.on("SIGINT", () => {});
   const up = spawn("docker", ["compose", "up"], {
     cwd: HERE,
+    env: ENV,
     stdio: "inherit",
   });
   const exited = new Promise<number>((resolve) =>
@@ -98,7 +112,7 @@ async function loadTestPeople(): Promise<void> {
           "--spider",
           "http://127.0.0.1:3000/sign-in",
         ],
-        { cwd: HERE, stdio: "ignore" },
+        { cwd: HERE, env: ENV, stdio: "ignore" },
       );
       break;
     } catch (error) {
@@ -111,6 +125,7 @@ async function loadTestPeople(): Promise<void> {
     ["compose", "exec", "-T", "accounts", "node", ...LOAD_TEST_PEOPLE],
     {
       cwd: HERE,
+      env: ENV,
       input: JSON.stringify(PEOPLE),
       stdio: ["pipe", "ignore", "inherit"],
     },
@@ -158,15 +173,17 @@ async function gatewayCa(): Promise<string> {
 }
 
 // The accounts service signs its session cookies with ACCOUNTS_SECRET, so it is made once and kept
-// with the data. A file from before it, with another service's key, is made again.
-if (
-  !existsSync(ENV_FILE) ||
-  !readFileSync(ENV_FILE, "utf8").includes("ACCOUNTS_SECRET=")
-)
-  writeFileSync(
-    ENV_FILE,
-    `ACCOUNTS_SECRET=${randomBytes(32).toString("hex")}\n`,
-  );
+// with the data. The rest is this run's, so that a `docker compose restart` gets the same.
+const secret =
+  /^ACCOUNTS_SECRET=(.+)$/m.exec(
+    existsSync(ENV_FILE) ? readFileSync(ENV_FILE, "utf8") : "",
+  )?.[1] ?? randomBytes(32).toString("hex");
+writeFileSync(
+  ENV_FILE,
+  Object.entries({ ACCOUNTS_SECRET: secret, ...STACK_ENV })
+    .map(([name, value]) => `${name}=${value}\n`)
+    .join(""),
+);
 const command = process.argv[2] ?? "start";
 if (command === "reset") {
   compose("down", "--volumes", "--remove-orphans");
