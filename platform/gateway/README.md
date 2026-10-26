@@ -2,7 +2,7 @@
 
 The one way into every app ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md)). It is Caddy, built with the homelab's own module, and it does two things for every app's site:
 
-- **The sign-in check** ([`signed-in.caddyfile`](signed-in.caddyfile)): it asks the [accounts service](../accounts/README.md) about each request and passes the person on in `Remote-*` headers, which apps trust. The service is `accounts:3000`, or `ACCOUNTS_UPSTREAM`. [`@homelab/identity`](../../packages/identity/src/identity.ts) reads them in an app's server.
+- **The sign-in check** ([`signed-in.caddyfile`](signed-in.caddyfile)): it asks the [accounts service](../accounts/README.md) about each request and passes the person on in `Remote-*` headers, which apps trust. The service is `accounts:3000`, or `ACCOUNTS_UPSTREAM`. [`@homelab/identity`](../../packages/identity/src/identity.ts) writes them in the accounts service and reads them in an app's server.
 - **The App switcher** ([`switcher.caddyfile`](switcher.caddyfile)): it puts the whole [App switcher](../app-switcher/README.md) inline into every page passing through, so no app installs anything for it. The accounts site imports it too.
 
 ## The image

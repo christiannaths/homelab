@@ -8,6 +8,7 @@ import {
 } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
+import { identityHeaders, type AppAccess } from "@homelab/identity";
 import { startServer, type NotesServer } from "../src/server.ts";
 
 /** Who the gateway says is signing in, as the accounts service tells it. */
@@ -15,32 +16,33 @@ export interface Account {
   /** The account id. */
   id: string;
   name?: string;
-  groups: string[];
+  access: AppAccess;
 }
 
 export const OWNER: Account = {
   id: "alex",
   name: "Alex",
-  groups: ["notes-admins"],
+  access: { notes: "admin" },
 };
 export const MEMBER: Account = {
   id: "sam",
   name: "Sam",
-  groups: ["notes"],
+  access: { notes: "member" },
 };
 /** The Encyclopedia's admin, and a Notes member. The gateway sends no name for this account. */
 export const OTHER_APPS_ADMIN: Account = {
   id: "kim",
-  groups: ["encyclopedia-admins", "notes"],
+  access: { encyclopedia: "admin", notes: "member" },
 };
 
 /** The headers the gateway adds after the accounts service lets a request through. */
 export function gatewayHeaders(account: Account): Record<string, string> {
-  return {
-    "remote-user": account.id,
-    ...(account.name && { "remote-name": encodeURIComponent(account.name) }),
-    ...(account.groups.length && { "remote-groups": account.groups.join(",") }),
-  };
+  return identityHeaders({
+    id: account.id,
+    name: account.name ?? null,
+    email: null,
+    access: account.access,
+  });
 }
 
 export interface TestServer extends NotesServer {

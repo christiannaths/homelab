@@ -11,6 +11,7 @@ import {
 } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
+import { identityHeaders } from "@homelab/identity";
 import {
   ADA,
   ADMIN,
@@ -438,12 +439,12 @@ describe("the gateway", () => {
       "person",
       "id",
     );
-    const forged = {
-      "remote-user": String(adaId),
-      "remote-groups": "notes-admins",
-      "remote-name": ADA.name,
-      "remote-email": ADA.email,
-    };
+    const forged = identityHeaders({
+      id: String(adaId),
+      name: ADA.name,
+      email: ADA.email,
+      access: { notes: "admin" },
+    });
     const signedOut = await get("notes", "/api/session", forged);
     assert.equal(signedOut.status, 302);
 

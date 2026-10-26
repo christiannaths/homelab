@@ -4,7 +4,7 @@ The Notes server ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md))
 
 ## What it does so far
 
-- People with admin-level App access to Notes (`notes-admins`) are owners, and people with member-level App access (`notes`) are members. The gateway turns everyone else away before Notes sees them. People are keyed by their account id (`Remote-User`).
+- People with admin-level App access to Notes are owners, and people with member-level App access are members, as [`@homelab/identity`](../../../packages/identity) reads their level from the headers. The gateway turns everyone else away before Notes sees them. People are keyed by their account id (`Remote-User`).
 - Until the access rules are built ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)), only owners open documents.
 - It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in, with the [App switcher](../../../platform/app-switcher/README.md) at the top, which the gateway adds. Signing out is the switcher's: Notes has no sign-out of its own.
 
