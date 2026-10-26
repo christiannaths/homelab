@@ -2,6 +2,7 @@
 // with the homelab account, signing out of it, and starting offline (issue #47, ADR-PLAT-004).
 // Notes has no sign-out of its own: the App switcher's Sign out, which these tests stand in for
 // with the same request to the accounts site, is tested in Home's suite.
+import { identityHeaders } from "@homelab/identity";
 import type { NotesServer } from "@homelab/notes-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
@@ -136,11 +137,15 @@ describe("signing in with the homelab account", () => {
     const page = await newDevice(browser);
     await signIn(page, EVE);
     expect(
-      await sessionFrom(page, {
-        "Remote-User": idOf(ADA),
-        "Remote-Name": "Ada Lovelace",
-        "Remote-Groups": "notes-admins",
-      }),
+      await sessionFrom(
+        page,
+        identityHeaders({
+          id: idOf(ADA),
+          name: "Ada Lovelace",
+          email: null,
+          access: { notes: "admin" },
+        }),
+      ),
     ).toEqual({
       status: 200,
       body: { person: { id: idOf(EVE), role: "member", name: EVE.name } },

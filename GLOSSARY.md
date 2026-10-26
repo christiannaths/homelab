@@ -8,7 +8,7 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Homelab admin**: A person who invites people and decides which apps each of them can use, and at what level. Being one opens no app by itself. _Avoid_: superuser, root
 
-**App access**: A homelab admin's grant letting one person use one app, at a member or admin level. Apps read it as groups in `Remote-Groups`: `<app>` for a member, `<app>-admins` for an admin. _Avoid_: permission, role
+**App access**: A homelab admin's grant letting one person use one app, at a member or admin level. It reaches apps as groups in `Remote-Groups`: `<app>` for a member, `<app>-admins` for an admin, which `@homelab/identity` writes and reads back as a level per app. _Avoid_: permission, role
 
 **Account id**: The permanent id the accounts service gives a homelab account, which apps receive in `Remote-User` and key a person's data by. It never changes, even when the person's email or name does. _Avoid_: username, user id
 

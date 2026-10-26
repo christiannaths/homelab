@@ -92,7 +92,7 @@ export async function startServer({
       },
       accountUrl,
       signOutUrl,
-      apps: await appsFor(apps, identity.groups),
+      apps: await appsFor(apps, identity.access),
     });
   });
 
