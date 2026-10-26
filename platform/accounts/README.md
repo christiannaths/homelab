@@ -53,4 +53,4 @@ It makes each person, or brings an existing one to exactly what is given, and pr
 npx nx test accounts  # requests to the service in this process, with no gateway or browser
 ```
 
-The platform's and Notes' end-to-end suites run it behind the gateway.
+The platform's end-to-end suite runs it behind the gateway.

@@ -1,14 +1,13 @@
 import { defineConfig } from "vitest/config";
 
-// Runs against the gateway and the accounts service (compose.yaml), started once in global
-// setup. Files run one at a time, since every file starts Notes on the same port.
+// Each file starts its own Notes and front door on free ports. Nx builds the web client before
+// this suite starts (implicitDependencies in package.json), outside Vitest, whose NODE_ENV of
+// test would build it without its service worker.
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
-    globalSetup: ["tests/global-setup.ts"],
-    fileParallelism: false,
     testTimeout: 60_000,
-    hookTimeout: 180_000,
+    hookTimeout: 60_000,
   },
 });
