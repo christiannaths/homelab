@@ -165,9 +165,14 @@ describe("signing out", () => {
   it("has no Sign out button of its own", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
-    expect(await page.getByRole("button", { name: "Sign out" }).count()).toBe(
-      0,
+    // The App switcher's own Sign out is in its shadow root, which querySelectorAll doesn't enter.
+    const ownSignOuts = await page.evaluate(
+      () =>
+        [...document.querySelectorAll("button")].filter(
+          (button) => button.textContent?.trim() === "Sign out",
+        ).length,
     );
+    expect(ownSignOuts).toBe(0);
   });
 
   it("signs out with the homelab account, so opening Notes again asks for the password", async () => {
