@@ -15,12 +15,6 @@ export interface Me {
   apps: App[];
 }
 
-export type MeCheck =
-  | { status: "signed-in"; me: Me }
-  | { status: "signed-out" }
-  /** No answer from the server: the device is offline, as far as Home can tell. */
-  | { status: "unreachable" };
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -71,21 +65,14 @@ function accountsOrigin(): string {
  * Asks the accounts site who is signed in. It is outside the gateway's sign-in check, so a
  * signed-out browser gets a 401 it can read; signing in is left to a page load.
  */
-export async function checkMe(): Promise<MeCheck> {
-  let response: Response;
-  try {
-    response = await fetch(`${accountsOrigin()}/api/me`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-  } catch {
-    return { status: "unreachable" };
-  }
-  if (response.status === 401) return { status: "signed-out" };
-  if (!response.ok) return { status: "unreachable" };
-  const me = parseMe(await response.json().catch(() => undefined));
-  return me ? { status: "signed-in", me } : { status: "unreachable" };
-}
+export const askMe = (): Promise<Response> =>
+  fetch(`${accountsOrigin()}/api/me`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+
+export const isSignedOut = (response: { status: number }): boolean =>
+  response.status === 401;
 
 /** A page load the service worker leaves to the network, so it reaches the gateway. */
 export const SIGN_IN_PATH = "/api/sign-in";

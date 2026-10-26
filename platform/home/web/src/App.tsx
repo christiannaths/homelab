@@ -12,11 +12,11 @@ import {
   Title,
 } from "@mantine/core";
 import { useSyncExternalStore } from "react";
-import type { App as HomelabApp } from "./api.ts";
-import type { Home } from "./home.ts";
+import type { App as HomelabApp, Me } from "./api.ts";
+import type { SignedInState } from "@homelab/signed-in-state";
 
-export function App({ home }: { home: Home }) {
-  const view = useSyncExternalStore(home.subscribe, () => home.view);
+export function App({ state }: { state: SignedInState<Me> }) {
+  const view = useSyncExternalStore(state.subscribe, () => state.view);
   switch (view.screen) {
     case "needs-connection":
       return (
@@ -40,7 +40,7 @@ export function App({ home }: { home: Home }) {
           </Stack>
         </Center>
       );
-    case "home":
+    case "signed-in":
       return (
         <Stack
           p="lg"

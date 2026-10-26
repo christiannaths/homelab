@@ -5,12 +5,6 @@ export interface Person {
   name: string | null;
 }
 
-export type SessionCheck =
-  | { status: "signed-in"; person: Person }
-  | { status: "signed-out" }
-  /** No answer from the server: the device is offline, as far as Notes can tell (ADR-NOTE-001). */
-  | { status: "unreachable" };
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -27,23 +21,11 @@ export function parsePerson(value: unknown): Person | undefined {
  * sign in instead of an answer (ADR-NOTE-014); it is not followed, since only a page load can
  * sign in.
  */
-export async function checkSession(): Promise<SessionCheck> {
-  let response: Response;
-  try {
-    response = await fetch("/api/session", {
-      cache: "no-store",
-      redirect: "manual",
-    });
-  } catch {
-    return { status: "unreachable" };
-  }
-  if (response.type === "opaqueredirect") return { status: "signed-out" };
-  // A 401 means no gateway is in front of Notes. Treated as signed out, the app would start a
-  // sign-in that comes straight back here, so it waits as if offline instead.
-  if (!response.ok) return { status: "unreachable" };
-  const body: unknown = await response.json().catch(() => undefined);
-  const person = isRecord(body) ? parsePerson(body.person) : undefined;
-  return person ? { status: "signed-in", person } : { status: "unreachable" };
+export const askSession = (): Promise<Response> =>
+  fetch("/api/session", { cache: "no-store", redirect: "manual" });
+
+export function readSession(body: unknown): Person | undefined {
+  return isRecord(body) ? parsePerson(body.person) : undefined;
 }
 
 /** A page load the service worker leaves to the network, so it reaches the gateway. */
