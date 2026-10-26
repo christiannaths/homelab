@@ -12,7 +12,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useSyncExternalStore } from "react";
-import type { App as HomelabApp, Me } from "./api.ts";
+import type { App as HomelabApp, Me } from "@homelab/app-switcher/me";
 import type { SignedInState } from "@homelab/signed-in-state";
 
 export function App({ state }: { state: SignedInState<Me> }) {

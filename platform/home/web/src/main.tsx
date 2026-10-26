@@ -3,7 +3,8 @@ import { MantineProvider } from "@mantine/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
-import { askMe, isSignedOut, parseMe, SIGN_IN_PATH } from "./api.ts";
+import { askMe, isSignedOut, SIGN_IN_PATH } from "./api.ts";
+import { parseMe } from "@homelab/app-switcher/me";
 import { createSignedInState } from "@homelab/signed-in-state";
 import { cssVariablesResolver, theme } from "@homelab/theme";
 
