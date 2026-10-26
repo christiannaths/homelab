@@ -13,6 +13,7 @@ import {
   tempDataDir,
   tryUpgrade,
   waitFor,
+  type Account,
   type Device,
   type TestServer,
 } from "./helpers.ts";
@@ -38,7 +39,7 @@ function track(d: Device) {
 }
 
 describe("the person the gateway signed in", () => {
-  test("is a Notes owner with the notes-admins group", async () => {
+  test("is a Notes owner with admin-level App access to Notes", async () => {
     const s = await server();
     const res = await request(s, "/api/session", OWNER);
     expect(res.status).toBe(200);
@@ -47,7 +48,7 @@ describe("the person the gateway signed in", () => {
     });
   });
 
-  test("is a member with only the notes group", async () => {
+  test("is a member with member-level App access to Notes", async () => {
     const s = await server();
     expect(await (await request(s, "/api/session", MEMBER)).json()).toEqual({
       person: { id: "sam", role: "member", name: "Sam" },
@@ -64,7 +65,11 @@ describe("the person the gateway signed in", () => {
   test("keeps their name and role in step with the accounts service", async () => {
     const s = await server();
     await request(s, "/api/session", OWNER);
-    const renamed = { ...OWNER, name: "Zoë Ångström", groups: ["notes"] };
+    const renamed: Account = {
+      ...OWNER,
+      name: "Zoë Ångström",
+      access: { notes: "member" },
+    };
     expect(await (await request(s, "/api/session", renamed)).json()).toEqual({
       person: { id: "alex", role: "member", name: "Zoë Ångström" },
     });

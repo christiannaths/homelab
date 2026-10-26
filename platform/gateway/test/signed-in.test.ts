@@ -3,6 +3,7 @@
 // `npm run e2e -w @homelab/gateway`.
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
+import { identityHeaders } from "@homelab/identity";
 import { buildGatewayImage } from "../src/image.ts";
 import {
   get as getFrom,
@@ -12,12 +13,12 @@ import {
 } from "./gateway.ts";
 
 const SIGN_IN = "https://accounts.home.test/sign-in";
-const FORGED = {
-  "remote-user": "mallory",
-  "remote-name": "Mallory",
-  "remote-email": "mallory@example.com",
-  "remote-groups": "notes-admins",
-};
+const FORGED = identityHeaders({
+  id: "mallory",
+  name: "Mallory",
+  email: "mallory@example.com",
+  access: { notes: "admin" },
+});
 
 let gateway: Gateway | undefined;
 const closers: (() => void)[] = [];

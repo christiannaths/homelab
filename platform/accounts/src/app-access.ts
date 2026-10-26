@@ -76,10 +76,3 @@ export class AppAccess {
     }
   }
 }
-
-/** App access as Remote-Groups lists it: `<app>` for a member, `<app>-admins` for an admin. */
-export function groupsOf(grants: Grants): string[] {
-  return Object.entries(grants)
-    .toSorted(([a], [b]) => a.localeCompare(b))
-    .map(([app, level]) => (level === "admin" ? `${app}-admins` : app));
-}
