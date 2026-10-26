@@ -168,8 +168,8 @@ describe("an app whose manifest can't be read", () => {
   });
 });
 
-describe("an install without Home", () => {
-  it("lists the person's apps without it, and warns about nothing", async () => {
+describe("Home with no readable manifest", () => {
+  it("is still listed, under its subdomain with no icon, and warned about once", async () => {
     const warn = vi.fn<(message: string) => void>();
     const accounts = await startAccounts(
       [ADA],
@@ -180,9 +180,24 @@ describe("an install without Home", () => {
           url.hostname.startsWith("home.") ? undefined : readManifest(url),
       },
     );
-    const response = await me(accounts, await signIn(accounts, ADA));
-    expect(await appIdsIn(response)).toEqual(["encyclopedia", "notes"]);
-    expect(warn).not.toHaveBeenCalled();
+    const cookie = await signIn(accounts, ADA);
+    const body: unknown = await (await me(accounts, cookie)).json();
+    expect(body).toMatchObject({
+      apps: [
+        { id: "encyclopedia" },
+        {
+          id: "home",
+          url: `https://home.${DOMAIN}/`,
+          name: "Home",
+          icon: null,
+          opensOffline: false,
+        },
+        { id: "notes" },
+      ],
+    });
+    await me(accounts, cookie);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0]?.[0]).toContain("home");
   });
 });
 

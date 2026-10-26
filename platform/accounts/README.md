@@ -18,7 +18,7 @@ Part of the [platform](../../docs/adr/ADR-PLAT-002-repo-structure.md) in the [ho
 
 `/api/me` answers from the session cookie. The accounts site is outside the gateway's sign-in check, so a signed-out browser gets a 401 that its page can read, rather than the gateway's redirect.
 
-- A person's apps are Home and the installed apps they have App access to, sorted by name. Home is listed while its manifest can be read, so an install without Home lists only the person's apps.
+- A person's apps are Home and the installed apps they have App access to, sorted by name. Home is always one of them; while an app's manifest, Home's included, can't be read, it shows under its subdomain with no icon, and one warning names it.
 - Each app's name, icon and whether it opens offline come from its `/manifest.webmanifest`, read through the gateway without anyone's cookie, which the gateway allows for manifests and icons. Manifests are kept for 5 minutes and shared by everyone's requests. An address with no manifest is asked again after a minute, and an app whose manifest stops answering stays as it was for up to a day, in case it is restarting.
 - An installed app whose manifest can't be read is shown under its subdomain (`Vault` for `vault`), with no icon and not opening offline, and the service logs one warning naming it, repeated only once the manifest has been read again and lost again. The account page and the People page show apps the same way.
 - Answers are readable cross-origin, with credentials, by any https page under the parent domain, and the accounts site's own pages ask without an `Origin`. A request the browser marks cross-site, or with any other `Origin`, gets 403. Apps ask with a plain `GET`, which needs no preflight.

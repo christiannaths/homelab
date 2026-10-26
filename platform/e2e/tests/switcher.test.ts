@@ -308,9 +308,9 @@ describe("an install without Home", () => {
       await onSignInPage(page);
       await typePassword(page, ADA);
       await tab(page).waitFor();
-      // Home stays listed while the accounts service keeps its manifest from earlier tests.
       expect(await menuItems(page)).toEqual(
         expect.arrayContaining([
+          "Home",
           "Encyclopedia",
           "NotesCurrent",
           "Account settings",

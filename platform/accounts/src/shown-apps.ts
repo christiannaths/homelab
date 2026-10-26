@@ -45,17 +45,11 @@ export class ShownApps {
     };
   }
 
-  /**
-   * Home and the apps in a person's App access, sorted by name. Home is there while its manifest
-   * can be read: an install may leave Home out, and is then not warned about it.
-   */
+  /** Home and the apps in a person's App access, sorted by name. */
   async of(grants: Grants): Promise<App[]> {
-    const [home, ...apps] = await Promise.all([
-      this.#directory.app(HOME),
-      ...Object.keys(grants).map((id) => this.app(id)),
-    ]);
-    return (home ? [home, ...apps] : apps).toSorted((a, b) =>
-      a.name.localeCompare(b.name),
+    const apps = await Promise.all(
+      [HOME, ...Object.keys(grants)].map((id) => this.app(id)),
     );
+    return apps.toSorted((a, b) => a.name.localeCompare(b.name));
   }
 }
