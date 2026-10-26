@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@homelab/signed-in-state": "*",
     "@homelab/theme": "*",
     "@mantine/core": "^9.7.2",
     "@mantine/hooks": "^9.7.2",

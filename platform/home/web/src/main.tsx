@@ -3,7 +3,8 @@ import { MantineProvider } from "@mantine/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
-import { Home } from "./home.ts";
+import { askMe, isSignedOut, parseMe, SIGN_IN_PATH } from "./api.ts";
+import { createSignedInState } from "@homelab/signed-in-state";
 import { cssVariablesResolver, theme } from "@homelab/theme";
 
 /** Settles once the service worker can start Home offline, or at once where there is none. */
@@ -17,8 +18,15 @@ function registerServiceWorker(): Promise<unknown> {
     .catch(() => undefined);
 }
 
-const home = new Home(registerServiceWorker());
-void home.start();
+const state = createSignedInState({
+  ask: askMe,
+  isSignedOut,
+  read: parseMe,
+  storageKey: "home.me",
+  offlineReady: registerServiceWorker(),
+  goToSignIn: () => location.replace(SIGN_IN_PATH),
+});
+void state.start();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root");
@@ -29,7 +37,7 @@ createRoot(root).render(
       cssVariablesResolver={cssVariablesResolver}
       defaultColorScheme="auto"
     >
-      <App home={home} />
+      <App state={state} />
     </MantineProvider>
   </StrictMode>,
 );

@@ -1,9 +1,10 @@
 import { Badge, Center, Group, Stack, Text, Title } from "@mantine/core";
 import { useSyncExternalStore, type ReactNode } from "react";
-import type { Notes } from "./notes.ts";
+import type { SignedInState } from "@homelab/signed-in-state";
+import type { Person } from "./api.ts";
 
-export function App({ notes }: { notes: Notes }) {
-  const view = useSyncExternalStore(notes.subscribe, () => notes.view);
+export function App({ state }: { state: SignedInState<Person> }) {
+  const view = useSyncExternalStore(state.subscribe, () => state.view);
   switch (view.screen) {
     case "needs-connection":
       return (
@@ -13,7 +14,7 @@ export function App({ notes }: { notes: Notes }) {
           </Text>
         </Message>
       );
-    case "home":
+    case "signed-in":
       return (
         <Stack
           p="lg"
@@ -37,7 +38,7 @@ export function App({ notes }: { notes: Notes }) {
               )}
             </Group>
           </Group>
-          <Text>Signed in as {view.person.name ?? "your homelab account"}</Text>
+          <Text>Signed in as {view.me.name ?? "your homelab account"}</Text>
         </Stack>
       );
   }

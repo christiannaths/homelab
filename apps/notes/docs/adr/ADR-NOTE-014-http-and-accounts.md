@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-23
-- Depends on: [ADR-NOTE-003](ADR-NOTE-003-app-delivery.md), [ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md), [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md)
+- Depends on: [ADR-NOTE-003](ADR-NOTE-003-app-delivery.md), [ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md), [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md), [ADR-PLAT-009](../../../../docs/adr/ADR-PLAT-009-app-contract.md)
 - Dependency of: none
 
 ## Context
@@ -17,7 +17,7 @@ The server needs a real HTTP API: the signed-in person, invites, people and role
   - Hono forwards the socket's messages and close events to Hocuspocus.
   - Hocuspocus's `onRequest`, `onUpgrade` and `onListen` hooks are not used.
 - **Every API request and sync upgrade reads the person from the gateway's headers.** `Remote-User` is the person's account id, `Remote-Name` the name and `Remote-Groups` the comma-separated groups, each percent-decoded. A request without `Remote-User` did not come through the gateway and is answered 401, and a sync upgrade without it opens no socket.
-- **The PWA asks the server who is signed in** (`GET /api/session`, with `redirect: "manual"`) whenever it starts online or reconnects. A signed-out device gets the gateway's redirect to sign in instead of an answer, and goes to sign-in.
+- **The PWA asks the server who is signed in** (`GET /api/session`, with `redirect: "manual"`) when it starts, when the device reconnects and when the page becomes visible again, through `@homelab/signed-in-state` ([ADR-PLAT-009](../../../../docs/adr/ADR-PLAT-009-app-contract.md)). A signed-out device gets the gateway's redirect to sign in instead of an answer, forgets the person it remembered, and goes to sign-in once the app can open offline. An unreachable server, or any other answer that is not a person, leaves the device showing the person it remembered, offline.
 - **Sign-in is a page load the service worker does not answer** (`/api/sign-in`), so it reaches the gateway, which sends a signed-out browser to the accounts service's sign-in page and back.
 - **The server has no sign-out route.** Signing out is the App switcher's, which goes to the accounts service's `/sign-out` itself ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
 
