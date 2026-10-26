@@ -12,6 +12,7 @@ on:
     paths:
       - apps/**
       - packages/**
+      - platform/**
       - tools/preview/**
       - tools/package.json
       - package.json
