@@ -8,12 +8,12 @@
 }
 
 # The accounts site gets the App switcher too, for people managing their account.
-accounts.{$HOMELAB_DOMAIN} {
+accounts.{$SITE_DOMAIN} {
 	import /etc/caddy/switcher.caddyfile
 	reverse_proxy accounts:3000
 }
 
-home.{$HOMELAB_DOMAIN} {
+home.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile
@@ -21,7 +21,7 @@ home.{$HOMELAB_DOMAIN} {
 	}
 }
 
-notes.{$HOMELAB_DOMAIN} {
+notes.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile
@@ -30,7 +30,7 @@ notes.{$HOMELAB_DOMAIN} {
 }
 
 # The Encyclopedia's static build, with its own service worker. Unknown paths get index.html.
-encyclopedia.{$HOMELAB_DOMAIN} {
+encyclopedia.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile

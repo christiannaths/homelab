@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ReadManifest } from "@homelab/app-manifests";
 import { createAccounts, type Accounts } from "../src/accounts.ts";
-import type { Config } from "../src/config.ts";
+import {
+  homelabAddresses,
+  type Config,
+  type HomelabAddresses,
+} from "../src/config.ts";
 import { loadTestPeople, type TestPerson } from "../src/test-people.ts";
 
 export const DOMAIN = "home.test";
@@ -29,7 +33,7 @@ export const ADMIN: TestPerson = {
   homelabAdmin: true,
 };
 
-/** The installed apps' manifests, as the gateway would serve them, by hostname. */
+/** The installed apps' manifests, as the gateway would serve them, by hostname on any port. */
 const MANIFESTS: Record<string, unknown> = {
   [`notes.${DOMAIN}`]: {
     name: "Notes",
@@ -42,22 +46,31 @@ const MANIFESTS: Record<string, unknown> = {
 };
 
 const readManifest: ReadManifest = async (url) =>
-  url.pathname === "/manifest.webmanifest" ? MANIFESTS[url.host] : undefined;
+  url.pathname === "/manifest.webmanifest"
+    ? MANIFESTS[url.hostname]
+    : undefined;
 
 export interface TestAccounts extends Accounts {
   /** Each loaded person's account id, by email. */
   ids: Record<string, string>;
 }
 
-/** A fresh service with the given people, and settings overridden by `config`. */
+/**
+ * A fresh service with the given people, and settings overridden by `config`. The homelab's
+ * addresses all come from `homelabUrl`, as they do from HOMELAB_URL.
+ */
 export async function startAccounts(
   people: TestPerson[] = [ADA, BOB, ADMIN],
-  config: Partial<Config> = {},
+  {
+    homelabUrl = `https://${DOMAIN}`,
+    ...config
+  }: Partial<Omit<Config, keyof HomelabAddresses>> & {
+    homelabUrl?: string;
+  } = {},
 ): Promise<TestAccounts> {
   const accounts = await createAccounts(
     {
-      domain: DOMAIN,
-      accountsUrl: ACCOUNTS,
+      ...homelabAddresses(homelabUrl),
       secret: "a-test-secret-that-is-at-least-32-characters",
       dataDir: mkdtempSync(path.join(tmpdir(), "accounts-")),
       port: 0,
