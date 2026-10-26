@@ -273,6 +273,39 @@ describe("createSignedInState", () => {
     expect(ask).toHaveBeenCalledOnce();
   });
 
+  it("shows only the latest check's answer when checks overlap", async () => {
+    let failSlowCheck!: (error: Error) => void;
+    const slowCheck = () =>
+      new Promise<Reply>((_, reject) => (failSlowCheck = reject));
+    const { state, window, document } = setUp([
+      () => Promise.resolve(signedIn({ person: { id: "ada" } })),
+      slowCheck,
+      () => Promise.resolve(signedIn({ person: { id: "grace" } })),
+    ]);
+    await state.start();
+    window.dispatchEvent(new Event("online"));
+    document.become("visible");
+    await settle();
+    failSlowCheck(new TypeError("Failed to fetch"));
+    await settle();
+    expect(state.view).toEqual({
+      screen: "signed-in",
+      me: { id: "grace" },
+      online: true,
+    });
+  });
+
+  it("starts once, however often start is called", async () => {
+    const { state, window, ask } = setUp([
+      () => Promise.resolve(signedIn({ person: { id: "ada" } })),
+      () => Promise.resolve(signedIn({ person: { id: "ada" } })),
+    ]);
+    await Promise.all([state.start(), state.start()]);
+    window.dispatchEvent(new Event("online"));
+    await settle();
+    expect(ask).toHaveBeenCalledTimes(2);
+  });
+
   it("marks the signed-in view offline when the device goes offline", async () => {
     const { state, window, ask } = setUp(
       answers(signedIn({ person: { id: "ada" } })),

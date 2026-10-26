@@ -59,7 +59,10 @@ export interface SignedInState<T> {
   readonly view: View<T>;
   /** Calls `listener` whenever `view` changes; returns the call that stops it. */
   subscribe: (listener: () => void) => () => void;
-  /** Listens for the device's events and asks who is here; settles once the first answer shows. */
+  /**
+   * Listens for the device's events and asks who is here; settles once the first answer shows.
+   * Later calls return the first call's promise.
+   */
   start: () => Promise<void>;
 }
 
@@ -90,6 +93,8 @@ export function createSignedInState<T>(options: Options<T>): SignedInState<T> {
   const device = options.device ?? browserDevice();
   const listeners = new Set<() => void>();
   let view: View<T> = { screen: "starting" };
+  let started: Promise<void> | undefined;
+  let latestCheck = 0;
 
   function show(next: View<T>): void {
     view = next;
@@ -133,7 +138,10 @@ export function createSignedInState<T>(options: Options<T>): SignedInState<T> {
   }
 
   async function check(): Promise<void> {
+    const thisCheck = ++latestCheck;
     const answer = await askWho();
+    // Checks can overlap (online, then visible), and a slow older answer must not replace a newer one.
+    if (thisCheck !== latestCheck) return;
     if (answer.status === "signed-in") {
       remember(answer.me);
       show({ screen: "signed-in", me: answer.me, online: true });
@@ -159,6 +167,18 @@ export function createSignedInState<T>(options: Options<T>): SignedInState<T> {
     if (view.screen !== "starting") await check();
   }
 
+  async function listenAndCheck(): Promise<void> {
+    device.window.addEventListener("online", () => void checkAgain());
+    device.window.addEventListener("offline", () => {
+      if (view.screen === "signed-in") show({ ...view, online: false });
+    });
+    // A sign-out made in another app or tab reaches this one when it is next looked at.
+    device.document.addEventListener("visibilitychange", () => {
+      if (device.document.visibilityState === "visible") void checkAgain();
+    });
+    await check();
+  }
+
   return {
     get view() {
       return view;
@@ -167,16 +187,9 @@ export function createSignedInState<T>(options: Options<T>): SignedInState<T> {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    async start() {
-      device.window.addEventListener("online", () => void checkAgain());
-      device.window.addEventListener("offline", () => {
-        if (view.screen === "signed-in") show({ ...view, online: false });
-      });
-      // A sign-out made in another app or tab reaches this one when it is next looked at.
-      device.document.addEventListener("visibilitychange", () => {
-        if (device.document.visibilityState === "visible") void checkAgain();
-      });
-      await check();
+    start() {
+      started ??= listenAndCheck();
+      return started;
     },
   };
 }
