@@ -25,7 +25,7 @@ export const SESSION_COOKIE = "__Secure-homelab.session_token";
 
 /**
  * A test person, as the accounts service's loader takes them
- * (apps/accounts/server/src/test-people.ts).
+ * (platform/accounts/src/test-people.ts).
  */
 export interface Account {
   email: string;
@@ -95,7 +95,7 @@ export function loadPeople(
         "accounts",
         "node",
         "--no-experimental-webstorage",
-        "apps/accounts/server/src/load-test-people.ts",
+        "platform/accounts/src/load-test-people.ts",
       ],
       { env: { ...process.env, ...composeEnv } },
       (error, stdout, stderr) => {

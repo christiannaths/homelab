@@ -6,7 +6,7 @@ The Notes server ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md))
 
 - People with admin-level App access to Notes (`notes-admins`) are owners, and people with member-level App access (`notes`) are members. The gateway turns everyone else away before Notes sees them. People are keyed by their account id (`Remote-User`).
 - Until the access rules are built ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)), only owners open documents.
-- It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in, with the [App switcher](../../../packages/app-switcher/README.md) at the top, which the gateway adds. Signing out is the switcher's: Notes has no sign-out of its own.
+- It serves the web client ([`../web`](../web)), an installable app that opens offline. Until workspaces and pages exist, the client has one page, saying who is signed in, with the [App switcher](../../../platform/app-switcher/README.md) at the top, which the gateway adds. Signing out is the switcher's: Notes has no sign-out of its own.
 
 ## Routes
 
@@ -29,9 +29,9 @@ Environment variables, for now read directly (issue #40):
 
 ### The gateway and the accounts service
 
-Notes trusts the `Remote-*` headers on every request, so **only the gateway may reach it**: never publish its port. The gateway must delete any `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups` headers the browser sent before asking the accounts service, as the sign-in check in [`packages/gateway/signed-in.caddyfile`](../../../packages/gateway/signed-in.caddyfile) does.
+Notes trusts the `Remote-*` headers on every request, so **only the gateway may reach it**: never publish its port. The gateway must delete any `Remote-User`, `Remote-Name`, `Remote-Email` and `Remote-Groups` headers the browser sent before asking the accounts service, as the sign-in check in [`platform/gateway/signed-in.caddyfile`](../../../platform/gateway/signed-in.caddyfile) does.
 
-In the [accounts service](../../accounts/README.md), `notes` must be one of the installed apps (`HOMELAB_APPS`), so people can be given App access to it.
+In the [accounts service](../../../platform/accounts/README.md), `notes` must be one of the installed apps (`HOMELAB_APPS`), so people can be given App access to it.
 
 ## Running the client
 

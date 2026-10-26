@@ -1,0 +1,58 @@
+# The homelab around Home for its end-to-end tests, which cross apps: the gateway (Caddy), the
+# accounts service, Notes and the Encyclopedia. The accounts service and Notes run from this
+# checkout. The Home server runs in the test process on the host, and the gateway reaches it there.
+name: ${COMPOSE_PROJECT_NAME:-platform-e2e}
+services:
+  gateway:
+    # Built from platform/gateway by whatever starts this stack.
+    image: homelab-gateway
+    command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
+    ports:
+      - "${GATEWAY_PORT:-8473}:443"
+    volumes:
+      - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
+      - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
+      - ${DATA_DIR:?set DATA_DIR}/caddy:/data
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      HOME_UPSTREAM: host.docker.internal:${HOME_PORT:-4130}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on: [accounts, notes]
+
+  accounts:
+    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+    working_dir: /repo
+    command: node --no-experimental-webstorage platform/accounts/src/index.ts
+    volumes:
+      - ../..:/repo:ro
+      - ${DATA_DIR:?set DATA_DIR}/accounts:/data
+      - ${DATA_DIR:?set DATA_DIR}/caddy:/gateway:ro
+    environment:
+      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      ACCOUNTS_URL: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8473}
+      ACCOUNTS_SECRET: ${ACCOUNTS_SECRET:?set ACCOUNTS_SECRET to at least 32 random characters}
+      DATA_DIR: /data
+      PORT: "3000"
+      # Vault is the stand-in bundled app in gateway.caddyfile.
+      HOMELAB_APPS: notes,encyclopedia,vault
+      # The account page reads apps' manifests through the gateway, trusting its own CA.
+      GATEWAY_URL: https://gateway
+      GATEWAY_CA: /gateway/caddy/pki/authorities/local/root.crt
+      # The suite signs many people in from one address.
+      SIGN_IN_RATE_MAX: "1000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/sign-in"]
+      interval: 1s
+      retries: 30
+
+  notes:
+    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+    working_dir: /repo
+    command: node --no-experimental-webstorage apps/notes/server/src/index.ts
+    volumes:
+      - ../..:/repo:ro
+      - ${DATA_DIR:?set DATA_DIR}/notes:/data
+    environment:
+      PORT: "3000"
+      DATA_DIR: /data

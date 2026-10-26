@@ -169,7 +169,7 @@ function loadPeople(people: Omit<TestPerson, "gets">[]): void {
       CONTAINER,
       "node",
       "--no-experimental-webstorage",
-      "apps/accounts/server/src/load-test-people.ts",
+      "platform/accounts/src/load-test-people.ts",
     ],
     { input: JSON.stringify(people), stdio: ["pipe", "ignore", "inherit"] },
   );

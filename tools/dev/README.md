@@ -1,6 +1,6 @@
 # The homelab on your machine
 
-One command starts everything that exists so far, for trying it by hand: the gateway (the homelab's Caddy build), the [accounts service](../../apps/accounts/server), [Home](../../apps/home/README.md), [Notes](../../apps/notes/README.md) and the [Encyclopedia](../../apps/encyclopedia/README.md), each on its own hostname under `homelab.localhost`, signed in as one of a few test people.
+One command starts everything that exists so far, for trying it by hand: the gateway (the homelab's Caddy build), the [accounts service](../../platform/accounts), [Home](../../platform/home/README.md), [Notes](../../apps/notes/README.md) and the [Encyclopedia](../../apps/encyclopedia/README.md), each on its own hostname under `homelab.localhost`, signed in as one of a few test people.
 
 It is not an install for real use: the passwords below are in this file, and the certificates come from the gateway's own CA.
 
@@ -56,5 +56,5 @@ Set `GATEWAY_PORT` (default `8443`) or `HOMELAB_DOMAIN` (default `homelab.localh
 
 - `compose.yaml`: the containers. Only the gateway publishes a port, since the apps trust the `Remote-*` headers the gateway sets. The accounts service, Home and Notes run from this checkout. Home reads apps' manifests from the gateway container, trusting the CA in its volume.
 - `.env`: the accounts service's `ACCOUNTS_SECRET`, which signs its session cookies, made by `start.ts` on first run and deleted by `npm run dev:reset`.
-- `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check and the App switcher from [`packages/gateway`](../../packages/gateway/README.md), whose image `npm run dev` builds first (as `homelab-gateway`).
+- `gateway.caddyfile`: one site per hostname; each app's site imports the sign-in check and the App switcher from [`platform/gateway`](../../platform/gateway/README.md), whose image `npm run dev` builds first (as `homelab-gateway`).
 - `start.ts`: what `npm run dev` and `npm run dev:reset` run.

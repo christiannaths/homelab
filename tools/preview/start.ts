@@ -107,13 +107,13 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   run(
     "the accounts service",
     process.execPath,
-    ["--no-experimental-webstorage", "apps/accounts/server/src/index.ts"],
+    ["--no-experimental-webstorage", "platform/accounts/src/index.ts"],
     { cwd: ROOT, env: accountsEnv },
   );
 
   // Home reads each app's manifest from the gateway in this container, over plain HTTP like
   // Fly's proxy.
-  run("Home", process.execPath, ["apps/home/server/src/index.ts"], {
+  run("Home", process.execPath, ["platform/home/server/src/index.ts"], {
     cwd: ROOT,
     env: {
       HOMELAB_URL: `https://${domain}`,

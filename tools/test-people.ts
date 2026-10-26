@@ -1,7 +1,7 @@
 // The apps and test people that `npm run dev` (tools/dev) and every preview (tools/preview) start
 // with, signing in by email with these published passwords. Previews are open by design
 // (ADR-PLAT-008), so nothing real goes in them. The accounts service's own loader
-// (apps/accounts/server/src/load-test-people.ts) makes the people. Adding an app to the homelab
+// (platform/accounts/src/load-test-people.ts) makes the people. Adding an app to the homelab
 // means adding it here, to the preview's Caddyfile and Dockerfile, and to tools/dev, together.
 
 /** Each app's site, named after its subdomain. Home is open to every account. */
@@ -64,7 +64,7 @@ export const PEOPLE = [ADMIN, ADA, DANA, BOB];
 /** The loader's command, run with the accounts service's environment and the people on stdin. */
 export const LOAD_TEST_PEOPLE = [
   "--no-experimental-webstorage",
-  "apps/accounts/server/src/load-test-people.ts",
+  "platform/accounts/src/load-test-people.ts",
   // A later start keeps whatever changed since, as a household's own accounts would be kept.
   "--only-missing",
 ];

@@ -1,15 +1,26 @@
 # Homelab
 
-Self-hosted apps for a homelab, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and apps never depend on each other ([ADR-PLAT-002](docs/adr/ADR-PLAT-002-repo-structure.md)).
+Self-hosted apps for a homelab, and the platform that runs them, in one [Nx](https://nx.dev) monorepo. Each app is built, tested and shipped as its own container, and an app never depends on another app or on the platform ([ADR-PLAT-002](docs/adr/ADR-PLAT-002-repo-structure.md)). It plugs in through the app contract alone ([ADR-PLAT-009](docs/adr/ADR-PLAT-009-app-contract.md)).
 
 ## Apps
 
 | App | What it is |
 | --- | --- |
-| [`accounts`](apps/accounts/README.md) | **Accounts**: the homelab account, where people sign in, and who may open which app |
-| [`home`](apps/home/README.md) | **Home**: the apps each person can use, as tiles, open to every homelab account |
 | [`notes`](apps/notes/README.md) | **LocalNotion**: an offline-first, multiplayer Notion-style workspace (starting fresh) |
 | [`encyclopedia`](apps/encyclopedia/README.md) | **Encyclopedia**: a read-only copy of Wikipedia, already populated, with saved lists that work offline (docs only) |
+
+## Platform
+
+Everything around the apps, in `platform/`.
+
+| Part | What it is |
+| --- | --- |
+| [`accounts`](platform/accounts/README.md) | **Accounts**: the homelab account, where people sign in, and who may open which app |
+| [`home`](platform/home/README.md) | **Home**: the apps each person can use, as tiles, open to every homelab account; an install can leave it out |
+| [`gateway`](platform/gateway/README.md) | **The gateway**: the homelab's Caddy, which asks the accounts service about every request and adds the App switcher |
+| [`app-switcher`](platform/app-switcher/README.md) | **App switcher**: the tab at the top of every app |
+| [`app-manifests`](platform/app-manifests) | Reading apps' manifests, for Home and the account page |
+| [`e2e`](platform/e2e) | The platform's end-to-end suite, across apps |
 
 ## App ideas
 
@@ -53,7 +64,7 @@ npm install               # also installs the pre-commit hook, which formats and
 npm run check             # formatting, lint, module boundaries, ADR rules, then typecheck and unit tests for every project except spikes
 npm run fix               # applies Prettier and every linter's safe fixes
 npm run build
-npm run test:e2e          # every app's end-to-end tests
+npm run test:e2e          # every app's and the platform's end-to-end tests
 npm run dev               # the whole homelab on this machine, to try by hand (see tools/dev/README.md)
 ```
 
@@ -63,7 +74,8 @@ Run one project's task with `npx nx <target> <project>` (for example `npx nx typ
 
 ```text
 apps/<app>/          one app: npm workspace packages (web, server, e2e), its docs and, once it ships, its Dockerfile
-packages/            code shared by more than one app
+platform/            the platform around the apps: accounts, Home, the gateway, the App switcher, manifest reading and its e2e suite
+packages/            libraries apps may use
 spikes/<spike>/      a frozen proof of concept, laid out like an app and skipped by repo-wide commands
 docs/adr/            platform ADRs, which hold for every app, and the ADR format
 tools/               repo scripts (TypeScript, run directly by Node)

@@ -7,7 +7,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
-import { identityFrom } from "@homelab/gateway";
+import { identityFrom } from "@homelab/identity";
 import { People, type Person } from "./people.ts";
 
 export interface ServerOptions {

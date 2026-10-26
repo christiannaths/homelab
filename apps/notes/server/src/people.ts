@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import type { GatewayIdentity } from "@homelab/gateway";
+import type { GatewayIdentity } from "@homelab/identity";
 import { nullableText, text } from "./rows.ts";
 
 const ROLES = ["owner", "member", "guest"] as const;

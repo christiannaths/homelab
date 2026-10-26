@@ -1,10 +1,11 @@
 // Builds the gateway, starts it and the accounts service with empty data, and loads the test people
 // into the accounts service with their App access to Notes (ADR-PLAT-004).
+import { execFileSync } from "node:child_process";
 import { X509Certificate, createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildGatewayImage } from "@homelab/gateway/image";
+import { fileURLToPath } from "node:url";
 import type { TestProject } from "vitest/node";
 import {
   ACCOUNTS,
@@ -21,6 +22,32 @@ declare module "vitest" {
     /** Each test person's account id, by email. */
     accountIds: Record<string, string>;
   }
+}
+
+const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+
+/**
+ * Builds the gateway image (platform/gateway/Dockerfile) as the stack runs it. Notes may not import
+ * the platform's own builder (ADR-PLAT-002), so it builds the image by its path until this suite
+ * runs Notes behind a stand-in instead (issue #126).
+ */
+function buildGatewayImage(): void {
+  // Behind a proxy that intercepts TLS, as in a cloud environment, npm and Go need its CA.
+  const ca = process.env.NODE_EXTRA_CA_CERTS;
+  execFileSync(
+    "docker",
+    [
+      "build",
+      "--quiet",
+      "--tag",
+      "homelab-gateway",
+      "--file",
+      "platform/gateway/Dockerfile",
+      ...(ca ? ["--secret", `id=ca-certs,src=${ca}`] : []),
+      ".",
+    ],
+    { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] },
+  );
 }
 
 export default async function setup(project: TestProject) {

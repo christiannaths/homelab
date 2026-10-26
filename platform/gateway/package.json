@@ -1,0 +1,23 @@
+{
+  "name": "@homelab/gateway",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "gateway",
+    "tags": [
+      "scope:platform",
+      "platform:any"
+    ]
+  },
+  "exports": {
+    "./image": "./src/image.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "e2e": "node --test \"test/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
