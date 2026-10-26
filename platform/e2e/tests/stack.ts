@@ -14,11 +14,14 @@ const CLIENT_DIR = fileURLToPath(
   new URL("../../home/web/dist", import.meta.url),
 );
 
-export const GATEWAY_PORT = 8473;
+/** The homelab's address, as an installer gives it. The rest of the stack's addresses follow. */
+export const HOMELAB_URL = "https://home.test:8473";
+const HOMELAB = new URL(HOMELAB_URL);
+export const GATEWAY_PORT = Number(HOMELAB.port);
+export const DOMAIN = HOMELAB.hostname;
 /** Where the Home server listens on this machine; only the gateway is meant to reach it. */
 export const HOME_PORT = 4130;
-export const DOMAIN = "home.test";
-const appUrl = (app: string) => `https://${app}.${DOMAIN}:${GATEWAY_PORT}`;
+const appUrl = (app: string) => `https://${app}.${HOMELAB.host}`;
 export const ACCOUNTS_URL = appUrl("accounts");
 export const HOME_URL = appUrl("home");
 export const NOTES_URL = appUrl("notes");

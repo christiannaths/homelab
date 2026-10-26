@@ -8,12 +8,12 @@
 }
 
 # The accounts site gets the App switcher too, for people managing their account.
-accounts.{$HOMELAB_DOMAIN} {
+accounts.{$SITE_DOMAIN} {
 	import /etc/caddy/switcher.caddyfile
 	reverse_proxy accounts:3000
 }
 
-notes.{$HOMELAB_DOMAIN} {
+notes.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile

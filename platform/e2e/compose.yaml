@@ -8,13 +8,13 @@ services:
     image: homelab-gateway
     command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
     ports:
-      - "${GATEWAY_PORT:-8473}:443"
+      - "${GATEWAY_PORT:?set GATEWAY_PORT}:443"
     volumes:
       - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
       - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
       - ${DATA_DIR:?set DATA_DIR}/caddy:/data
     environment:
-      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
+      SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN}
       HOME_UPSTREAM: host.docker.internal:${HOME_PORT:-4130}
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -29,8 +29,7 @@ services:
       - ${DATA_DIR:?set DATA_DIR}/accounts:/data
       - ${DATA_DIR:?set DATA_DIR}/caddy:/gateway:ro
     environment:
-      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-home.test}
-      ACCOUNTS_URL: https://accounts.${HOMELAB_DOMAIN:-home.test}:${GATEWAY_PORT:-8473}
+      HOMELAB_URL: ${HOMELAB_URL:?set HOMELAB_URL}
       ACCOUNTS_SECRET: ${ACCOUNTS_SECRET:?set ACCOUNTS_SECRET to at least 32 random characters}
       DATA_DIR: /data
       PORT: "3000"

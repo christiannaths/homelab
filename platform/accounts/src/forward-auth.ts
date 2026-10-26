@@ -3,6 +3,7 @@
 // lets the request through with the Remote-* headers below; anything else goes to the browser.
 import { identityHeaders } from "@homelab/identity";
 import type { Grants } from "./app-access.ts";
+import { onHomelab, type Config } from "./config.ts";
 
 /** Who the session belongs to, as far as the gateway's answer needs. */
 export interface Person {
@@ -79,12 +80,12 @@ export function signInUrl(accountsUrl: string, returnTo: string): string {
 }
 
 /**
- * Where to send a person after signing in: an https address on the homelab's domain, or the
- * account page. Anything else would make the sign-in page an open redirect.
+ * Where to send a person after signing in: an address on the homelab, or the account page.
+ * Anything else would make the sign-in page an open redirect.
  */
 export function safeReturnTo(
   value: string | undefined,
-  { domain, accountsUrl }: Pick<Site, "domain" | "accountsUrl">,
+  { homelabUrl, accountsUrl }: Pick<Config, "homelabUrl" | "accountsUrl">,
 ): string {
   const accountPage = new URL("/", accountsUrl).href;
   if (!value) return accountPage;
@@ -94,9 +95,7 @@ export function safeReturnTo(
   } catch {
     return accountPage;
   }
-  const hostname = url.hostname.toLowerCase();
-  const onDomain = hostname === domain || hostname.endsWith(`.${domain}`);
-  return url.protocol === "https:" && onDomain && !url.username && !url.password
+  return onHomelab(url, homelabUrl) && !url.username && !url.password
     ? url.href
     : accountPage;
 }

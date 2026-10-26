@@ -9,7 +9,11 @@ import {
   type Accounts,
   type Options,
 } from "../src/accounts.ts";
-import type { Config } from "../src/config.ts";
+import {
+  homelabAddresses,
+  type Config,
+  type HomelabAddresses,
+} from "../src/config.ts";
 import { loadTestPeople, type TestPerson } from "../src/test-people.ts";
 
 export const DOMAIN = "home.test";
@@ -33,8 +37,11 @@ export const ADMIN: TestPerson = {
   homelabAdmin: true,
 };
 
-/** Home's and the installed apps' manifests, as the gateway would serve them, by hostname. */
-export const MANIFESTS: Record<string, unknown> = {
+/**
+ * Home's and the installed apps' manifests, as the gateway would serve them, by hostname on any
+ * port.
+ */
+const MANIFESTS: Record<string, unknown> = {
   [`home.${DOMAIN}`]: {
     name: "Home",
     homelab: { opens_offline: true },
@@ -51,7 +58,9 @@ export const MANIFESTS: Record<string, unknown> = {
 };
 
 export const readManifest: ReadManifest = async (url) =>
-  url.pathname === "/manifest.webmanifest" ? MANIFESTS[url.host] : undefined;
+  url.pathname === "/manifest.webmanifest"
+    ? MANIFESTS[url.hostname]
+    : undefined;
 
 export interface TestAccounts extends Accounts {
   /** Each loaded person's account id, by email. */
@@ -59,18 +68,23 @@ export interface TestAccounts extends Accounts {
 }
 
 /**
- * A fresh service with the given people, and settings overridden by `config`. It reads the
- * manifests in MANIFESTS, unless `options` gives another reader.
+ * A fresh service with the given people, and settings overridden by `config`. The homelab's
+ * addresses all come from `homelabUrl`, as they do from HOMELAB_URL. It reads the manifests in
+ * MANIFESTS, unless `options` gives another reader.
  */
 export async function startAccounts(
   people: TestPerson[] = [ADA, BOB, ADMIN],
-  config: Partial<Config> = {},
+  {
+    homelabUrl = `https://${DOMAIN}`,
+    ...config
+  }: Partial<Omit<Config, keyof HomelabAddresses>> & {
+    homelabUrl?: string;
+  } = {},
   options: Options = {},
 ): Promise<TestAccounts> {
   const accounts = await createAccounts(
     {
-      domain: DOMAIN,
-      accountsUrl: ACCOUNTS,
+      ...homelabAddresses(homelabUrl),
       secret: "a-test-secret-that-is-at-least-32-characters",
       dataDir: mkdtempSync(path.join(tmpdir(), "accounts-")),
       port: 0,

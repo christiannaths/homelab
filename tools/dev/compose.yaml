@@ -1,5 +1,5 @@
 # The whole homelab on one machine, for trying it by hand: the gateway (Caddy), the accounts service,
-# Home, Notes and the Encyclopedia, each on its own hostname under HOMELAB_DOMAIN. Start it with
+# Home, Notes and the Encyclopedia, each on its own hostname under HOMELAB_URL. Start it with
 # `npm run dev` from the repository root, which also builds the apps and loads the test people
 # (see README.md). Only the gateway publishes a port: the apps trust the Remote-* headers the
 # gateway sets.
@@ -10,14 +10,15 @@ services:
     image: homelab-gateway
     command: caddy run --config /etc/caddy/gateway.caddyfile --adapter caddyfile
     ports:
-      - "${GATEWAY_PORT:-8443}:443"
+      - "${GATEWAY_PORT:?start the stack with npm run dev}:443"
     volumes:
       - ./gateway.caddyfile:/etc/caddy/gateway.caddyfile:ro
       - caddy:/data
       # The Encyclopedia's static build, served by the gateway.
       - ../../apps/encyclopedia/web/dist:/srv/encyclopedia:ro
     environment:
-      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
+      # HOMELAB_URL's hostname, which start.ts derives: Caddy names sites by hostname.
+      SITE_DOMAIN: ${SITE_DOMAIN:?start the stack with npm run dev}
     depends_on: [accounts, home, notes]
 
   # The accounts service (platform/accounts), run from this checkout.
@@ -30,8 +31,7 @@ services:
       - accounts:/data
       - caddy:/caddy:ro
     environment:
-      HOMELAB_DOMAIN: ${HOMELAB_DOMAIN:-homelab.localhost}
-      ACCOUNTS_URL: https://accounts.${HOMELAB_DOMAIN:-homelab.localhost}:${GATEWAY_PORT:-8443}
+      HOMELAB_URL: ${HOMELAB_URL:?start the stack with npm run dev}
       ACCOUNTS_SECRET: ${ACCOUNTS_SECRET:?set ACCOUNTS_SECRET to at least 32 random characters}
       HOMELAB_APPS: notes,encyclopedia
       DATA_DIR: /data

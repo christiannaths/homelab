@@ -18,7 +18,7 @@ import { Invites } from "./invites.ts";
 import { AppAccess } from "./app-access.ts";
 import { createBetterAuth } from "./better-auth.ts";
 import { ShownApps } from "./shown-apps.ts";
-import type { Config } from "./config.ts";
+import { onHomelab, type Config } from "./config.ts";
 import { formFields, fromOurPages } from "./forms.ts";
 import { answer, safeReturnTo } from "./forward-auth.ts";
 import { noAccessPage, signInPage, tooManyAttemptsPage } from "./pages.ts";
@@ -55,7 +55,7 @@ export async function createAccounts(
   const appAccess = new AppAccess(db, config.apps);
   const invites = new Invites(db);
   const apps = new ShownApps(
-    new AppDirectory(homelabUrl(config), readManifest, now),
+    new AppDirectory(config.homelabUrl, readManifest, now),
     warn,
   );
 
@@ -136,7 +136,7 @@ export async function createAccounts(
   // Sent by the App switcher's fetch from an app's page, or by a form on this site. Signs out
   // this device only.
   app.post("/sign-out", async (c) => {
-    const origin = homelabPageOf(c, config.domain);
+    const origin = homelabPageOf(c, config.homelabUrl);
     if (!origin) return c.text("Forbidden", 403);
     const cookies = (await sessionOf(betterAuth, c.req.raw.headers))
       ? (
@@ -157,7 +157,7 @@ export async function createAccounts(
   // Sent by the App switcher on every page load. Caddy's forward auth can't pass a cookie back to
   // the browser, so this is how a person who only uses apps keeps their session going.
   app.post("/session", async (c) => {
-    const origin = homelabPageOf(c, config.domain);
+    const origin = homelabPageOf(c, config.homelabUrl);
     if (!origin) return c.text("Forbidden", 403);
     const { cookies } = await extendedSessionOf(betterAuth, c.req.raw.headers);
     return withCookiesOf(answerForPage(origin), cookies);
@@ -171,7 +171,7 @@ export async function createAccounts(
     const origin = c.req.header("origin");
     if (
       c.req.header("sec-fetch-site") === "cross-site" ||
-      (origin !== undefined && !isHomelabOrigin(origin, config.domain))
+      (origin !== undefined && !isHomelabOrigin(origin, config.homelabUrl))
     )
       return c.text("Forbidden", 403);
     if (origin) {
@@ -254,22 +254,14 @@ export async function createAccounts(
 
 export type Accounts = Awaited<ReturnType<typeof createAccounts>>;
 
-/** The parent address every app is under, on the accounts site's scheme and port. */
-function homelabUrl({ domain, accountsUrl }: Config): URL {
-  const accounts = new URL(accountsUrl);
-  return new URL(
-    `${accounts.protocol}//${domain}${accounts.port ? `:${accounts.port}` : ""}/`,
-  );
-}
-
 /**
- * The Origin of a request sent from an https page of the homelab, an app's or this site's, or
- * undefined for anything another site could send.
+ * The Origin of a request sent from a page of the homelab, an app's or this site's, or undefined
+ * for anything another site could send.
  */
-function homelabPageOf(c: Context, domain: string): string | undefined {
+function homelabPageOf(c: Context, homelabUrl: URL): string | undefined {
   const origin = c.req.header("origin");
   return c.req.header("sec-fetch-site") !== "cross-site" &&
-    isHomelabOrigin(origin, domain)
+    isHomelabOrigin(origin, homelabUrl)
     ? origin
     : undefined;
 }
@@ -286,10 +278,10 @@ function answerForPage(origin: string): Response {
   });
 }
 
-/** Whether a request's Origin is an https page of the homelab: an app's, or this site's. */
+/** Whether a request's Origin is a page of the homelab: an app's, or this site's. */
 function isHomelabOrigin(
   origin: string | undefined,
-  domain: string,
+  homelabUrl: URL,
 ): origin is string {
   if (!origin) return false;
   let url: URL;
@@ -298,7 +290,7 @@ function isHomelabOrigin(
   } catch {
     return false;
   }
-  return url.protocol === "https:" && url.hostname.endsWith(`.${domain}`);
+  return onHomelab(url, homelabUrl) && url.hostname !== homelabUrl.hostname;
 }
 
 /**

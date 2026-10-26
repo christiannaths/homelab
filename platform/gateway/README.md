@@ -20,7 +20,7 @@ Behind a proxy that intercepts TLS, pass its CA with `--secret id=ca-certs,src=<
 An app's site imports both snippets, in this order, before whatever answers for the app:
 
 ```caddyfile
-notes.{$HOMELAB_DOMAIN} {
+notes.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile
 		import /etc/caddy/switcher.caddyfile

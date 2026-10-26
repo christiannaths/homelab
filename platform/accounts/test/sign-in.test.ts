@@ -98,14 +98,12 @@ describe("signing in", () => {
     }
   });
 
-  it("only sends people on to https addresses under the homelab's domain, or else to their account page", async () => {
+  it("only sends people on to addresses on the homelab, or else to their account page", async () => {
     const accountPage = `${ACCOUNTS}/`;
     for (const [returnTo, expected] of [
-      [
-        `https://notes.${DOMAIN}:8443/x?y=1`,
-        `https://notes.${DOMAIN}:8443/x?y=1`,
-      ],
+      [`https://notes.${DOMAIN}/x?y=1`, `https://notes.${DOMAIN}/x?y=1`],
       [`https://${DOMAIN}/`, `https://${DOMAIN}/`],
+      [`https://notes.${DOMAIN}:8443/x`, accountPage],
       [undefined, accountPage],
       ["/relative", accountPage],
       [`http://notes.${DOMAIN}/`, accountPage],

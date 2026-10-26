@@ -14,12 +14,15 @@ const COMPOSE_FILE = fileURLToPath(new URL("../compose.yaml", import.meta.url));
 /** The client's production build: the service worker exists only there. */
 const CLIENT_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
-export const GATEWAY_PORT = 8463;
+/** The homelab's address, as an installer gives it. The rest of the stack's addresses follow. */
+export const HOMELAB_URL = "https://home.test:8463";
+const HOMELAB = new URL(HOMELAB_URL);
+export const GATEWAY_PORT = Number(HOMELAB.port);
+export const DOMAIN = HOMELAB.hostname;
 /** Where the Notes server listens on this machine; only the gateway is meant to reach it. */
 export const NOTES_PORT = 4120;
-export const DOMAIN = "home.test";
-export const ACCOUNTS_URL = `https://accounts.${DOMAIN}:${GATEWAY_PORT}`;
-export const NOTES_URL = `https://notes.${DOMAIN}:${GATEWAY_PORT}`;
+export const ACCOUNTS_URL = `https://accounts.${HOMELAB.host}`;
+export const NOTES_URL = `https://notes.${HOMELAB.host}`;
 /** The accounts service's session cookie, on the parent domain. */
 export const SESSION_COOKIE = "__Secure-homelab.session_token";
 
