@@ -12,6 +12,7 @@ import {
   DOMAIN,
   GATEWAY_PORT,
   HOME_PORT,
+  HOMELAB_URL,
   PEOPLE,
   compose,
   loadPeople,
@@ -37,7 +38,9 @@ export default async function setup(project: TestProject) {
     DATA_DIR: dataDir,
     GATEWAY_PORT: String(GATEWAY_PORT),
     HOME_PORT: String(HOME_PORT),
-    HOMELAB_DOMAIN: DOMAIN,
+    HOMELAB_URL,
+    // Caddy names sites by hostname, so the gateway gets the one in HOMELAB_URL.
+    SITE_DOMAIN: DOMAIN,
     ACCOUNTS_SECRET: randomBytes(24).toString("hex"),
   };
   const stop = async () => {

@@ -87,7 +87,7 @@ describe("with test sign-in links off, as on every install and preview", () => {
 
 describe("the setting", () => {
   const env = {
-    HOMELAB_DOMAIN: DOMAIN,
+    HOMELAB_URL: `https://${DOMAIN}`,
     ACCOUNTS_SECRET: "a-test-secret-that-is-at-least-32-characters",
   };
 

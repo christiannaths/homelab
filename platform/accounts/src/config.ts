@@ -2,14 +2,20 @@ import type { GatewayAddress } from "@homelab/app-manifests";
 
 // The install's settings, from environment variables, for now read directly (issue #40).
 
-export interface Config {
-  /** The parent domain every app lives under, e.g. `home.example` (ADR-PLAT-004). */
-  domain: string;
+/** Where the homelab is, all derived from HOMELAB_URL (ADR-PLAT-004). */
+export interface HomelabAddresses {
   /**
-   * Where people reach this service through the gateway, e.g. `https://accounts.home.example`.
-   * Its port, if any, is every app's port.
+   * The parent address every app is a subdomain of, e.g. `https://homelab.localhost:8443/`. Its
+   * port, if any, is every app's port.
    */
+  homelabUrl: URL;
+  /** The parent domain, e.g. `homelab.localhost`, which the session cookie is set on. */
+  domain: string;
+  /** Where people reach this service through the gateway, e.g. `https://accounts.home.example`. */
   accountsUrl: string;
+}
+
+export interface Config extends HomelabAddresses {
   /** Signs session cookies. At least 32 characters. */
   secret: string;
   dataDir: string;
@@ -31,13 +37,12 @@ export interface Config {
 }
 
 export function configFromEnv(env: NodeJS.ProcessEnv): Config {
-  const domain = required(env, "HOMELAB_DOMAIN");
+  const addresses = homelabAddresses(required(env, "HOMELAB_URL"));
   const testSignInLinks = env.TEST_SIGN_IN_LINKS === "on";
   if (testSignInLinks && env.NODE_ENV === "production")
     throw new Error("TEST_SIGN_IN_LINKS can't be on in production");
   return {
-    domain,
-    accountsUrl: env.ACCOUNTS_URL ?? `https://accounts.${domain}`,
+    ...addresses,
     secret: required(env, "ACCOUNTS_SECRET"),
     dataDir: env.DATA_DIR ?? "data",
     port: Number(env.PORT ?? 3000),
@@ -52,6 +57,48 @@ export function configFromEnv(env: NodeJS.ProcessEnv): Config {
     },
     testSignInLinks,
   };
+}
+
+/** HOMELAB_URL, such as `https://home.example` or `https://homelab.localhost:8443`. */
+export function homelabAddresses(setting: string): HomelabAddresses {
+  let url: URL | undefined;
+  try {
+    url = new URL(setting);
+  } catch {
+    url = undefined;
+  }
+  // The session cookie is Secure, so the homelab is https only. Apps sit at the root of their own
+  // subdomains, so a path would have nowhere to go.
+  if (
+    url?.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  )
+    throw new Error(
+      `HOMELAB_URL must be the homelab's https address, such as https://home.example, not ${setting}`,
+    );
+  return {
+    homelabUrl: url,
+    domain: url.hostname,
+    accountsUrl: `https://accounts.${url.host}`,
+  };
+}
+
+/**
+ * Whether `url` is on the homelab: the parent address itself, or a subdomain of it, on its scheme
+ * and port.
+ */
+export function onHomelab(url: URL, homelabUrl: URL): boolean {
+  const hostname = url.hostname.toLowerCase();
+  return (
+    url.protocol === homelabUrl.protocol &&
+    url.port === homelabUrl.port &&
+    (hostname === homelabUrl.hostname ||
+      hostname.endsWith(`.${homelabUrl.hostname}`))
+  );
 }
 
 /** `notes, encyclopedia` as a list of subdomains. */

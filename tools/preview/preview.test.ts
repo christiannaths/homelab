@@ -161,7 +161,7 @@ function loadPeople(people: Omit<TestPerson, "gets">[]): void {
       "exec",
       "--interactive",
       "--env",
-      `HOMELAB_DOMAIN=${DOMAIN}`,
+      `HOMELAB_URL=https://${DOMAIN}`,
       "--env",
       `HOMELAB_APPS=${INSTALLED_APPS}`,
       "--env",
