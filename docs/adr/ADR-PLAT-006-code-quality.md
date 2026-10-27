@@ -7,51 +7,48 @@
 
 ## Context
 
-The repo (TS/TSX, Markdown and ADRs, CSS, JSON, YAML, HTML, shell, Dockerfiles) grows by many small changes from people and agents; without shared formatting, diffs fill with style changes, and mistakes no compiler sees (a floating promise, a CSS property browsers silently drop) reach review. typescript-eslint doesn't support TypeScript 7 ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)), so the usual ESLint setup is out.
+Many small changes from people and agents; without shared formatting diffs fill with noise, and compiler-invisible mistakes (floating promises, dropped CSS) reach review. typescript-eslint doesn't support TypeScript 7 ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)).
 
 ## Decision
 
 | Tool | Covers | Setup |
 | --- | --- | --- |
-| Prettier | Formats TS, JS, JSON, YAML, CSS, HTML, Markdown | Defaults plus diff-shrinking options: `proseWrap: "never"` (a paragraph is one line; tables too wide to align stay compact), `singleAttributePerLine`, `quoteProps: "consistent"` |
-| Oxlint | Lints TS and TSX | `correctness` and `suspicious`; React (incl. Hooks), jsx-a11y, import and TypeScript plugins; type-aware rules from `oxlint-tsgolint` (floating and misused promises, unsafe `any`, unchecked `as` casts); all errors. Rules that don't fit are off in `.oxlintrc.json`, each with a stated reason |
-| markdownlint-cli2 | Lints Markdown | Rules Prettier owns are off |
-| Stylelint | Lints CSS | `stylelint-config-standard` |
-| ls-lint | Checks names | Folders and files kebab-case; `.tsx` may be PascalCase (React components); Markdown may use conventional upper-case names (`README.md`); ADR files follow their own pattern, checked in full by `npm run adrs` |
+| Prettier | TS, JS, JSON, YAML, CSS, HTML, Markdown | Defaults + `proseWrap: "never"`, `singleAttributePerLine`, `quoteProps: "consistent"` |
+| Oxlint | TS, TSX | `correctness`, `suspicious`; React (incl. Hooks), jsx-a11y, import, TypeScript plugins; `oxlint-tsgolint` type-aware rules (promises, unsafe `any`, unchecked `as`); all errors; each disabled rule has a reason in `.oxlintrc.json` |
+| markdownlint-cli2 | Markdown | Prettier-owned rules off |
+| Stylelint | CSS | `stylelint-config-standard` |
+| ls-lint | Names | kebab-case; PascalCase `.tsx` allowed; upper-case Markdown like `README.md`; ADR names checked by `npm run adrs` |
 
-- **Not linted by the repo:** shell scripts and Dockerfiles (checked in the editor); YAML, JSON and HTML beyond Prettier's formatting. TOML is neither formatted nor linted.
-- **Scope:** whole repo, spikes included ([ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md)). Excluded: vendored skills `npx skills` manages in `.agents/skills/` (this repo's own `adr` and `comments` skills are included).
-- **Config at the repo root**, one file per tool; each tool runs once over the whole repo, not as a per-project Nx target ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)).
-- **Where the checks run:**
+- **Not linted:** shell and Dockerfiles (editor only); YAML, JSON, HTML beyond formatting; TOML at all.
+- **Scope:** whole repo incl. spikes ([ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md)), except `npx skills`-managed `.agents/skills/` (own `adr` and `comments` included).
+- **Root config**, one file per tool, one run over the repo (no per-project Nx target).
+- **Where:**
 
   | Command | Does |
   | --- | --- |
-  | `npm run check` | `npm run format:check` and `npm run lint`, before boundary, ADR, typecheck and test checks |
-  | `npm run fix` | Every tool's safe fixes, then Prettier |
-  | Pre-commit hook (husky, lint-staged) | Fixes and re-stages staged files, runs ls-lint, runs `npm run adrs` when an ADR changes; no typecheck or tests |
+  | `npm run check` | `format:check`, `lint`, then boundaries, ADRs, typecheck, tests |
+  | `npm run fix` | Safe fixes, then Prettier |
+  | Pre-commit (husky, lint-staged) | Fix and re-stage staged files, ls-lint, `npm run adrs` on ADR changes; no typecheck or tests |
 
-- **Every tool is a root dev dependency** installed by `npm install` ([ADR-PLAT-001](ADR-PLAT-001-toolchain.md)); husky sets up the hook via the root `prepare` script.
+- All tools are root dev dependencies ([ADR-PLAT-001](ADR-PLAT-001-toolchain.md)); husky installs via `prepare`.
 
 ## Alternatives considered
 
-- **Biome**: far fewer lint rules than Oxlint, no type-aware rules; Prettier preferred for formatting.
-- **ESLint** (incl. `@eslint/css`): typescript-eslint doesn't support TypeScript 7, and ESLint for CSS alone adds a second linter for one language.
-- **ShellCheck and hadolint**: no maintained npm package, so each needs mise, Docker or a binary-downloading install script. Editor linting judged enough.
-- **yamllint**: Python; Prettier already rejects invalid YAML.
-- **An Nx `lint` target per project**: docs and root config belong to no project, and the whole repo lints in seconds, so caching saves little.
-- **Pinning non-npm tools in `mise.toml`**: would make mise required, where `nvm` is enough today.
+- **Biome**: far fewer rules, none type-aware.
+- **ESLint**: typescript-eslint lacks TypeScript 7; ESLint for CSS alone is a second linter.
+- **ShellCheck, hadolint**: no maintained npm package.
+- **yamllint**: Python; Prettier already rejects bad YAML.
+- **Per-project Nx `lint`**: docs and root config have no project; full lint takes seconds.
+- **mise-pinned tools**: would make mise required.
 
 ## Evidence
 
-- This repo (Node 26.12.0, ~140 TS and ~45 Markdown files): `npm run lint` ~3 s, `npm run format:check` ~3.5 s.
-- `oxlint-tsgolint` 7.0 is built on TypeScript 7's Go compiler; its type-aware rules run against the repo's `tsconfig.json` files.
-- PR #44 one-time cleanup: formatted the repo, applied safe fixes, renamed six spike files to kebab-case; typecheck and unit tests passed for every project, spikes included.
-- `proseWrap: "never"` chosen after aligned tables broke `tools/check-adrs.ts` (matches index rows exactly) and made every row change when one cell grew.
+- ~140 TS + ~45 Markdown files: `lint` ~3 s, `format:check` ~3.5 s (Node 26.12.0).
+- PR #44 cleanup: typecheck and tests passed everywhere after, spikes included.
+- `proseWrap: "never"`: aligned tables broke `tools/check-adrs.ts` row matching and churned every row.
 
 ## Consequences
 
-- Every commit is formatted and linted, so review sees only meaningful changes.
-- No rule relaxed for spikes: PR #44 fixed their findings by hand (changing frozen code) and reran their tests to show behaviour held.
-- A value the compiler can't type (JSON body, database row, Yjs map entry) needs a runtime check before use, since unchecked `as` casts are banned.
-- Files in a package without its own `tsconfig.json` get weaker type-aware results (Oxlint can't resolve their types).
-- CI isn't part of this decision. Until it runs `npm run check`, `git commit --no-verify` skips the hook.
+- Values the compiler can't type (JSON bodies, DB rows, Yjs entries) need a runtime check, since unchecked `as` is banned.
+- Packages without their own `tsconfig.json` get weaker type-aware results.
+- No CI yet: `git commit --no-verify` skips the hook.

@@ -7,29 +7,27 @@
 
 ## Context
 
-Client and server share data-model code and Yjs. A very small team maintains the project.
+Client and server share data-model code and Yjs; a very small team maintains it.
 
 ## Decision
 
-- **TypeScript** for client, server and tests.
-- **Node.js 26** (LTS from 2026-10-28) minimum, enforced by `engines` and `devEngines` (`npm install` fails on older Node), `mise.toml` and `.nvmrc`, a version check at server startup, and the Docker base image.
-- **npm** (bundled with Node), default `node_modules` layout. Dependency install scripts run only when approved in `allowScripts` (`npm approve-scripts`).
-- **One repo, npm workspaces**, laid out per [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md).
-- Avoid dependencies that compile native code; use what Node provides, e.g. `node:sqlite` ([ADR-NOTE-005](../../apps/notes/docs/adr/ADR-NOTE-005-document-persistence.md)).
+- **TypeScript** everywhere: client, server, tests.
+- **Node.js 26** (LTS from 2026-10-28) minimum: `engines`/`devEngines` (`npm install` fails on older Node), `mise.toml`, `.nvmrc`, a startup check, the Docker base image.
+- **npm**, default `node_modules` layout; install scripts run only if approved in `allowScripts` (`npm approve-scripts`).
+- **npm workspaces**, one repo ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)).
+- No native-compiling dependencies where Node has it built in, e.g. `node:sqlite` ([ADR-NOTE-005](../../apps/notes/docs/adr/ADR-NOTE-005-document-persistence.md)).
 
 ## Alternatives considered
 
-- **Bun 1.4.3 as the runtime**: runs the code incl. `node:sqlite`, but Hocuspocus's server won't start on Bun. Fixing it needs a Bun-only server entry and a socket adapter, and in the 2,000-page test the Bun server failed to complete a client-initiated close on the second reconnect cycle.
-- **pnpm 12, Yarn 4 or Bun's installer**: pnpm and Bun install fastest (warm cache 1.6 s and 0.6 s vs ~11 s for npm), but each is an extra install on every machine, in CI and in Docker, since Node 25+ no longer bundles Corepack.
+- **Bun 1.4.3 runtime**: Hocuspocus's server won't start on it; a workaround failed a client-initiated close in the 2,000-page test.
+- **pnpm 12, Yarn 4, Bun's installer**: faster installs (pnpm 1.6 s, Bun 0.6 s vs npm ~11 s warm), but an extra install everywhere, since Node 25+ dropped Corepack.
 
 ## Evidence
 
-- Node 25 reached end of life 2026-06-01; Node 22.12 lacks `node:sqlite`. Requiring Node 26 fixed the startup crash reported on PR #1.
-- Full suite (typecheck, unit, e2e) passes on Node 26.12.0.
-- pnpm 12, Yarn 4, Bun's installer and npm all passed the full suite here, with Node as runtime.
+- Node 25 is EOL (2026-06-01); Node 22.12 lacks `node:sqlite`.
+- Full suite passes on Node 26.12.0, and with pnpm, Yarn and Bun's installer.
 
 ## Consequences
 
-- Contributors need Node 26 (`mise install` or `nvm install`).
-- Moving to the next LTS is a deliberate version bump.
-- npm's flat `node_modules` lets code import undeclared packages, and strict `install-strategy=linked` isn't usable yet (broke React peer resolution in testing). **Every package a workspace imports must be declared in its `package.json`, incl. tools' peer dependencies.** pnpm's strict layout caught exactly this: `vite-plugin-pwa` imports `workbox-window`, which was undeclared.
+- Contributors need Node 26 (`mise install` or `nvm install`); the next LTS is a deliberate bump.
+- **Every package a workspace imports must be declared in its `package.json`, incl. tools' peer dependencies**: flat `node_modules` hides undeclared imports, and `install-strategy=linked` breaks React peer resolution.
