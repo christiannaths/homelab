@@ -1,0 +1,30 @@
+{
+  "name": "@homelab/platform-e2e",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "platform-e2e",
+    "tags": [
+      "scope:platform",
+      "platform:node"
+    ],
+    "implicitDependencies": [
+      "home-web",
+      "notes-web",
+      "encyclopedia-web"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "vitest run"
+  },
+  "devDependencies": {
+    "@homelab/gateway": "*",
+    "@homelab/home-server": "*",
+    "@homelab/identity": "*",
+    "@types/node": "^26.6.5",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

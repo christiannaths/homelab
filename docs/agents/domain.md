@@ -1,14 +1,14 @@
 # Domain Docs
 
-How the engineering skills should consume this repo's domain documentation when exploring the codebase.
+How the engineering skills use this repo's domain docs when exploring the codebase.
 
 ## Before exploring, read these
 
 - **`GLOSSARY.md`** at the repo root, or
 - **`GLOSSARY-MAP.md`** at the repo root if it exists: it points at one `GLOSSARY.md` per context. Read each one relevant to the topic.
-- **`docs/adr/`**: read ADRs that touch the area you're about to work in. This repo also keeps app-scoped ADRs in `apps/<app>/docs/adr/` (e.g. `apps/notes/docs/adr/`); check those too.
+- **`docs/adr/`**: ADRs touching the area you're about to work in. App-scoped ADRs live in `apps/<app>/docs/adr/` (e.g. `apps/notes/docs/adr/`); check those too.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
+If any don't exist, **proceed silently**: don't flag their absence or suggest creating them upfront. The `/domain-modeling` skill (via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions get resolved.
 
 ## File structure
 
@@ -40,12 +40,12 @@ Multi-context repo (presence of `GLOSSARY-MAP.md` at the root):
 
 ## Use the glossary's vocabulary
 
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
+When output names a domain concept (issue title, refactor proposal, hypothesis, test name), use the `GLOSSARY.md` term, not a synonym it avoids.
 
-If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
+A concept missing from the glossary is a signal: either invented language (reconsider) or a real gap (note it for `/domain-modeling`).
 
 ## Flag ADR conflicts
 
-If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
+If output contradicts an existing ADR, say so explicitly rather than silently overriding:
 
 > _Contradicts ADR-0007 (event-sourced orders), but worth reopening because…_

@@ -4,28 +4,32 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 ## People and access
 
-**Homelab account**: The one account a person signs in with to every app. Signing out of it signs the browser out of every app. _Avoid_: user account, app account, login
+**Homelab account**: The one account a person signs in with to every app; signing out signs the browser out of all of them. _Avoid_: user account, app account, login
 
-**Homelab admin**: A person who invites people and decides which apps each of them can use, and at what level. Being one opens no app by itself. _Avoid_: superuser, root
+**Homelab admin**: Invites people and sets which apps each can use, at what level. Opens no app by itself. _Avoid_: superuser, root
 
-**App access**: A homelab admin's grant letting one person use one app, at a member or admin level. Apps read it as groups in `Remote-Groups`: `<app>` for a member, `<app>-admins` for an admin. _Avoid_: permission, role
+**App access**: An admin's grant of one app to one person, at member or admin level; sent as `Remote-Groups` `<app>` / `<app>-admins` ([ADR-PLAT-009](docs/adr/ADR-PLAT-009-app-contract.md)). _Avoid_: permission, role
 
-**Account id**: The permanent id the accounts service gives a homelab account, which apps receive in `Remote-User` and key a person's data by. It never changes, even when the person's email or name does. _Avoid_: username, user id
+**Account id**: The permanent id of a homelab account, sent in `Remote-User`; apps key data by it. Survives email and name changes. _Avoid_: username, user id
 
-**Accounts service**: The homelab's own service at `accounts.<domain>`, on Better Auth, where people sign in and manage their homelab account, and which tells the gateway who is signed in. _Avoid_: auth server, identity provider, VoidAuth
+**Accounts service**: The homelab's Better Auth service at `accounts.<domain>`: sign-in, account management, the gateway's sign-in check, and `/api/me` for the App switcher and Home. _Avoid_: auth server, identity provider, VoidAuth
 
-**Account page**: A person's own page on the accounts service, which Account settings in the App switcher opens. It shows their name, email and apps, and lets them change their name and password. _Avoid_: profile, settings page, account settings
+**Account page**: A person's own page on the accounts service (Account settings in the App switcher): name, email, apps; change name and password. _Avoid_: profile, settings page, account settings
 
-**People page**: The homelab admins' page on the accounts service, linked from their account page, where they see everyone with their apps, change App access and who is a homelab admin, sign people out everywhere, remove accounts, and make, list and cancel invites. Nobody else can open it. _Avoid_: admin panel, user management, dashboard
+**People page**: Admin-only page on the accounts service, linked from the account page: everyone and their apps; change App access and admins; sign people out everywhere; remove accounts; make, list, cancel invites. _Avoid_: admin panel, user management, dashboard
 
-**Invite**: A link a homelab admin makes for one email, granting App access, that lets that person make their homelab account once, within a week. The admin passes it on themselves, since the homelab sends no email. On an install with no accounts, the accounts service prints a setup invite that makes the first homelab admin. _Avoid_: invitation code, sign-up link, registration
+**Invite**: A one-use link for one email, valid a week, granting App access and letting that person make their account. The admin passes it on (the homelab sends no email). A fresh install prints a setup invite for the first admin. _Avoid_: invitation code, sign-up link, registration
 
 ## Apps
 
-**App**: One thing a household uses under the homelab's sign-in, at its own address, such as Notes or Encyclopedia. _Avoid_: service, module, site
+**App**: One thing a household uses at its own address under the homelab sign-in, e.g. Notes, Encyclopedia. Knows only itself, through the app contract. _Avoid_: service, module, site
 
-**Bundled app**: An existing open-source app that homelab runs behind its sign-in instead of building its own, such as Vaultwarden. _Avoid_: third-party app, integration
+**Bundled app**: An existing open-source app run behind the homelab sign-in instead of building one, e.g. Vaultwarden. _Avoid_: third-party app, integration
 
-**Home**: The app every homelab account can open, which shows the apps a person can use. _Avoid_: home page, dashboard, launcher, portal
+**Home**: The platform's installable page at `home.<domain>`, open to every account, showing a person's apps. Optional; the App switcher works without it. _Avoid_: home page, dashboard, launcher, portal
 
-**App switcher**: The tab at the top of every app and the menu it opens, listing the person's apps, Account settings and Sign out. _Avoid_: widget, apps menu, user menu, launcher
+**Platform**: Everything around the apps: gateway, accounts service, Home, App switcher, manifest reading. Code belongs here when it needs cross-app knowledge such as App access. _Avoid_: core, framework, infrastructure
+
+**App contract**: What an app provides and relies on to plug in ([ADR-PLAT-009](docs/adr/ADR-PLAT-009-app-contract.md)). _Avoid_: app API, plugin interface, integration
+
+**App switcher**: The tab atop every app and its menu: the person's apps, Account settings, Sign out. _Avoid_: widget, apps menu, user menu, launcher

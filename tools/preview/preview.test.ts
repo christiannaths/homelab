@@ -11,6 +11,7 @@ import {
 } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
+import { identityHeaders } from "@homelab/identity";
 import {
   ADA,
   ADMIN,
@@ -161,7 +162,7 @@ function loadPeople(people: Omit<TestPerson, "gets">[]): void {
       "exec",
       "--interactive",
       "--env",
-      `HOMELAB_DOMAIN=${DOMAIN}`,
+      `HOMELAB_URL=https://${DOMAIN}`,
       "--env",
       `HOMELAB_APPS=${INSTALLED_APPS}`,
       "--env",
@@ -169,7 +170,7 @@ function loadPeople(people: Omit<TestPerson, "gets">[]): void {
       CONTAINER,
       "node",
       "--no-experimental-webstorage",
-      "apps/accounts/server/src/load-test-people.ts",
+      "platform/accounts/src/load-test-people.ts",
     ],
     { input: JSON.stringify(people), stdio: ["pipe", "ignore", "inherit"] },
   );
@@ -330,9 +331,9 @@ describe("signing in", () => {
     );
   });
 
-  test("Home lists each person's apps, from their manifests, to every account", async () => {
+  test("the accounts site lists each person's apps, from their manifests, with Home for every account", async () => {
     const apps = async (person: TestPerson) => {
-      const reply = await get("home", "/api/me", {
+      const reply = await get("accounts", "/api/me", {
         cookie: (await signIn(person)).cookie,
       });
       assert.equal(reply.status, 200, `${person.email}: ${reply.body}`);
@@ -438,12 +439,12 @@ describe("the gateway", () => {
       "person",
       "id",
     );
-    const forged = {
-      "remote-user": String(adaId),
-      "remote-groups": "notes-admins",
-      "remote-name": ADA.name,
-      "remote-email": ADA.email,
-    };
+    const forged = identityHeaders({
+      id: String(adaId),
+      name: ADA.name,
+      email: ADA.email,
+      access: { notes: "admin" },
+    });
     const signedOut = await get("notes", "/api/session", forged);
     assert.equal(signedOut.status, 302);
 

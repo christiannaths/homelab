@@ -7,39 +7,39 @@
 
 ## Context
 
-An instance serves a few trusted people, but not everything is for everyone: drafts and journals are personal, and outsiders such as a contractor or babysitter need a handful of pages and nothing else. Notion's model is familiar to the intended users, and covers these cases. Each device holds a local copy of what its user can open ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)), so access also decides what reaches each device, and every document is synced whole ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
+Drafts and journals are personal, and outsiders (a contractor, a babysitter) need a few pages only. Notion's model is familiar and covers this. Devices hold what their person can open ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)), so access also decides what syncs.
 
 ## Decision
 
-- **Access copies Notion's model**, as described in the [access specs](../specs/access/README.md):
-  - **Workspace roles:** workspace owner, member and guest. One instance is one workspace.
-  - **Teamspaces:** open, closed or private, optionally default, each with owners, members and default access levels. Teamspace owners always have Full access on its pages. On an open teamspace, workspace members who have not joined still open its pages, at the teamspace's level for non-members (Can view, Can comment or Can edit).
-  - **Private and Shared sidebar sections.** Moving a page to Private removes everyone else's access to that page. Explicit invites set on its subpages stay, because that is what Notion does: a person invited to a subpage keeps it, at the top of their Shared section.
-  - **Page sharing:** a Share menu with access levels ([ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)) and general access. Subpages inherit, any page can expand or restrict what it inherits, and the most permissive level wins.
-  - **Guests** get only the pages shared with them and their subpages: no Private section, no teamspaces, and never general access.
-- **Features tied to Notion's paid plans are always available.** Enterprise-only roles, groups and per-row database rules are left out.
-- **A person's devices only receive what that person can open.** That includes titles, contents, teamspace names and search results. Workspace owners also receive every private teamspace's name, but not its pages unless they are members. Random ids of hidden pages and teamspaces may reach a device as references inside pages the person can open ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)).
-- **Access changes take effect at the device's next sync.** When access is lost, the device deletes its local copies. Unsynced edits to those pages cannot be saved to them; the app says so and offers to keep the page, as the device had it, as a new Private page ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
-- **Access changes are ordinary edits:** they work offline, and concurrent changes converge to the same result on every device.
+- **Notion's model** (details: [access specs](../specs/access/README.md)):
+
+  | Part | Rule |
+  | --- | --- |
+  | Workspace roles | owner, member, guest; one instance = one workspace |
+  | Teamspaces | open, closed or private, optionally default; owners (always Full access), members, default levels. Open: non-joined members get the non-member level (Can view, comment or edit) |
+  | Private / Shared | Moving to Private removes others' access; explicit subpage invites stay, top of the invitee's Shared (as Notion) |
+  | Page sharing | levels ([ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)) and general access; subpages inherit; any page may expand or restrict; most permissive wins |
+  | Guests | only pages shared with them and subpages; no Private, teamspaces or general access |
+
+- **Paid-plan features always on**; Enterprise-only roles, groups and per-row rules left out.
+- **Devices get only what's openable**, incl. teamspace names and search results; workspace owners also get private teamspace names (not pages). Ids may leak as references ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)).
+- **Access changes are ordinary edits:** offline-capable, convergent, applied at next sync ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
 
 ## Alternatives considered
 
-- **A custom access model:** partial shares of spaces, rules for new pages, or a single sharing tree. Their extra flexibility does not justify the cost of a model users would have to learn.
+- **Custom model** (partial space shares, new-page rules, one sharing tree): not worth a new model to learn.
 
 ## Evidence
 
-- The access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md)) built the model on per-person sync and tested it in `spikes/notes-access-sync-poc/`:
-  - `server/testing/sync-boundary.test.ts`, `server/testing/overrides.test.ts`, `server/testing/teamspaces.test.ts`, `server/testing/guests.test.ts` and `server/testing/databases.test.ts`: each person receives exactly what they can open, with no hidden title, teamspace name or row value anywhere in what arrives. A private teamspace's name reaches workspace owners and members only, and an open teamspace's pages reach members who have not joined.
-  - `server/testing/losing-access.test.ts` and `e2e/tests/losing-access.spec.ts`: lost pages leave devices online and offline, moves and removals included, and unsynced edits are offered back as a Private page.
-  - `model/src/access.test.ts`, `model/src/overrides.test.ts`, `model/src/teamspaces.test.ts` and `model/src/guests.test.ts`: inheritance, overrides, most-permissive-wins, teamspace kinds and defaults, and guest limits.
-  - `model/src/sharing.test.ts` and `model/src/overrides.convergence.test.ts`: concurrent access changes and moves converge.
-- At 2,272 pages, per-person sync is as fast as whole-workspace sync on the same machine (`spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts`).
-- The model follows Notion's help centre ("Sharing & permissions", "Intro to teamspaces", "Who's who in a workspace"), checked item by item in [`research/06-notion-access-verification.md`](../research/06-notion-access-verification.md). The differences it found are applied to the specs.
+- Access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md)), `spikes/notes-access-sync-poc/`:
+  - `server/testing/sync-boundary.test.ts`, `server/testing/overrides.test.ts`, `server/testing/teamspaces.test.ts`, `server/testing/guests.test.ts`, `server/testing/databases.test.ts` → only what's openable arrives; no hidden title, teamspace name or row value.
+  - `server/testing/losing-access.test.ts`, `e2e/tests/losing-access.spec.ts` → lost pages leave devices, online and offline.
+  - `model/src/access.test.ts`, `model/src/overrides.test.ts`, `model/src/teamspaces.test.ts`, `model/src/guests.test.ts` → inheritance, overrides, most-permissive-wins, teamspaces, guests.
+  - `model/src/sharing.test.ts`, `model/src/overrides.convergence.test.ts` → concurrent access changes and moves converge.
+- `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts` → 2,272 pages: per-person sync as fast as whole-workspace.
+- [`research/06-notion-access-verification.md`](../research/06-notion-access-verification.md) → checked item by item against Notion's help centre; differences applied to the specs.
 
 ## Consequences
 
-- Each device keeps everything its person can open, and data stays on it until the next sync after access is lost ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
-- Pages, the page tree, databases and access data are split across Yjs documents so that each document goes to exactly the people allowed to see it ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)).
-- The sync server checks access for each document and each update, not only the session on each connection ([ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md)).
-- Where Notion's help centre is silent (who may move a page, a guest's level on their own subpage, what workspace owners may change in teamspaces they are not in), the specs record the spike's choice, and "Not decided yet" in the [index](README.md) lists them for a product decision.
-- What "Private" protects against must be worded honestly: the server administrator can read everything, because there is no end-to-end encryption.
+- Where Notion is silent, specs record the spike's choice, pending a decision ("Not decided yet" in the [index](README.md)).
+- "Private" must be worded honestly: the server admin can read everything (no end-to-end encryption).

@@ -2,32 +2,32 @@
 
 ## Agent skills
 
-Matt Pocock's skills (`mattpocock/skills`) are installed in `.agents/skills/` (read by Codex) and symlinked into `.claude/skills/` (read by Claude Code). Update with `npx skills@latest update`; versions are pinned in `skills-lock.json`.
+`mattpocock/skills` live in `.agents/skills/` (Codex), symlinked into `.claude/skills/` (Claude Code). Update: `npx skills@latest update`; pinned in `skills-lock.json`.
 
 ### Issue tracker
 
-Issues are tracked in this repo's GitHub Issues (`christiannaths/homelab`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+GitHub Issues on `christiannaths/homelab`, via `gh`. See `docs/agents/issue-tracker.md`.
 
 ### Feature builds
 
-A spec from `/to-spec` and its tickets from `/to-tickets` ship as **one PR**, not one per ticket. Prefer `/implement-spec` for the whole spec; when working ticket by ticket with `/implement`, check out the spec's branch first and commit there. Build a spec in one thread where possible, since each cloud thread gets its own branch. See "How work is closed" in `docs/agents/issue-tracker.md`.
+A `/to-spec` spec and its `/to-tickets` tickets ship as **one PR**. Prefer `/implement-spec`; with `/implement`, commit on the spec's branch. One thread per spec where possible (each cloud thread gets its own branch). See "How work is closed" in `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
 ### Branch names
 
-Branches are named `<type>/<slug>` (e.g. `feat/offline-sync`), with `<type>` one of `feat`, `fix`, `docs`, `chore`, `spike`. Use the `branch` skill (`.agents/skills/branch/`) whenever you create one; a Claude Code hook rejects other names.
+`<type>/<slug>` (e.g. `feat/offline-sync`); type is `feat`, `fix`, `docs`, `chore` or `spike`. Create with the `branch` skill (`.agents/skills/branch/`); a hook rejects other names.
 
 ### Domain docs
 
-Platform ADRs are in `docs/adr/`, and each app keeps its own in `apps/<app>/docs/adr/` (for example `apps/notes/docs/adr/`). See `docs/agents/domain.md`.
+Platform ADRs: `docs/adr/`; app ADRs: `apps/<app>/docs/adr/`. See `docs/agents/domain.md`.
 
 ### ADRs
 
-To record or edit an ADR, use this repo's own `adr` skill (`.agents/skills/adr/`, not part of `mattpocock/skills`): it replaces `domain-modeling`'s `ADR-FORMAT.md`. Each topic keeps one ADR, edited in place with a Changelog entry when its decision changes. ADR edits ship in the PR whose code they describe, never in a separate docs PR before or after.
+Use this repo's own `adr` skill (`.agents/skills/adr/`, not part of `mattpocock/skills`; replaces `domain-modeling`'s `ADR-FORMAT.md`). One ADR per topic, edited in place with a Changelog entry when the decision changes. ADR edits ship in the PR whose code they describe, never a separate docs PR.
 
 ### Comments
 
-Before writing or reviewing a code comment, use this repo's own `comments` skill (`.agents/skills/comments/`, not part of `mattpocock/skills`): a comment records why, and the code says what.
+Before writing or reviewing a code comment, use this repo's own `comments` skill (`.agents/skills/comments/`, not part of `mattpocock/skills`): comments say why; code says what.

@@ -7,30 +7,30 @@
 
 ## Context
 
-The content is one large ZIM file on the server ([ADR-ENCY-001](ADR-ENCY-001-content-source.md)). A browser cannot read a ZIM file over the network: kiwix-js reads only files on the device, and its maintainers have no plans to change that. Kiwix's own server, kiwix-serve, serves articles and search but has no accounts. Encyclopedia also needs sign-in and saved lists, and installers should run as few services as possible.
+The content is one large ZIM file on the server ([ADR-ENCY-001](ADR-ENCY-001-content-source.md)). Browsers can't read ZIM over the network (kiwix-js reads only local files, with no plans to change), and kiwix-serve has no accounts. Encyclopedia needs sign-in and saved lists, with as few services as possible.
 
 ## Decision
 
-- **Encyclopedia has its own server**, in TypeScript on Node.js ([ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)), that reads the ZIM file with `@openzim/libzim`. It serves articles, images, search, saved lists and the content settings. kiwix-serve is not used.
-- **Reads and searches run in worker threads,** because libzim's calls are synchronous and would otherwise block every other request.
-- **Search uses the indexes inside the ZIM file:** title suggestions as the reader types, and full-text search across the whole encyclopedia.
-- **Installers run one service** for Encyclopedia, besides the homelab's shared sign-in.
+- **Own server**, TypeScript on Node.js ([ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)), reading the ZIM with `@openzim/libzim`: articles, images, search, saved lists, content settings. No kiwix-serve.
+- **Reads and searches in worker threads**: libzim is synchronous and would block other requests.
+- **Search uses the ZIM's indexes**: title suggestions while typing, full-text across everything.
+- **One service** to run, besides the shared sign-in.
 
 ## Alternatives considered
 
-- **kiwix-serve behind a homelab server** that adds sign-in and saved lists. It is less code, and it keeps the app's own code free of the GPL, but installers run two services and every request crosses both. The GPL is accepted for this app ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
-- **The browser reads the ZIM file itself, as kiwix-js does.** It would need the whole file on every device, which offline use rules out ([ADR-ENCY-005](ADR-ENCY-005-offline-use.md)).
+- **kiwix-serve behind a homelab server**: less code and no GPL in our code, but two services and every request crosses both. GPL is accepted ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
+- **Browser reads the ZIM (kiwix-js)**: whole file on every device, ruled out by offline use ([ADR-ENCY-005](ADR-ENCY-005-offline-use.md)).
 
 ## Evidence
 
-- `@openzim/libzim` 4.7.0 supports Node 22, 24 and 26 on Linux (x64, arm64, armhf) and macOS, with full-text search, title suggestions and byte-range reads, and its calls are synchronous: [`research/02-zim-and-libzim.md`](../research/02-zim-and-libzim.md).
-- kiwix-js cannot read a ZIM file over HTTP, and kiwix-serve has no authentication: same document.
-- Product decision by Christian, 2026-10-18, in the project thread: our own server, one service.
-- Nothing has been built yet. Whether libzim installs on the chosen base image is untested.
+- [`research/02-zim-and-libzim.md`](../research/02-zim-and-libzim.md): `@openzim/libzim` 4.7.0 supports Node 22/24/26 on Linux (x64, arm64, armhf) and macOS, with full-text search, suggestions, byte-range reads; synchronous calls.
+- Same doc: kiwix-js can't read ZIM over HTTP; kiwix-serve has no auth.
+- Christian, 2026-10-18, project thread: own server, one service.
+- Nothing built; libzim on the chosen base image untested.
 
 ## Consequences
 
-- `npm install` compiles libzim's Node addon, so the server's image needs a C++ toolchain, glibc and network access to `download.openzim.org` at build time. Alpine images are untested.
-- The server's code is GPLv3 ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
-- Search results come only from the ZIM's own indexes. Better ranking or other languages' indexes would mean building an index of our own.
-- If libzim's Node binding stops being maintained, the fallback is kiwix-serve behind our server.
+- `npm install` compiles libzim's addon: the image needs a C++ toolchain, glibc and access to `download.openzim.org` at build. Alpine untested.
+- Server code is GPLv3 ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
+- Search is only as good as the ZIM's indexes; better ranking or other languages means our own index.
+- If libzim's Node binding dies, fall back to kiwix-serve behind our server.

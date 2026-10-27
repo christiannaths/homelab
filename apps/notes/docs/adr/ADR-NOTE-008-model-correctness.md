@@ -7,22 +7,22 @@
 
 ## Context
 
-The riskiest logic (merging, ordering, cycle repair, view computation) is easy to get subtly wrong and hard to check by clicking around. [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) requires a convergence test for every CRDT rule.
+Merging, ordering, cycle repair and view computation are easy to get subtly wrong and hard to check by clicking. [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) needs a convergence test per CRDT rule.
 
 ## Decision
 
-- The data model is **plain TypeScript with no React or DOM**, in modules of its own beside the Yjs document helpers. UI components call it and do not re-implement it.
-- **Unit tests (Vitest)** cover the model directly, including the convergence tests.
-- **End-to-end tests (Playwright)** run against the production build and real server processes. Each test gets its own server and data directory, so a test can stop and restart the server and take a browser offline. Performance-sensitive paths print timings.
-- What the sandbox cannot automate (Safari and WebKit, iOS install, touch gestures) goes into the PR as manual steps, and stays "not verified" until someone runs them.
+- The model is **plain TypeScript, no React or DOM**, beside the Yjs helpers. UI calls it, never re-implements it.
+- **Vitest** unit-tests the model, convergence tests included.
+- **Playwright** e2e runs the production build against real servers, each with its own server and data directory, so tests can restart the server and go offline. Performance-sensitive paths print timings.
+- What the sandbox can't automate (Safari/WebKit, iOS install, touch) goes in the PR as manual steps, "not verified" until run.
 
 ## Evidence
 
-- PR #1: the e2e tests caught a real bug, Hocuspocus disconnecting clients that sync more than 100 docs.
-- PR #2: the e2e tests caught the delayed offline detection. Model bugs were fixed against unit tests before the UI existed.
+- PR #1 → e2e caught Hocuspocus disconnecting clients syncing >100 docs.
+- PR #2 → e2e caught delayed offline detection; model bugs fixed against unit tests before the UI existed.
 
 ## Consequences
 
 - `npm test` and `npm run test:e2e` must pass before merging.
-- A test failure is not dismissed as a "flake" without a root cause. Traces are kept on failure for diagnosis.
-- Yjs use stays behind the model and sync modules, which keeps library migrations contained.
+- No failure is a "flake" without a root cause; traces kept on failure.
+- Yjs stays behind the model and sync modules, containing migrations.

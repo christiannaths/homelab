@@ -43,8 +43,11 @@ interface Running {
 
 /** Starts every service and loads the test people. Fails when a service won't come up. */
 async function startPreview(onExit: (name: string) => void): Promise<Running> {
-  const domain = `${setting("PREVIEW_NAME")}.${setting("PREVIEW_DOMAIN")}`;
-  const accountsUrl = `https://accounts.${domain}`;
+  // The session cookie goes on the preview's own domain, so its apps share it and no other
+  // preview's do.
+  const homelab = new URL(
+    `https://${setting("PREVIEW_NAME")}.${setting("PREVIEW_DOMAIN")}`,
+  );
   // A volume with no accounts data holds another sign-in service's people, whose Notes data
   // would belong to no one, so the preview starts fresh.
   if (!existsSync(path.join(DATA_DIR, "accounts"))) wipeData();
@@ -82,7 +85,8 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     {
       cwd: "/",
       env: {
-        SITE_DOMAIN: domain,
+        // Caddy names sites by hostname, so it gets the domain HOMELAB_URL is at.
+        SITE_DOMAIN: homelab.hostname,
         PORT: String(PORT),
         ACCOUNTS_UPSTREAM: "127.0.0.1:3000",
         XDG_DATA_HOME: path.join(DATA_DIR, "caddy"),
@@ -93,33 +97,25 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   await listening(PORT);
 
   const accountsEnv = {
-    // The session cookie goes on the preview's domain, so its apps share it and no other
-    // preview's do.
-    HOMELAB_DOMAIN: domain,
-    ACCOUNTS_URL: accountsUrl,
+    HOMELAB_URL: homelab.origin,
     ACCOUNTS_SECRET: setting("ACCOUNTS_SECRET"),
     HOMELAB_APPS: INSTALLED_APPS,
     DATA_DIR: path.join(DATA_DIR, "accounts"),
     PORT: "3000",
-    // The account page reads each app's manifest from the gateway in this container, as Home does.
+    // The service reads each app's manifest from the gateway in this container, over plain HTTP
+    // like Fly's proxy.
     GATEWAY_URL: `http://127.0.0.1:${PORT}`,
   };
   run(
     "the accounts service",
     process.execPath,
-    ["--no-experimental-webstorage", "apps/accounts/server/src/index.ts"],
+    ["--no-experimental-webstorage", "platform/accounts/src/index.ts"],
     { cwd: ROOT, env: accountsEnv },
   );
 
-  // Home reads each app's manifest from the gateway in this container, over plain HTTP like
-  // Fly's proxy.
-  run("Home", process.execPath, ["apps/home/server/src/index.ts"], {
+  run("Home", process.execPath, ["platform/home/server/src/index.ts"], {
     cwd: ROOT,
-    env: {
-      HOMELAB_URL: `https://${domain}`,
-      GATEWAY_URL: `http://127.0.0.1:${PORT}`,
-      PORT: "3002",
-    },
+    env: { PORT: "3002" },
   });
 
   run(
@@ -159,7 +155,7 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     throw error;
   }
   writeFileSync(READY_FILE, new Date().toISOString());
-  console.log(`The preview is up at ${accountsUrl}/`);
+  console.log(`The preview is up at https://accounts.${homelab.host}/`);
   return { stop };
 }
 

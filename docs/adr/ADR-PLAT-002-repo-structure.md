@@ -1,54 +1,76 @@
 # ADR-PLAT-002. How do several independent apps share one repo?
 
 - Status: Accepted
-- Date: 2026-10-20
+- Date: 2026-10-26
 - Depends on: [ADR-PLAT-001](ADR-PLAT-001-toolchain.md)
-- Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md), [ADR-PLAT-004](ADR-PLAT-004-sign-in.md), [ADR-PLAT-005](ADR-PLAT-005-app-settings.md), [ADR-PLAT-006](ADR-PLAT-006-code-quality.md), [ADR-PLAT-008](ADR-PLAT-008-work-previews.md)
+- Dependency of: [ADR-PLAT-003](ADR-PLAT-003-proof-of-concept-code.md), [ADR-PLAT-004](ADR-PLAT-004-sign-in.md), [ADR-PLAT-005](ADR-PLAT-005-app-settings.md), [ADR-PLAT-006](ADR-PLAT-006-code-quality.md), [ADR-PLAT-008](ADR-PLAT-008-work-previews.md), [ADR-PLAT-009](ADR-PLAT-009-app-contract.md)
 
 ## Context
 
-The repo is growing from one app into a home for several homelab apps. What the apps share is their approach and their deployment, not their features: each app is built, tested and shipped on its own, and an app must never break because another one changed. A tool is needed that runs tasks across the apps in the right order, rebuilds only what a change touches, and keeps the apps from depending on each other.
+Apps share approach and deployment, not features: each ships alone and must never break because another changed. The platform around them signs people in, lists apps and adds the App switcher. Tasks need running in order, rebuilding only what changed, with apps kept from depending on each other or the platform.
 
 ## Decision
 
-- **Nx** runs tasks across the repo, on top of npm workspaces ([ADR-PLAT-001](ADR-PLAT-001-toolchain.md)).
-- **Layout:**
-  - `apps/<app>/` holds one app, split into npm workspace packages such as `web`, `server` and `e2e`. Each package is one Nx project, named `<app>-<package>` (for example `notes-web`).
-  - `packages/` holds code shared by more than one app. Code moves there only when a second app needs it, except a package that a platform ADR requires every app to use, which starts there, for example `@homelab/settings` ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md)).
-  - `tools/` holds repo scripts, as the `tools` project.
-  - Each app keeps its own `Dockerfile` and `compose.yaml`. An image builds from the app's own packages, with plain npm commands and without Nx.
-  - **Docs follow the same split.** `apps/<app>/docs/` holds that app's ADRs, specs and research. The root `docs/` holds only what holds for every app, starting with the platform ADRs.
-- **Tasks stay `package.json` scripts.** Nx reads them as targets, and `nx.json` adds only task order and caching. Nx plugins that infer or wrap tasks are not used.
-- **Every project has two tags:** `scope:<app>` (`scope:shared` for `packages/`, `scope:tools` for `tools/`) and `platform:browser`, `platform:node` or `platform:any`.
-- **Module boundaries** are checked by `npm run boundaries` (`tools/check-boundaries.ts`), which reads the Nx project graph:
-  - A project depends only on its own scope or on `scope:shared`, so apps never depend on each other.
-  - Imports cross platforms only into `platform:any`.
-- **Scripts are TypeScript too.** Node 26 runs `.ts` files directly by stripping their types, so a script needs no build step. Each script is typechecked by its project, with `erasableSyntaxOnly` so that it uses only syntax Node can strip.
-- **No Nx Cloud.** `nx.json` sets `neverConnectToCloud` and turns analytics off, and the cache is local only. The `nx` package's install script is not approved in `allowScripts`, because it only updates the Nx Cloud client.
+- **Nx** on npm workspaces ([ADR-PLAT-001](ADR-PLAT-001-toolchain.md)). Tasks stay `package.json` scripts; `nx.json` adds only order and caching; no plugins that infer or wrap tasks.
+- **Kinds of code:**
+
+  | Kind | Folder | What | Scope tag |
+  | --- | --- | --- | --- |
+  | App | `apps/<app>/` | Knows only itself; uses the app contract alone ([ADR-PLAT-009](ADR-PLAT-009-app-contract.md)) | `scope:<app>` |
+  | Platform | `platform/` | Code needing platform knowledge (e.g. App access across apps): gateway, accounts, Home, App switcher, manifest reading, `e2e/` | `scope:platform` |
+  | Package | `packages/` | Libraries apps may use, e.g. `@homelab/theme` | `scope:shared` |
+  | Tools | `tools/` | Repo scripts (`tools` project) | `scope:tools` |
+
+- Optional isn't the test: Home is platform though an install can leave it out.
+- A package starts when a second app needs it, or when a platform ADR requires every app to use it (e.g. `@homelab/settings`, [ADR-PLAT-005](ADR-PLAT-005-app-settings.md)).
+- **Projects:** an app's workspace packages are `<app>-<package>` (e.g. `notes-web`); platform projects are named after their folder (`accounts`, `gateway`, `platform-e2e`), except `home-server` and `home-web`. Each also gets `platform:browser`, `platform:node` or `platform:any`.
+- Each app has its own `Dockerfile` and `compose.yaml`, built with plain npm, no Nx.
+- **Docs follow the split:** `apps/<app>/docs/` per app; root `docs/` for the platform.
+- **Boundaries:** `npm run boundaries` (`tools/check-boundaries.ts`) checks the Nx graph:
+
+  | Project | May depend on |
+  | --- | --- |
+  | App | own scope, `scope:shared` |
+  | Platform | `scope:platform`, `scope:shared`; an app only as an implicit dependency for e2e |
+  | `scope:shared` | `scope:shared` |
+  | `tools` | `scope:tools`, `scope:platform`, `scope:shared` |
+
+  Cross-platform imports go only into `platform:any`.
+
+- **Scripts are TypeScript**, run by Node 26 type stripping; typechecked with `erasableSyntaxOnly`.
+- **No Nx Cloud:** `neverConnectToCloud`, analytics off, local cache; `nx` install script not approved.
 
 ## Alternatives considered
 
-- **Turborepo**, on the maintainer's experience that it adds little.
-- **`@nx/enforce-module-boundaries`** for the boundary check. It needs typescript-eslint, which supports TypeScript up to 6.0, and the repo uses TypeScript 7.
+- **Turborepo**: adds little, in the maintainer's experience.
+- **`@nx/enforce-module-boundaries`**: needs typescript-eslint, which stops at TypeScript 6.0.
+- **Platform services in `apps/`**: the boundary rule couldn't tell an app reaching into the platform from one using a library.
+- **Optional-means-app** (Home as an app): Home shows App access across apps, which no app may rely on.
 
 ## Evidence
 
-- This repo on Nx 23.3.0 and Node 26.12.0: through `nx run-many`, typecheck, the unit tests and the build pass, and a repeat run is served entirely from the cache. The e2e tests pass as `nx run notes-e2e:e2e`.
-- The first Notes spike's image builds from `spikes/notes-block-editing-collaboration-poc/Dockerfile`, starts, and answers `/api/health`.
-- The boundary script was tested against a planted shared package that imported from an app and was imported by the server across platforms, and it reported both violations.
-- Nx analyses imports in source files only when `pluginsConfig["@nx/js"]` is set, because `@nx/js` is not installed. Without that setting, the graph holds only `package.json` and implicit dependencies, and the boundary check passes everything.
-- With a root `tsconfig.base.json` or `tsconfig.json`, Nx 23.3.0 reads it through `readConfigFile` from the TypeScript API, which TypeScript 7 lacks, as soon as it resolves an import of a workspace package (checked 2026-10-20). It then writes a partial graph and still exits 0, so the script treats that output as a failure. A root `tsconfig.shared.json` is a name Nx does not look for.
+- `tools/check-boundaries.test.ts`: each rule's violations caught. `notes-server` importing `@homelab/app-manifests` exits 1 (issue #121):
+
+  ```text
+  $ npm run boundaries
+  Module boundary violations:
+    - notes-server → app-manifests: scope:notes may depend only on scope:notes or scope:shared
+  ```
+
+- Nx 23.3.0 sees source imports only with `pluginsConfig["@nx/js"]` set; without it the check passes everything.
+- Nx 23.3.0 can't read a root `tsconfig.json`/`tsconfig.base.json` under TypeScript 7 (no `readConfigFile`): partial graph, exit 0, which the script treats as failure (checked 2026-10-20); hence `tsconfig.shared.json`.
 
 ## Consequences
 
-- Repo-wide commands are `nx run-many -t <target>` (wrapped as `npm run build`, `typecheck`, `test` and `test:e2e`), and one project's are `nx <target> <project>`. CI can use `nx affected` to build and test only what a change touched.
-- A runtime dependency that is not an import, such as the server serving the web build, is declared with `implicitDependencies` so that tasks run in the right order.
-- Every project's `tsconfig.json` extends the root `tsconfig.shared.json` for the compiler options they share. The root has no `tsconfig.base.json` or `tsconfig.json`, because Nx would then read it through the TypeScript API, which TypeScript 7 does not provide. Shared packages are found through npm workspace links instead of TypeScript `paths`.
-- Moving to `@nx/enforce-module-boundaries` is possible once typescript-eslint supports TypeScript 7, and would add per-file errors in editors.
-- Packages use the `@homelab/` scope, after the repo's name.
+- Repo-wide: `npm run build`/`typecheck`/`test`/`test:e2e` (`nx run-many`); one project: `nx <target> <project>`; CI can use `nx affected`.
+- Non-import runtime dependencies (a server serving a web build, platform e2e needing app builds) go in `implicitDependencies`.
+- Project `tsconfig.json` files extend root `tsconfig.shared.json`; packages resolve via workspace links, not `paths`.
+- `@nx/enforce-module-boundaries` becomes an option once typescript-eslint supports TypeScript 7.
+- Packages use the `@homelab/` scope.
 
 ## Changelog
 
-- 2026-10-20: Projects share their compiler options through a root `tsconfig.shared.json`, a name Nx does not read, instead of each repeating them.
-- 2026-10-18: A package that a platform ADR requires every app to use starts in `packages/` before a second app exists, so that every app gets the same behaviour from the first ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md), issue #40).
-- 2026-10-16: Accepted. Nx on npm workspaces, with apps in `apps/`, code shared by more than one app in `packages/` once a second app needs it, and module boundaries checked from the Nx project graph.
+- 2026-10-26: Split into apps, platform and packages; platform code moves to `platform/`, and apps may no longer depend on it, because apps had reached into platform details (spec #119, issue #121).
+- 2026-10-20: Shared compiler options via root `tsconfig.shared.json`, a name Nx doesn't read.
+- 2026-10-18: A package every app must use starts before a second app exists ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md), issue #40).
+- 2026-10-16: Accepted. Nx on npm workspaces; `packages/` once a second app needs code; boundaries from the Nx graph.

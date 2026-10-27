@@ -1,8 +1,6 @@
 # Encyclopedia web
 
-The Encyclopedia's installable web app. For now it is a title page that opens with no network ([ADR-ENCY-005](../docs/adr/ADR-ENCY-005-offline-use.md)).
-
-It has no sign-in of its own. Put it behind the homelab's sign-in, which decides who reaches it ([ADR-ENCY-004](../docs/adr/ADR-ENCY-004-identity.md)). The [App switcher](../../../packages/app-switcher/README.md), which the gateway adds to its page, is there for signing out and opening the reader's other apps.
+The installable web app; for now a title page that opens offline ([ADR-ENCY-005](../docs/adr/ADR-ENCY-005-offline-use.md)). No sign-in of its own ([ADR-ENCY-004](../docs/adr/ADR-ENCY-004-identity.md)); sign-out is the gateway-added [App switcher](../../../platform/app-switcher/README.md).
 
 ```sh
 npx nx run encyclopedia-web:dev      # Vite dev server, no service worker

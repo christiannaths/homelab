@@ -7,36 +7,32 @@
 
 ## Context
 
-A Notion-style block editor with live collaboration on Yjs ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) is the largest single UI component, and building one from scratch is not worthwhile. BlockNote draws its menus and toolbars through one of three interchangeable UI packages: `@blocknote/mantine`, `@blocknote/shadcn` or `@blocknote/ariakit`. All three provide the same editor components, because `@blocknote/react` defines one component interface that each implements, so choosing between them is really choosing the UI library for the whole app. The goal is mostly default styles, adjusted at a high level: semantic colours, border radius, depth (shadows) and font, in light and dark.
+A collaborative block editor on Yjs ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) isn't worth building. BlockNote's menus come from one of three packages sharing one `@blocknote/react` interface, so picking one picks the app's UI library. Goal: default styles tuned at a high level (colours, radius, depth, font; light and dark).
 
 ## Decision
 
-- **BlockNote edits page bodies** (`@blocknote/core`, `@blocknote/react`; MPL-2.0). It is bound to a Yjs XML fragment that holds the page body, through `@blocknote/core/yjs`.
-- **BlockNote's "XL" packages are not used** (GPL-3.0 or commercial; for example PDF or DOCX export, or AI). Features like those need another implementation.
-- **Mantine is the UI library for the whole client:** the editor's menus (`@blocknote/mantine`) and the app's own UI (`@mantine/core`, `@mantine/hooks`, plus Mantine add-on packages such as `dates`, `spotlight`, `notifications` and `modals` as features need them). No second component library is added.
-- **One set of design tokens styles both.** The app defines semantic tokens once (colours, radius, elevation and font, for light and dark). Those tokens feed Mantine's theme and BlockNote's `--bn-*` variables, so the editor and the app always match.
-- The client UI uses **React**, which BlockNote and Mantine require.
+- **BlockNote edits page bodies** (`@blocknote/core`, `@blocknote/react`; MPL-2.0), bound via `@blocknote/core/yjs` to the body's Yjs XML fragment.
+- **No "XL" packages** (GPL-3.0 or commercial: PDF/DOCX export, AI).
+- **Mantine for the whole client:** `@blocknote/mantine`, `@mantine/core`, `@mantine/hooks`, plus add-ons (`dates`, `spotlight`, `notifications`, `modals`) as needed. No second component library.
+- **One set of semantic tokens** feeds Mantine's theme and BlockNote's `--bn-*` variables.
+- **React**, required by both.
 
 ## Alternatives considered
 
-- **`@blocknote/shadcn` with shadcn/ui:** 59 components, Tailwind across the whole app, and depth taken from Tailwind classes inside its components.
-- **`@blocknote/ariakit` with Ariakit:** about 27 unstyled primitives, with no date picker, toasts or drawer, and most shadows hard-coded, so changing depth means per-class overrides.
+- **`@blocknote/shadcn` + shadcn/ui:** Tailwind app-wide; depth set by classes inside components.
+- **`@blocknote/ariakit` + Ariakit:** ~27 unstyled primitives, no date picker, toasts or drawer; hard-coded shadows.
 
 ## Evidence
 
-- PR #1: live co-editing, cursors and presence, offline edits merging inside a paragraph, and server persistence.
-- PR #2: database row pages reuse the same editor.
-- Theming, comparing the CSS the three packages ship (v0.56):
-  - All three follow BlockNote's variables for colours and radius.
-  - `@blocknote/mantine` also routes depth through the shared variables (`--bn-shadow-light` and `--bn-shadow-medium`, used in about 10 places). It is also the only one with a typed `theme` prop for light and dark.
-- Component breadth for the rest of the app:
-  - Mantine 9 has about 100 components (281 exported parts) plus add-ons, including a drawer (for the phone sidebar), a ⌘K command palette, date pickers, multi-select and tags inputs, toasts, context menus, modals, file drop zones, a tree and charts.
+- PR #1 → co-editing, cursors, presence, in-paragraph offline merge.
+- PR #2 → database rows reuse the editor.
+- Shipped CSS (v0.56) → only `@blocknote/mantine` routes depth through shared variables (`--bn-shadow-light`, `--bn-shadow-medium`) and has a typed light/dark `theme` prop.
+- Mantine 9 → ~100 components plus add-ons, incl. drawer, ⌘K palette, date pickers, toasts, modals, tree, charts.
 
 ## Consequences
 
-- The page-body format is BlockNote's ProseMirror schema stored in Yjs. Markdown import and export go through BlockNote's conversion helpers.
-- BlockNote upgrades can include schema migrations, which need testing against existing docs.
-- Mantine upgrades stay within the versions `@blocknote/mantine` supports (currently `^8.3.11 || ^9.0.2`).
-- Mantine is the heaviest of the three options (extra JavaScript, plus CSS on first load). Using it for the app UI as well as the editor is what makes that weight worthwhile. The PWA caches it after the first load.
-- High-level theming covers colours, radius, depth and font. Anything finer means overriding Mantine's or BlockNote's CSS classes (`.bn-*`), which are not a stable public API, so such overrides stay few and are re-checked on upgrades.
-- The existing hand-styled UI (sidebar, database table, trash, diagnostics) moves to Mantine components as each part is next worked on, not in one rewrite.
+- Body format is BlockNote's ProseMirror schema in Yjs; Markdown via its helpers; upgrades may migrate the schema.
+- Mantine stays within `@blocknote/mantine`'s range (currently `^8.3.11 || ^9.0.2`).
+- Mantine is the heaviest option; app-wide use justifies it.
+- Finer theming overrides unstable `.bn-*`/Mantine classes: keep few, re-check on upgrades.
+- Hand-styled UI moves to Mantine as each part is next touched.

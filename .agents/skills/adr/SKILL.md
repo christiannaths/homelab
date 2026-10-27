@@ -64,7 +64,7 @@ The problem the ADR solves, as one "How…?" question in sentence case: the need
 
 - **Status:** `Proposed` while open for review, `Accepted` once it holds, `Deprecated` when dropped with nothing in its place. A changed decision stays `Accepted`.
 - **Date:** the day the current decision was accepted.
-- **Context:** a short prose paragraph of the forces and constraints that make this a problem.
+- **Context:** two or three sentences on the forces and constraints that make this a problem.
 - **Decision:** a bullet list of what holds now.
 - **Alternatives considered:** one bullet per option weighed, the option in bold, followed by the reason the decision differs.
 - **Evidence:** a bullet list citing PRs, tests and research documents, with research documents linked. When nothing has tested a decision yet, Evidence says what it rests on.
@@ -73,6 +73,8 @@ The problem the ADR solves, as one "How…?" question in sentence case: the need
 
 ### Writing
 
-- **Voice:** impersonal and present tense, describing the system as it is ("The server stores…"). Full words throughout, with no contractions. "Must" marks a rule that code review enforces.
-- **Content:** each sentence carries a durable fact, rule or reason. Counts and timings appear with what they were measured on.
+- **Brevity:** as little prose as possible. Tables for anything with rows (settings, touch points, accounts, options). Short bullets; fragments are fine. One line per Evidence item: the test or PR, then what it shows.
+- **Once:** each fact lives in one place. Don't restate what the code, a README or another ADR already says; link to it.
+- **Voice:** present tense, describing the system as it is. Plain words; contractions are fine. "Must" marks a rule that code review enforces.
+- **Content:** each line carries a durable fact, rule or reason. Counts and timings appear with what they were measured on.
 - **References:** every mention of another ADR is a link (`[ADR-NOTE-009](ADR-NOTE-009-identity.md)`), with a relative path across folders. Each ADR referenced in the body appears in **Depends on** (decisions this one builds on) or **Dependency of** (decisions built on this one). Each list is sorted by ID, names each ADR once, and mirrors the other ADR's list. `PLAT` ADRs depend only on `PLAT` ADRs.

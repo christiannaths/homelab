@@ -1,0 +1,325 @@
+// <homelab-switcher>: the tab at the top of the page and the menu it opens (GLOSSARY.md: App
+// switcher). Its own shadow DOM keeps the app's styles and its own apart.
+import type { Icons } from "./icons.ts";
+import type { App, Me } from "./me.ts";
+import { colourFor, initials } from "./person.ts";
+import { current, forget, refresh, subscribe } from "./store.ts";
+import { STYLES } from "./styles.ts";
+
+/**
+ * A chevron that points down while the menu is closed, and up, as the CSS turns it, while it is
+ * open. Built node by node, since a page's Trusted Types policy may refuse markup.
+ */
+function chevron(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  for (const [name, value] of Object.entries({
+    "viewBox": "0 0 16 16",
+    "width": "16",
+    "height": "16",
+    "aria-hidden": "true",
+    "focusable": "false",
+  }))
+    svg.setAttribute(name, value);
+  path.setAttribute("d", "M4 6l4 4 4-4");
+  svg.append(path);
+  return svg;
+}
+
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Partial<Record<string, string>> = {},
+  ...children: (Node | string)[]
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  for (const [name, value] of Object.entries(props))
+    if (value !== undefined) node.setAttribute(name, value);
+  node.append(...children);
+  return node;
+}
+
+/** Home first, then the person's other apps by name. */
+function menuOrder(apps: App[]): App[] {
+  const home = apps.filter((app) => app.id === "home");
+  const others = apps
+    .filter((app) => app.id !== "home")
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+  return [...home, ...others];
+}
+
+// A constructed style sheet rather than a <style> element, which a page's style-src would refuse.
+let styles: CSSStyleSheet | undefined;
+function sheet(): CSSStyleSheet {
+  if (!styles) {
+    styles = new CSSStyleSheet();
+    styles.replaceSync(STYLES);
+  }
+  return styles;
+}
+
+export class HomelabSwitcher extends HTMLElement {
+  readonly #shadow = this.attachShadow({ mode: "open" });
+  readonly #root = element("div", { class: "root" });
+  #me: Me | undefined;
+  #icons: Icons | undefined;
+  #offline = false;
+  #button: HTMLButtonElement | undefined;
+  #panel: HTMLDivElement | undefined;
+  #items: HTMLElement[] = [];
+  #unsubscribe: (() => void) | undefined;
+
+  constructor() {
+    super();
+    this.#shadow.adoptedStyleSheets = [sheet()];
+    this.#shadow.append(this.#root);
+  }
+
+  connectedCallback(): void {
+    this.#unsubscribe = subscribe(() => this.#show());
+    this.#show();
+    void refresh();
+    document.addEventListener("pointerdown", this.#onOutside, true);
+  }
+
+  disconnectedCallback(): void {
+    this.#unsubscribe?.();
+    document.removeEventListener("pointerdown", this.#onOutside, true);
+  }
+
+  #show(): void {
+    const state = current();
+    const me = state.status === "signed-in" ? state.me : undefined;
+    const icons = state.status === "signed-in" ? state.icons : undefined;
+    // Offline is as the browser says: the accounts site being unreachable alone greys
+    // nothing out.
+    const offline = !navigator.onLine;
+    // Signed out, the switcher shows nothing and leaves signing in to the app or its page.
+    this.hidden = !me;
+    if (me === this.#me && icons === this.#icons && offline === this.#offline)
+      return;
+    this.#me = me;
+    this.#icons = icons;
+    this.#offline = offline;
+    if (me) this.#render(me, icons, offline);
+    else this.#root.replaceChildren();
+  }
+
+  #render(
+    { person, apps, accountUrl, signOutUrl }: Me,
+    icons: Icons | undefined,
+    offline: boolean,
+  ): void {
+    const wasOpen = this.#panel ? !this.#panel.hidden : false;
+    // A re-render (a new answer, going on or off line) keeps focus where the person left it.
+    const focused = this.#items.findIndex(
+      (item) => item === this.#shadow.activeElement,
+    );
+    const name = person.name ?? person.email ?? "Your account";
+
+    const button = element(
+      "button",
+      {
+        "type": "button",
+        "class": "tab",
+        "aria-haspopup": "menu",
+        "aria-expanded": "false",
+        "aria-controls": "menu",
+        "aria-label": `${name}: apps and sign out`,
+        "title": name,
+      },
+      chevron(),
+    );
+    button.addEventListener("click", () => this.#toggle());
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        this.#open(event.key === "ArrowDown" ? 0 : -1);
+      }
+    });
+
+    const items = menuOrder(apps).map((app) => {
+      const here = new URL(app.url).origin === location.origin;
+      // An app that doesn't open offline would only show a "no connection" page.
+      const unavailable = offline && !here && !app.opensOffline;
+      return element(
+        "a",
+        {
+          "class": "item",
+          "role": "menuitem",
+          "tabindex": "-1",
+          "href": unavailable ? undefined : app.url,
+          "aria-disabled": unavailable ? "true" : undefined,
+          "aria-current": here ? "page" : undefined,
+        },
+        app.icon
+          ? element("img", {
+              src: icons?.[app.icon] ?? app.icon,
+              alt: "",
+              crossorigin: "anonymous",
+            })
+          : element("span", { class: "no-icon" }),
+        element("span", { class: "label" }, app.name),
+        ...(here ? [element("span", { class: "note" }, "Current")] : []),
+      );
+    });
+    // The account page and signing out are on the accounts site, which needs a connection.
+    const atAccounts = <K extends "a" | "button">(
+      tag: K,
+      label: string,
+      props: Partial<Record<string, string>>,
+    ) =>
+      element(
+        tag,
+        {
+          "class": "item",
+          "role": "menuitem",
+          "tabindex": "-1",
+          "aria-disabled": offline ? "true" : undefined,
+          ...props,
+        },
+        element("span", { class: "label" }, label),
+        ...(offline
+          ? [element("span", { class: "note" }, "Needs a connection")]
+          : []),
+      );
+    const account = atAccounts("a", "Account settings", {
+      href: offline ? undefined : accountUrl,
+    });
+    // A button rather than a link, since signing out is a POST (ADR-PLAT-004). An "Are you
+    // sure?" step, if one comes, goes before #signOut.
+    const signOut = atAccounts("button", "Sign out", { type: "button" });
+    signOut.addEventListener("click", () => {
+      if (!offline && !signOut.hasAttribute("aria-busy"))
+        void this.#signOut(signOut, signOutUrl);
+    });
+    this.#items = [...items, account, signOut];
+
+    const avatar = element(
+      "span",
+      { "class": "avatar", "aria-hidden": "true" },
+      initials(person.name, person.email ?? ""),
+    );
+    avatar.style.background = colourFor(person.id);
+
+    const menu = element(
+      "div",
+      { "id": "menu", "role": "menu", "aria-label": "Apps and sign out" },
+      ...items,
+      element("div", { class: "separator", role: "separator" }),
+      account,
+      signOut,
+    );
+    menu.addEventListener("keydown", (event) => this.#onMenuKey(event));
+
+    const panel = element(
+      "div",
+      { class: "panel", hidden: "" },
+      element(
+        "div",
+        { class: "who" },
+        avatar,
+        element(
+          "div",
+          {},
+          element("div", { class: "name" }, name),
+          ...(person.email
+            ? [element("div", { class: "email" }, person.email)]
+            : []),
+        ),
+      ),
+      menu,
+    );
+
+    this.#button = button;
+    this.#panel = panel;
+    this.#root.replaceChildren(button, panel);
+    if (wasOpen)
+      this.#open(Math.min(Math.max(focused, 0), this.#items.length - 1));
+  }
+
+  /**
+   * Signs this browser out of every app, then shows the sign-in page, which brings the person back
+   * to this page. If the accounts service can't be reached, the person stays signed in and the
+   * button says so.
+   */
+  async #signOut(button: HTMLElement, signOutUrl: string): Promise<void> {
+    button.setAttribute("aria-busy", "true");
+    let done = false;
+    try {
+      const response = await fetch(signOutUrl, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      done = response.ok;
+    } catch {
+      // Unreachable, or an answer without CORS headers: `done` stays false.
+    }
+    button.removeAttribute("aria-busy");
+    if (!done) {
+      button.querySelector(".note")?.remove();
+      button.append(
+        element("span", { class: "note" }, "Didn't work, try again"),
+      );
+      return;
+    }
+    forget();
+    const signIn = new URL("/sign-in", signOutUrl);
+    signIn.searchParams.set("return-to", location.href);
+    location.assign(signIn.href);
+  }
+
+  #toggle(): void {
+    if (this.#panel?.hidden) this.#open(0);
+    else this.#close(false);
+  }
+
+  /** Opens the menu with focus on the item at `index`; -1 is the last. */
+  #open(index: number): void {
+    if (!this.#panel || !this.#button) return;
+    this.#panel.hidden = false;
+    this.#button.setAttribute("aria-expanded", "true");
+    this.#items.at(index)?.focus();
+  }
+
+  #close(refocus: boolean): void {
+    if (!this.#panel || this.#panel.hidden) return;
+    this.#panel.hidden = true;
+    this.#button?.setAttribute("aria-expanded", "false");
+    if (refocus) this.#button?.focus();
+  }
+
+  #onMenuKey(event: KeyboardEvent): void {
+    const at = this.#items.findIndex(
+      (item) => item === this.#shadow.activeElement,
+    );
+    const count = this.#items.length;
+    const focus = (index: number) => {
+      event.preventDefault();
+      this.#items[(index + count) % count]?.focus();
+    };
+    switch (event.key) {
+      case "ArrowDown":
+        return focus(at + 1);
+      case "ArrowUp":
+        return focus(at - 1);
+      case "Home":
+        return focus(0);
+      case "End":
+        return focus(count - 1);
+      case "Escape":
+        event.preventDefault();
+        return this.#close(true);
+      case "Tab":
+        return this.#close(false);
+      case " ":
+        event.preventDefault();
+        this.#items[at]?.click();
+    }
+  }
+
+  readonly #onOutside = (event: Event): void => {
+    if (!event.composedPath().includes(this)) this.#close(false);
+  };
+}
