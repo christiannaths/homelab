@@ -7,24 +7,24 @@
 
 ## Context
 
-The server only needs to keep each document's latest Yjs state and return it. At homelab scale ([ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md)), easy backup and zero operations matter more than horizontal scaling.
+The server only keeps and returns each document's latest Yjs state. At homelab scale ([ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md)), easy backup and zero ops beat horizontal scaling.
 
 ## Decision
 
-- Server data lives in **one SQLite database file** in `DATA_DIR`, accessed through Node's built-in `node:sqlite` ([ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)) in WAL mode.
-- Each document is stored as its merged Yjs state (`documents(name, state BLOB, updated_at)`).
-- The server treats document contents as opaque. Server-side features that need the contents (such as search or history) are built alongside, without changing this storage format.
+- **One SQLite file** in `DATA_DIR`, via `node:sqlite` ([ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md)), WAL mode.
+- Each document stored as merged Yjs state: `documents(name, state BLOB, updated_at)`.
+- Contents are opaque; features needing them (search, history) are built alongside without changing this format.
 
 ## Alternatives considered
 
-- **Postgres**, a separate service to run and back up, where [ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md) keeps everything in one container.
+- **Postgres:** another service to run and back up, outside the one container.
 
 ## Evidence
 
-- PR #1: data survives server restarts, and a new device rebuilds everything from SQLite.
-- There are no native dependencies, so the Docker build stays simple.
+- PR #1 → data survives restarts; a new device rebuilds from SQLite.
+- No native dependencies; simple Docker build.
 
 ## Consequences
 
-- Backup means copying one file, or running `sqlite3 .backup`.
-- Only one server process runs at a time, which suits the intended scale.
+- Backup = copy one file, or `sqlite3 .backup`.
+- One server process at a time.

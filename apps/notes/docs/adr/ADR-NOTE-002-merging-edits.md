@@ -7,29 +7,27 @@
 
 ## Context
 
-Offline edits from several devices ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)) must merge automatically and identically everywhere, with no "pick a version" prompts. That requires a CRDT.
+Offline edits from several devices ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)) must merge automatically and identically, with no "pick a version" prompt. That needs a CRDT.
 
 ## Decision
 
-- **All synced data is stored in Yjs documents:** page content, the page tree, and database schemas, rows, cells and views.
-- No second source of truth sits beside Yjs, such as relational tables that clients sync.
-- The server stores and relays Yjs updates and never needs a different data format.
-- The project is on Yjs 13, and issue [#4](https://github.com/christiannaths/homelab/issues/4) tracks the move to 14. Moving to Yjs 14 is a planned migration, not a change of direction.
+- **All synced data is Yjs:** page content, page tree, database schemas, rows, cells, views.
+- No second source of truth (e.g. synced relational tables). The server stores and relays Yjs updates only.
+- On Yjs 13; moving to 14 ([#4](https://github.com/christiannaths/homelab/issues/4)) is a planned migration.
 
 ## Alternatives considered
 
-- **Automerge** or **Loro**, compared with Yjs in [`research/01-foss-landscape.md`](../research/01-foss-landscape.md) and [`research/03-architecture.md`](../research/03-architecture.md). Neither has editor bindings as mature as Yjs's.
+- **Automerge, Loro** ([`research/01-foss-landscape.md`](../research/01-foss-landscape.md), [`research/03-architecture.md`](../research/03-architecture.md)): less mature editor bindings.
 
 ## Evidence
 
-- Yjs has the most mature editor bindings (ProseMirror, Tiptap, BlockNote), with live cursors and presence built in.
-- Yjs is independent of storage and transport, so either can be replaced without changing the data model.
-- Yjs data is readable outside JavaScript through `yrs` (Rust, with Python and Swift bindings), so the data is not locked to one runtime.
-- PR #1: live co-editing, offline merging and server persistence work end to end with Yjs, BlockNote and Hocuspocus.
-- PR #2: Vitest convergence tests edit two `Y.Doc`s independently, then merge them. They cover page moves, cycles, concurrent inserts, and concurrent edits to cells in the same row.
+- Most mature editor bindings (ProseMirror, Tiptap, BlockNote), cursors and presence built in.
+- Storage- and transport-independent; readable outside JS via `yrs` (Rust, Python, Swift).
+- PR #1 → co-editing, offline merge and persistence work with Yjs, BlockNote, Hocuspocus.
+- PR #2 → two-`Y.Doc` convergence tests: moves, cycles, concurrent inserts, same-row cell edits.
 
 ## Consequences
 
-- Every feature's data is designed as Yjs shared types, with its merge behaviour decided up front ([ADR-NOTE-006](ADR-NOTE-006-merge-safety.md)).
-- Yjs data is not queryable on the server. Server-side search or indexing has to decode documents.
-- Yjs history grows over time, so compaction and snapshots will eventually be needed.
+- Every feature's data is Yjs shared types with merge behaviour decided up front ([ADR-NOTE-006](ADR-NOTE-006-merge-safety.md)).
+- Not queryable on the server: search or indexing must decode documents.
+- History grows; compaction and snapshots will be needed.
