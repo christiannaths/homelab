@@ -26,8 +26,8 @@ Platform ADRs: `docs/adr/`; app ADRs: `apps/<app>/docs/adr/`. See `docs/agents/d
 
 ### ADRs
 
-Use this repo's `adr` skill (`.agents/skills/adr/`; replaces `domain-modeling`'s `ADR-FORMAT.md`). One ADR per topic, edited in place with a Changelog entry when the decision changes. ADR edits ship in the PR whose code they describe, never a separate docs PR.
+Use this repo's own `adr` skill (`.agents/skills/adr/`, not part of `mattpocock/skills`; replaces `domain-modeling`'s `ADR-FORMAT.md`). One ADR per topic, edited in place with a Changelog entry when the decision changes. ADR edits ship in the PR whose code they describe, never a separate docs PR.
 
 ### Comments
 
-Before writing or reviewing a code comment, use this repo's `comments` skill (`.agents/skills/comments/`): comments say why; code says what.
+Before writing or reviewing a code comment, use this repo's own `comments` skill (`.agents/skills/comments/`, not part of `mattpocock/skills`): comments say why; code says what.
