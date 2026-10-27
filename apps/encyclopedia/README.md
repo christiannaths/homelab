@@ -1,13 +1,13 @@
 # Encyclopedia
 
-A read-only copy of Wikipedia for the homelab, already populated. Readers sign in with their homelab account, read and search articles, and keep saved lists that work offline.
+Read-only, pre-populated Wikipedia for the homelab: sign in with the homelab account, read, search, keep saved lists that work offline.
 
-The `encyclopedia` app in the [homelab monorepo](../../README.md).
+**Status: title page only.** [`web/`](web/README.md) is an offline-capable PWA with the App switcher; reading, search and saved lists aren't built.
 
-> Status: **title page only.** [`web/`](web) is an installable PWA that opens offline and shows a title page, with the App switcher at the top, so signing in and out can be tried across apps on one domain. Reading, search and saved lists are not built yet. The app will be built against:
->
-> - [`docs/adr/`](docs/adr/README.md): the Encyclopedia ADRs, including what is deliberately _not_ decided yet, plus the [platform ADRs](../../docs/adr/README.md)
-> - [`docs/specs/`](docs/specs/README.md): the feature specs
-> - [`docs/research/`](docs/research): the open source survey, ZIM and libzim facts, and the licensing findings
+| Docs |  |
+| --- | --- |
+| [`docs/adr/`](docs/adr/README.md) | Encyclopedia ADRs and what's not decided; see also [platform ADRs](../../docs/adr/README.md) |
+| [`docs/specs/`](docs/specs/README.md) | Feature specs |
+| [`docs/research/`](docs/research) | FOSS survey, ZIM and libzim, licensing |
 
-Content comes from Wikipedia under CC BY-SA 4.0, through Kiwix's ZIM files. Wikipedia is a trademark of the Wikimedia Foundation; this project is not affiliated with or endorsed by it.
+Content: Wikipedia under CC BY-SA 4.0, via Kiwix ZIM files. Wikipedia is a Wikimedia Foundation trademark; this project isn't affiliated with or endorsed by it.
