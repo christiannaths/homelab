@@ -1,6 +1,5 @@
 // Signing out (issue #113, ADR-PLAT-004): the App switcher's Sign out in every app, and the
 // accounts site's own, sign this browser out of every app at once and show the sign-in page.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, BrowserContext } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
@@ -8,31 +7,25 @@ import {
   ADA,
   BOB,
   ENCYCLOPEDIA_URL,
-  HOME_URL,
   launchChromium,
   newDevice,
   NOTES_URL,
   onSignInPage,
   signIn,
-  startHome,
   tab,
   typePassword,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 const APPS = [
-  { name: "Home", url: HOME_URL },
   { name: "Notes", url: NOTES_URL },
   { name: "Encyclopedia", url: ENCYCLOPEDIA_URL },
 ];
@@ -104,7 +97,7 @@ describe("signing out on the accounts site", () => {
     await page.goto(ACCOUNTS_URL);
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await onSignInPage(page);
-    await signedOutOf(page.context(), HOME_URL);
+    await signedOutOf(page.context(), NOTES_URL);
   });
 
   it("from the no-access page lets someone else sign in", async () => {
@@ -123,7 +116,7 @@ describe("signing out on the accounts site", () => {
     await signIn(page, ADA);
     const response = await page.goto(`${ACCOUNTS_URL}/sign-out`);
     expect(response?.status()).toBe(405);
-    await page.goto(HOME_URL);
-    await page.getByRole("list", { name: "Your apps" }).waitFor();
+    await page.goto(`${NOTES_URL}/`);
+    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
   });
 });

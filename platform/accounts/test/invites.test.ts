@@ -12,6 +12,7 @@ import {
   request,
   signIn,
   startAccounts,
+  whoIsSignedIn,
   submitSignIn,
   type TestAccounts,
 } from "./helpers.ts";
@@ -208,12 +209,9 @@ describe("joining with an invite", () => {
       password: "fission-in-the-snow",
     });
     expect(response.status).toBe(303);
-    const gateway = await askGateway(
-      accounts,
-      cookiesOf(response),
-      `home.${DOMAIN}`,
-    );
-    expect(gateway.headers.get("remote-email")).toBe("lise@example.com");
+    expect(
+      (await whoIsSignedIn(accounts, cookiesOf(response)))?.person.email,
+    ).toBe("lise@example.com");
     expect(
       (
         await submitSignIn(accounts, {
@@ -425,9 +423,10 @@ describe("the setup invite", () => {
       headers: { cookie },
     });
     expect(people.status).toBe(200);
-    const gateway = await askGateway(empty, cookie, `home.${DOMAIN}`);
-    expect(gateway.headers.get("remote-email")).toBe("owner@example.com");
-    expect(gateway.headers.get("remote-groups")).toBe("");
+    expect(await whoIsSignedIn(empty, cookie)).toMatchObject({
+      person: { email: "owner@example.com" },
+      apps: [],
+    });
 
     expect((await empty.app.request(link!)).status).toBe(410);
     expect(empty.setupInvite()).toBeUndefined();

@@ -1,29 +1,21 @@
-// The homelab around Home (compose.yaml) and the people the tests sign in as. A browser reaches
+// The homelab (compose.yaml) and the people the tests sign in as. A browser reaches
 // everything through the gateway on GATEWAY_PORT, as a browser on the home network would.
 import { execFile } from "node:child_process";
 import { connect } from "node:tls";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { startServer, type HomeServer } from "@homelab/home-server";
 import { chromium, type Browser, type Page } from "playwright";
 
 const run = promisify(execFile);
 const COMPOSE_FILE = fileURLToPath(new URL("../compose.yaml", import.meta.url));
-/** The client's production build: the service worker exists only there. */
-const CLIENT_DIR = fileURLToPath(
-  new URL("../../home/web/dist", import.meta.url),
-);
 
 /** The homelab's address, as an installer gives it. The rest of the stack's addresses follow. */
 export const HOMELAB_URL = "https://home.test:8473";
 const HOMELAB = new URL(HOMELAB_URL);
 export const GATEWAY_PORT = Number(HOMELAB.port);
 export const DOMAIN = HOMELAB.hostname;
-/** Where the Home server listens on this machine; only the gateway is meant to reach it. */
-export const HOME_PORT = 4130;
 const appUrl = (app: string) => `https://${app}.${HOMELAB.host}`;
 export const ACCOUNTS_URL = appUrl("accounts");
-export const HOME_URL = appUrl("home");
 export const NOTES_URL = appUrl("notes");
 export const ENCYCLOPEDIA_URL = appUrl("encyclopedia");
 export const VAULT_URL = appUrl("vault");
@@ -115,11 +107,6 @@ export async function compose(
   return stdout + stderr;
 }
 
-/** Starts Home, which the gateway reaches on this machine. */
-export function startHome(): Promise<HomeServer> {
-  return startServer({ port: HOME_PORT, clientDir: CLIENT_DIR });
-}
-
 /**
  * Makes the people in the accounts service, or brings them to exactly what is given, with its
  * loader for test people. A change in App access takes effect on the person's next request.
@@ -204,12 +191,13 @@ export async function typePassword(
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** Opens Home and signs in on the sign-in page; resolves once Home's tiles show. */
+/** Signs in on the accounts site; resolves once the account page, where sign-in lands, shows. */
 export async function signIn(page: Page, account: Account): Promise<void> {
-  await page.goto(HOME_URL);
+  await page.goto(ACCOUNTS_URL);
   await onSignInPage(page);
   await typePassword(page, account);
-  await page.getByRole("list", { name: "Your apps" }).waitFor();
+  await page.waitForURL(`${ACCOUNTS_URL}/`);
+  await page.getByRole("heading", { level: 1 }).waitFor();
 }
 
 /** Waits until the service worker controls the page, so the app can start offline. */

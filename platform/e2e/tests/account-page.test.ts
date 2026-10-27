@@ -1,35 +1,29 @@
 // A person's account page on the accounts site (issue #114): reached from the App switcher, showing
 // their apps, and changing their own name and password.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
   ACCOUNTS_URL,
   ADA,
   ADMIN,
-  HOME_URL,
   launchChromium,
   loadPeople,
   newDevice,
   NOTES_URL,
   onSignInPage,
   signIn,
-  startHome,
   tab,
   typePassword,
   type Account,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 /** Opens the account page from the App switcher, on whatever app the page is on. */
@@ -139,7 +133,7 @@ describe("the account page", () => {
       .waitFor();
 
     const other = await newDevice(browser);
-    await other.goto(HOME_URL);
+    await other.goto(ACCOUNTS_URL);
     await onSignInPage(other);
     await typePassword(other, person);
     await other
@@ -147,7 +141,7 @@ describe("the account page", () => {
       .getByText("Wrong email or password.")
       .waitFor();
     await typePassword(other, { ...person, password: "orbit-and-back" });
-    await other.waitForURL(`${HOME_URL}/`);
+    await other.waitForURL(`${ACCOUNTS_URL}/`);
   });
 
   it("links a homelab admin to the People page", async () => {

@@ -1,32 +1,26 @@
 // Invites (issue #115): a homelab admin makes one on the People page, passes its link on, and the
 // invited person joins with it and reaches their apps. A used or cancelled link can't be used.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
   ACCOUNTS_URL,
   ADMIN,
-  HOME_URL,
   launchChromium,
   newDevice,
   NOTES_URL,
   signIn,
-  startHome,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 let admin: Page;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
   admin = await newDevice(browser);
   await signIn(admin, ADMIN);
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 /** Makes an invite on the People page as the admin, and returns the link the page shows. */
@@ -81,12 +75,6 @@ describe("an invite", () => {
     await apps.getByRole("link", { name: "Notes" }).click();
     await page.waitForURL(`${NOTES_URL}/`);
     await page.getByText("Signed in as Ida Noddack").waitFor();
-
-    await page.goto(HOME_URL);
-    await page
-      .getByRole("list", { name: "Your apps" })
-      .getByText("Notes")
-      .waitFor();
 
     await admin.goto(`${ACCOUNTS_URL}/people`);
     await admin.getByRole("heading", { name: "Pending invites" }).waitFor();

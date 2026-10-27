@@ -4,7 +4,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
@@ -13,34 +12,26 @@ import {
   ADMIN,
   DANA,
   ENCYCLOPEDIA_URL,
-  HOME_URL,
   initialsInMenu,
   launchChromium,
   menuItems,
   newDevice,
   NOTES_URL,
-  onSignInPage,
   SESSION_COOKIE,
   signIn,
-  startHome,
   tab,
-  typePassword,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 const APPS = [
-  { name: "Home", url: HOME_URL, dir: "platform/home" },
   { name: "Notes", url: NOTES_URL, dir: "apps/notes" },
   { name: "Encyclopedia", url: ENCYCLOPEDIA_URL, dir: "apps/encyclopedia" },
 ];
@@ -176,22 +167,22 @@ describe("the tab", () => {
 });
 
 describe("the menu", () => {
-  it("lists the person, Home, their other apps by name, and Sign out", async () => {
+  it("lists the person, their apps by name with this one marked, and Sign out", async () => {
     const page = await newDevice(browser);
     await signIn(page, ADA);
+    await page.goto(NOTES_URL);
     await tab(page).click();
     await page.getByText(ADA.name, { exact: true }).waitFor();
     await page.getByText(ADA.email, { exact: true }).waitFor();
     expect(await menuItems(page)).toEqual([
-      "HomeCurrent",
       "Encyclopedia",
-      "Notes",
+      "NotesCurrent",
       "Account settings",
       "Sign out",
     ]);
     expect(
       await page
-        .getByRole("menuitem", { name: /^Home/ })
+        .getByRole("menuitem", { name: /^Notes/ })
         .getAttribute("aria-current"),
     ).toBe("page");
   });
@@ -200,7 +191,6 @@ describe("the menu", () => {
     const page = await newDevice(browser);
     await signIn(page, DANA);
     expect(await menuItems(page)).toEqual([
-      "HomeCurrent",
       "Notes",
       "Account settings",
       "Sign out",
@@ -209,7 +199,6 @@ describe("the menu", () => {
     const admin = await newDevice(browser);
     await signIn(admin, ADMIN);
     expect(await menuItems(admin)).toEqual([
-      "HomeCurrent",
       "Encyclopedia",
       "Account settings",
       "Sign out",
@@ -245,7 +234,8 @@ describe("the menu", () => {
 
     await tab(page).click();
     await menu.waitFor();
-    await page.getByRole("heading", { name: "Home" }).click();
+    // Clear of the menu, which covers the account page's heading.
+    await page.mouse.click(5, 400);
     await menu.waitFor({ state: "hidden" });
   });
 
@@ -264,18 +254,17 @@ describe("the menu", () => {
       });
     await tab(page).focus();
     await page.keyboard.press("Enter");
-    expect(await focused()).toBe("HomeCurrent");
-    await page.keyboard.press("ArrowDown");
     expect(await focused()).toBe("Encyclopedia");
+    await page.keyboard.press("ArrowDown");
+    expect(await focused()).toBe("Notes");
     await page.keyboard.press("End");
     expect(await focused()).toBe("Sign out");
     await page.keyboard.press("ArrowDown");
-    expect(await focused()).toBe("HomeCurrent");
+    expect(await focused()).toBe("Encyclopedia");
     await page.keyboard.press("Escape");
     await page.getByRole("menu").waitFor({ state: "hidden" });
     expect(await focused()).toBe("Ada Lovelace: apps and sign out");
 
-    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await page.waitForURL(`${ENCYCLOPEDIA_URL}/`);
@@ -296,30 +285,5 @@ describe("signed out", () => {
     );
     await tab(page).first().waitFor({ state: "hidden" });
     expect(await tab(page).count()).toBe(0);
-  });
-});
-
-describe("an install without Home", () => {
-  it("still lists the person's apps, Account settings and Sign out", async () => {
-    await home.close();
-    try {
-      const page = await newDevice(browser);
-      await page.goto(NOTES_URL);
-      await onSignInPage(page);
-      await typePassword(page, ADA);
-      await tab(page).waitFor();
-      expect(await menuItems(page)).toEqual(
-        expect.arrayContaining([
-          "Home",
-          "Encyclopedia",
-          "NotesCurrent",
-          "Account settings",
-          "Sign out",
-        ]),
-      );
-      await page.context().close();
-    } finally {
-      home = await startHome();
-    }
   });
 });

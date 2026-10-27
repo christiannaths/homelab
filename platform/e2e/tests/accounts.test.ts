@@ -1,7 +1,6 @@
 // Signing in through the gateway on the accounts service's own pages (issue #111), and the App
 // switcher beyond our apps (issue #103): on the accounts site, and on a stand-in bundled app with
 // a strict security policy.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
@@ -10,7 +9,6 @@ import {
   BOB,
   ENCYCLOPEDIA_URL,
   GRACE,
-  HOME_URL,
   launchChromium,
   menuItems,
   newDevice,
@@ -18,22 +16,18 @@ import {
   onSignInPage,
   securityPolicyErrors,
   signIn,
-  startHome,
   tab,
   typePassword,
   VAULT_URL,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 describe("signing in", () => {
@@ -58,7 +52,7 @@ describe("signing in", () => {
 
   it("shows a wrong password on the same page", async () => {
     const page = await newDevice(browser);
-    await page.goto(HOME_URL);
+    await page.goto(NOTES_URL);
     await onSignInPage(page);
     await typePassword(page, { ...ADA, password: "not-her-password" });
     await page
@@ -69,13 +63,13 @@ describe("signing in", () => {
     expect(await page.getByLabel("Email").inputValue()).toBe(ADA.email);
 
     await typePassword(page, ADA);
-    await page.waitForURL(`${HOME_URL}/`);
+    await page.waitForURL(`${NOTES_URL}/`);
   });
 
   it("is a page in the homelab look, following the device's light or dark setting", async () => {
     const page = await newDevice(browser);
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto(HOME_URL);
+    await page.goto(NOTES_URL);
     await onSignInPage(page);
     const background = () =>
       page.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -111,20 +105,19 @@ describe("the accounts site", () => {
     await page.getByRole("heading", { name: ADA.name }).waitFor();
     await tab(page).waitFor();
     expect(await menuItems(page)).toEqual([
-      "Home",
       "Encyclopedia",
       "Notes",
       "Account settings",
       "Sign out",
     ]);
-    await page.getByRole("menuitem", { name: "Home" }).click();
-    await page.waitForURL(`${HOME_URL}/`);
+    await page.getByRole("menuitem", { name: "Notes" }).click();
+    await page.waitForURL(`${NOTES_URL}/`);
     expect(errors).toEqual([]);
   });
 
   it("shows no switcher on the sign-in page", async () => {
     const page = await newDevice(browser);
-    await page.goto(HOME_URL);
+    await page.goto(NOTES_URL);
     await onSignInPage(page);
     await page.getByLabel("Email").waitFor();
     await page.waitForLoadState("networkidle");

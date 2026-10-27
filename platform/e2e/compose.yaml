@@ -1,6 +1,6 @@
-# The homelab around Home for its end-to-end tests, which cross apps: the gateway (Caddy), the
+# The homelab for the platform's end-to-end tests, which cross apps: the gateway (Caddy), the
 # accounts service, Notes and the Encyclopedia. The accounts service and Notes run from this
-# checkout. The Home server runs in the test process on the host, and the gateway reaches it there.
+# checkout.
 name: ${COMPOSE_PROJECT_NAME:-platform-e2e}
 services:
   gateway:
@@ -15,9 +15,6 @@ services:
       - ${DATA_DIR:?set DATA_DIR}/caddy:/data
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN}
-      HOME_UPSTREAM: host.docker.internal:${HOME_PORT:-4130}
-    extra_hosts:
-      - host.docker.internal:host-gateway
     depends_on: [accounts, notes]
 
   accounts:

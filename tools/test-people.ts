@@ -4,17 +4,14 @@
 // (platform/accounts/src/load-test-people.ts) makes the people. Adding an app to the homelab
 // means adding it here, to the preview's Caddyfile and Dockerfile, and to tools/dev, together.
 
-/** Each app's site, named after its subdomain. Home is open to every account. */
+/** Each app's site, named after its subdomain. */
 export const APPS = [
-  { site: "home", name: "Home" },
   { site: "notes", name: "Notes" },
   { site: "encyclopedia", name: "Encyclopedia" },
 ];
 
-/** The accounts service's HOMELAB_APPS: every app but Home, which needs no App access. */
-export const INSTALLED_APPS = APPS.map((app) => app.site)
-  .filter((site) => site !== "home")
-  .join(",");
+/** The accounts service's HOMELAB_APPS. */
+export const INSTALLED_APPS = APPS.map((app) => app.site).join(",");
 
 /** A person as the accounts service's loader takes them, with what they get, for the summaries. */
 export interface TestPerson {
@@ -56,7 +53,7 @@ export const BOB: TestPerson = {
   password: "harbour-violet-thistle-93",
   name: "Bob Ross",
   apps: {},
-  gets: "A homelab account but no apps: Home only",
+  gets: "A homelab account but no apps",
 };
 
 export const PEOPLE = [ADMIN, ADA, DANA, BOB];

@@ -33,7 +33,7 @@ Homelab apps share one account behind one gateway, with per-app App access ([ADR
 
 - ProxyAuth spike ([`spikes/voidauth-proxyauth-poc/FINDINGS.md`](../../../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68) → header identity, group levels, one sign-out across apps.
 - `apps/notes/e2e/` (stand-in front door via `@homelab/identity`, #126) → roles by account id, sync only signed in, sign-out reaches open tabs, offline start.
-- `platform/e2e/` (`notes.test.ts`, real gateway) → roles by account id, browser identity headers ignored, no-access page, Notes' Sign out signs out Home and the Encyclopedia.
+- `platform/e2e/` (`notes.test.ts`, real gateway) → roles by account id, browser identity headers ignored, no-access page, Notes' Sign out signs out the other apps (`sign-out.test.ts`).
 
 ## Consequences
 

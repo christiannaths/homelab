@@ -1,5 +1,5 @@
-// Who is signed in and which apps they have (ADR-PLAT-004), which the App switcher in every app and
-// Home's tiles ask the accounts site on every load, from their own pages.
+// Who is signed in and which apps they have (ADR-PLAT-004), which the App switcher in every app
+// asks the accounts site on every load, from the app's own page.
 import { describe, expect, it, vi } from "vitest";
 import {
   ACCOUNTS,
@@ -38,14 +38,6 @@ async function appIdsIn(response: Response): Promise<unknown[]> {
   return apps.map((app) => (isRecord(app) ? app.id : undefined));
 }
 
-const HOME_APP = {
-  id: "home",
-  url: `https://home.${DOMAIN}/`,
-  name: "Home",
-  icon: `https://home.${DOMAIN}/icons/icon-192.png`,
-  opensOffline: true,
-};
-
 describe("a signed-in person", () => {
   it("gets their account id, name, email, account and sign-out addresses, and their apps by name", async () => {
     const accounts = await startAccounts();
@@ -68,7 +60,6 @@ describe("a signed-in person", () => {
           icon: `https://encyclopedia.${DOMAIN}/icons/icon-512.png`,
           opensOffline: false,
         },
-        HOME_APP,
         {
           id: "notes",
           url: `${NOTES}/`,
@@ -80,11 +71,11 @@ describe("a signed-in person", () => {
     });
   });
 
-  it("always has Home, even with no App access", async () => {
+  it("has no apps with no App access", async () => {
     const accounts = await startAccounts();
     expect(
       await appIdsIn(await me(accounts, await signIn(accounts, BOB))),
-    ).toEqual(["home"]);
+    ).toEqual([]);
   });
 
   it("sees App access given or taken away on the next answer", async () => {
@@ -92,14 +83,10 @@ describe("a signed-in person", () => {
     const cookie = await signIn(accounts, BOB);
     const bob = accounts.ids[BOB.email] ?? "";
     accounts.appAccess.set(bob, { notes: "member" });
-    expect(await appIdsIn(await me(accounts, cookie))).toEqual([
-      "home",
-      "notes",
-    ]);
+    expect(await appIdsIn(await me(accounts, cookie))).toEqual(["notes"]);
     accounts.appAccess.set(bob, { encyclopedia: "admin" });
     expect(await appIdsIn(await me(accounts, cookie))).toEqual([
       "encyclopedia",
-      "home",
     ]);
   });
 });
@@ -121,7 +108,6 @@ describe("an app whose manifest can't be read", () => {
     const body: unknown = await (await me(accounts, cookie)).json();
     expect(body).toMatchObject({
       apps: [
-        { id: "home" },
         { id: "notes" },
         {
           id: "vault",
@@ -165,39 +151,6 @@ describe("an app whose manifest can't be read", () => {
     now += 2 * 24 * 60 * 60_000;
     await me(accounts, cookie);
     expect(warn).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("Home with no readable manifest", () => {
-  it("is still listed, under its subdomain with no icon, and warned about once", async () => {
-    const warn = vi.fn<(message: string) => void>();
-    const accounts = await startAccounts(
-      [ADA],
-      {},
-      {
-        warn,
-        readManifest: async (url) =>
-          url.hostname.startsWith("home.") ? undefined : readManifest(url),
-      },
-    );
-    const cookie = await signIn(accounts, ADA);
-    const body: unknown = await (await me(accounts, cookie)).json();
-    expect(body).toMatchObject({
-      apps: [
-        { id: "encyclopedia" },
-        {
-          id: "home",
-          url: `https://home.${DOMAIN}/`,
-          name: "Home",
-          icon: null,
-          opensOffline: false,
-        },
-        { id: "notes" },
-      ],
-    });
-    await me(accounts, cookie);
-    expect(warn).toHaveBeenCalledOnce();
-    expect(warn.mock.calls[0]?.[0]).toContain("home");
   });
 });
 

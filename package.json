@@ -16,7 +16,6 @@
   "workspaces": [
     "apps/*/*",
     "platform/*",
-    "platform/home/*",
     "packages/*",
     "spikes/*/*",
     "tools"

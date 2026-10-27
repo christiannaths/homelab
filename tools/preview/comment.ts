@@ -28,10 +28,10 @@ The preview \`${name}\` was removed when this pull request closed. Reopening it 
 
 This pull request runs on commit \`${commit}\`. It wakes in a few seconds when opened after a quiet spell.
 
-| App | Address |
+| Site | Address |
 | --- | --- |
-${APPS.map((app) => `| ${app.name} | https://${app.site}.${domain}/ |`).join("\n")}
 | Accounts | https://accounts.${domain}/ |
+${APPS.map((app) => `| ${app.name} | https://${app.site}.${domain}/ |`).join("\n")}
 
 Opening an app asks you to sign in with an email and password, as on a real install. The passwords are public: anyone can sign in, so put nothing real here.
 

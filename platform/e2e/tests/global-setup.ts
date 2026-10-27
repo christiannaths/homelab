@@ -1,6 +1,6 @@
 // Builds the gateway, starts it, the accounts service and Notes with empty data, and loads the test
-// people into the accounts service with their App access (ADR-PLAT-004). Nx builds Home, Notes and
-// the Encyclopedia before this suite starts (implicitDependencies in package.json), outside
+// people into the accounts service with their App access (ADR-PLAT-004). Nx builds Notes and the
+// Encyclopedia before this suite starts (implicitDependencies in package.json), outside
 // Vitest, whose NODE_ENV of test would build them without their service workers.
 import { X509Certificate, createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
@@ -11,7 +11,6 @@ import type { TestProject } from "vitest/node";
 import {
   DOMAIN,
   GATEWAY_PORT,
-  HOME_PORT,
   HOMELAB_URL,
   PEOPLE,
   compose,
@@ -38,7 +37,6 @@ export default async function setup(project: TestProject) {
     COMPOSE_PROJECT_NAME: "platform-e2e",
     DATA_DIR: dataDir,
     GATEWAY_PORT: String(GATEWAY_PORT),
-    HOME_PORT: String(HOME_PORT),
     HOMELAB_URL,
     // Caddy names sites by hostname, so the gateway gets the one in HOMELAB_URL.
     SITE_DOMAIN: DOMAIN,

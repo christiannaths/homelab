@@ -1,5 +1,5 @@
 // An app's name and icon as its web app manifest gives them, read through the gateway, for the
-// accounts service, which shows apps in `/api/me` (for the App switcher and Home's tiles), on the
+// accounts service, which shows apps in `/api/me` (for the App switcher), on the
 // account page and on the People page.
 export {
   manifestReader,

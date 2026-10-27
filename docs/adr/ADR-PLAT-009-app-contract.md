@@ -43,6 +43,6 @@ The **app contract**: headers and files at known paths. An app depends on nothin
 
 ## Consequences
 
-- New app = serve the contract + a gateway site + add it to `HOMELAB_APPS`. No app or Home changes.
+- New app = serve the contract + a gateway site + add it to `HOMELAB_APPS`. No other app changes.
 - Changing a touch point changes this ADR and every app in one PR.
 - App tests can run behind a stand-in, without the platform.

@@ -1,7 +1,7 @@
 // <homelab-switcher>: the tab at the top of the page and the menu it opens (GLOSSARY.md: App
 // switcher). Its own shadow DOM keeps the app's styles and its own apart.
 import type { Icons } from "./icons.ts";
-import type { App, Me } from "./me.ts";
+import type { Me } from "./me.ts";
 import { colourFor, initials } from "./person.ts";
 import { current, forget, refresh, subscribe } from "./store.ts";
 import { STYLES } from "./styles.ts";
@@ -36,15 +36,6 @@ function element<K extends keyof HTMLElementTagNameMap>(
     if (value !== undefined) node.setAttribute(name, value);
   node.append(...children);
   return node;
-}
-
-/** Home first, then the person's other apps by name. */
-function menuOrder(apps: App[]): App[] {
-  const home = apps.filter((app) => app.id === "home");
-  const others = apps
-    .filter((app) => app.id !== "home")
-    .toSorted((a, b) => a.name.localeCompare(b.name));
-  return [...home, ...others];
 }
 
 // A constructed style sheet rather than a <style> element, which a page's style-src would refuse.
@@ -137,7 +128,7 @@ export class HomelabSwitcher extends HTMLElement {
       }
     });
 
-    const items = menuOrder(apps).map((app) => {
+    const items = apps.map((app) => {
       const here = new URL(app.url).origin === location.origin;
       // An app that doesn't open offline would only show a "no connection" page.
       const unavailable = offline && !here && !app.opensOffline;

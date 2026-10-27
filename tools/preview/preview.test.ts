@@ -331,7 +331,7 @@ describe("signing in", () => {
     );
   });
 
-  test("the accounts site lists each person's apps, from their manifests, with Home for every account", async () => {
+  test("the accounts site lists each person's apps, from their manifests", async () => {
     const apps = async (person: TestPerson) => {
       const reply = await get("accounts", "/api/me", {
         cookie: (await signIn(person)).cookie,
@@ -341,15 +341,15 @@ describe("signing in", () => {
       assert.ok(Array.isArray(listed), reply.body);
       return listed.map((app) => pick(JSON.stringify(app), "name"));
     };
-    assert.deepEqual(await apps(ADA), ["Encyclopedia", "Home", "Notes"]);
-    assert.deepEqual(await apps(DANA), ["Home", "Notes"]);
-    assert.deepEqual(await apps(BOB), ["Home"]);
-    assert.deepEqual(await apps(ADMIN), ["Encyclopedia", "Home", "Notes"]);
+    assert.deepEqual(await apps(ADA), ["Encyclopedia", "Notes"]);
+    assert.deepEqual(await apps(DANA), ["Notes"]);
+    assert.deepEqual(await apps(BOB), []);
+    assert.deepEqual(await apps(ADMIN), ["Encyclopedia", "Notes"]);
   });
 
   test("every app's page has the App switcher in it, from the gateway", async () => {
     const { cookie } = await signIn(ADA);
-    for (const site of ["home", "notes", "encyclopedia"]) {
+    for (const site of ["notes", "encyclopedia"]) {
       const reply = await get(site, "/", { cookie });
       assert.equal(reply.status, 200, site);
       assert.match(reply.body, /<script>.*homelab-switcher.*<\/script>/s, site);
