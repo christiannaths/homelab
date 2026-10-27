@@ -136,26 +136,26 @@ Admins only (else 403), acting on anyone, self too, via `/people/<account id>/<a
 
 ## Changelog
 
-- 2026-10-26: `/api/me` moves from Home to the accounts service; installs without Home keep the switcher (issue #124, spec #119).
-- 2026-10-26: One `HOMELAB_URL` replaces `HOMELAB_DOMAIN` and `ACCOUNTS_URL` ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md); issue #122, spec #119).
-- 2026-10-24: The switcher extends sessions via `/session` (spec #110).
-- 2026-10-24: Forward auth stops extending sessions; it couldn't refresh the cookie (spec #110).
-- 2026-10-23: People page for admins (issue #116, spec #110).
-- 2026-10-23: Invites and a setup invite (issue #115, spec #110).
-- 2026-10-23: Dev and previews drop VoidAuth for the accounts service (issue #112, spec #110).
-- 2026-10-23: Account page shows apps and changes name and password (issue #114, spec #110).
-- 2026-10-23: Sign-out becomes a same-site POST (issue #113, spec #110).
-- 2026-10-23: Own Better Auth service replaces VoidAuth (issue #111, spec #110, [`FINDINGS.md`](../../spikes/better-auth-sign-in-poc/FINDINGS.md)).
-- 2026-10-23: The switcher keeps apps' icons itself (issue #105, spec #101).
-- 2026-10-23: The switcher passes any CSP; VoidAuth pages get it (issue #103, spec #101).
-- 2026-10-23: The switcher becomes a top-centre tab (issue #104, spec #101).
-- 2026-10-23: The gateway inlines the switcher (issue #102, spec #101).
-- 2026-10-22: The switcher links to account settings (spec #75).
-- 2026-10-22: The switcher works offline (issue #91, spec #75).
-- 2026-10-22: Sign-out moves to the switcher (issue #89, spec #75).
-- 2026-10-22: Every app gets the switcher from Home (issue #88, spec #75).
-- 2026-10-22: Apps on subdomains; Home lists them from groups and manifests (issue #87, spec #75).
-- 2026-10-22: Manifests and icons readable signed out (issue #86, spec #75).
-- 2026-10-22: `auth.` renamed `accounts.` (PR #85).
-- 2026-10-19: Forward auth replaces apps as OIDC clients ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68).
-- 2026-10-17: Accepted, with VoidAuth and apps as OIDC clients.
+- 2026-10-26: `/api/me` moves from Home to the accounts service, which already holds session, access and manifests, so Home no longer duplicates that work and installs without Home keep the switcher (issue #124, spec #119).
+- 2026-10-26: One `HOMELAB_URL` replaces `HOMELAB_DOMAIN` and `ACCOUNTS_URL`, two shapes of one fact that could disagree ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md); issue #122, spec #119).
+- 2026-10-24: The switcher extends sessions via `/session`, so people who only use apps aren't signed out after a year (maintainer, in review, spec #110).
+- 2026-10-24: Forward auth stops extending sessions, because it extended the database but couldn't refresh the cookie (spec #110).
+- 2026-10-23: People page for admins, because access could only be set with the loader and nobody could be signed out or removed (issue #116, spec #110).
+- 2026-10-23: Invites and a setup invite, because a real install couldn't get its first person in (issue #115, spec #110).
+- 2026-10-23: Dev and previews drop VoidAuth for the accounts service, so nothing runs VoidAuth (issue #112, spec #110).
+- 2026-10-23: Account page shows apps and changes name and password, so people needn't ask an admin (issue #114, spec #110).
+- 2026-10-23: Sign-out becomes a same-site POST, so no link or other site can sign someone out, with room for a confirm (issue #113, spec #110).
+- 2026-10-23: Own Better Auth service replaces VoidAuth, whose pages couldn't be shaped, which used usernames, and whose admin rights couldn't be narrowed for invites (issue #111, spec #110, [`FINDINGS.md`](../../spikes/better-auth-sign-in-poc/FINDINGS.md)).
+- 2026-10-23: The switcher keeps apps' icons itself, so apps' offline caching needs nothing for it (issue #105, spec #101).
+- 2026-10-23: The switcher passes any CSP and VoidAuth pages get it, since VoidAuth allowed no setting or script of its own (issue #103, spec #101).
+- 2026-10-23: The switcher becomes a top-centre tab, so it's the same in every app and never changes layout (issue #104, spec #101).
+- 2026-10-23: The gateway inlines the switcher, so bundled apps get it unchanged and saved offline pages carry it (issue #102, spec #101).
+- 2026-10-22: The switcher links to account settings, asked for while testing (spec #75).
+- 2026-10-22: The switcher works offline, so it shows when an app opens offline or Home is down (issue #91, spec #75).
+- 2026-10-22: Sign-out moves to the switcher, so it's the same in every app (issue #89, spec #75).
+- 2026-10-22: Every app gets the switcher from Home, so switching apps works the same everywhere (issue #88, spec #75).
+- 2026-10-22: Apps on subdomains; Home lists them from groups and manifests, a rule adding an app doesn't change (issue #87, spec #75).
+- 2026-10-22: Manifests and icons readable signed out, so Home can read apps' names and icons itself (issue #86, spec #75).
+- 2026-10-22: `auth.` renamed `accounts.`, for what people do there; the maintainer asked that nothing be called `auth` (PR #85).
+- 2026-10-19: Forward auth replaces apps as OIDC clients, which couldn't learn of a sign-out elsewhere ([`FINDINGS.md`](../../spikes/voidauth-proxyauth-poc/FINDINGS.md), PR #68).
+- 2026-10-17: Accepted, with VoidAuth as the one sign-in and apps as OIDC clients.
