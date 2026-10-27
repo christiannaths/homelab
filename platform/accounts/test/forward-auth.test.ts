@@ -61,18 +61,6 @@ describe("a signed-in person", () => {
     expect(accounts.ids[ADA.email]).toMatch(/^\w{16,}$/);
   });
 
-  it("goes on to Home, which every account opens, with all four headers even with no apps", async () => {
-    const bob = await signIn(accounts, BOB);
-    const response = await askGateway(accounts, bob, `home.${DOMAIN}`);
-    expect(response.status).toBe(200);
-    expect(Object.fromEntries(remoteHeaders(response))).toEqual({
-      "remote-user": accounts.ids[BOB.email],
-      "remote-name": "Bob Ross",
-      "remote-email": "bob@example.com",
-      "remote-groups": "",
-    });
-  });
-
   it("gets the no-access page for an app they don't have", async () => {
     const bob = await signIn(accounts, BOB);
     const response = await askGateway(accounts, bob);
@@ -120,15 +108,17 @@ describe("a signed-in person", () => {
       apps: ["encyclopedia"],
     });
     expect((await askGateway(uninstalled, cookie)).status).toBe(403);
-    const home = await askGateway(uninstalled, cookie, `home.${DOMAIN}`);
-    expect(home.headers.get("remote-groups")).toBe("encyclopedia");
+    const encyclopedia = await askGateway(
+      uninstalled,
+      cookie,
+      `encyclopedia.${DOMAIN}`,
+    );
+    expect(encyclopedia.headers.get("remote-groups")).toBe("encyclopedia");
   });
 
-  it("as a homelab admin, opens no app they weren't given, and gets no group for it", async () => {
+  it("as a homelab admin, opens no app they weren't given", async () => {
     const admin = await signIn(accounts, ADMIN);
     expect((await askGateway(accounts, admin)).status).toBe(403);
-    const home = await askGateway(accounts, admin, `home.${DOMAIN}`);
-    expect(home.headers.get("remote-groups")).toBe("");
   });
 
   it("is percent-encoded where a name can't be a raw header", async () => {

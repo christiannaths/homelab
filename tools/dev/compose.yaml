@@ -1,5 +1,5 @@
 # The whole homelab on one machine, for trying it by hand: the gateway (Caddy), the accounts service,
-# Home, Notes and the Encyclopedia, each on its own hostname under HOMELAB_URL. Start it with
+# Notes and the Encyclopedia, each on its own hostname under HOMELAB_URL. Start it with
 # `npm run dev` from the repository root, which also builds the apps and loads the test people
 # (see README.md). Only the gateway publishes a port: the apps trust the Remote-* headers the
 # gateway sets.
@@ -19,7 +19,7 @@ services:
     environment:
       # HOMELAB_URL's hostname, which start.ts derives: Caddy names sites by hostname.
       SITE_DOMAIN: ${SITE_DOMAIN:?start the stack with npm run dev}
-    depends_on: [accounts, home, notes]
+    depends_on: [accounts, notes]
 
   # The accounts service (platform/accounts), run from this checkout.
   accounts:
@@ -42,16 +42,6 @@ services:
       # this container itself, trusting the CA the gateway keeps in its volume.
       GATEWAY_URL: https://gateway:443
       GATEWAY_CA: /caddy/caddy/pki/authorities/local/root.crt
-
-  # The real Home server, run from this checkout. It serves platform/home/web/dist.
-  home:
-    image: node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
-    working_dir: /repo
-    command: node platform/home/server/src/index.ts
-    volumes:
-      - ../..:/repo:ro
-    environment:
-      PORT: "3000"
 
   # The real Notes server, run from this checkout. It serves apps/notes/web/dist.
   notes:

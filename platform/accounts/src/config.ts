@@ -20,10 +20,7 @@ export interface Config extends HomelabAddresses {
   secret: string;
   dataDir: string;
   port: number;
-  /**
-   * The installed apps, by subdomain: the only apps App access can name. Home is open to every
-   * account and is not listed.
-   */
+  /** The installed apps, by subdomain: the only apps App access can name. */
   apps: string[];
   /** How to reach the gateway to read apps' manifests. By default, at each app's address. */
   gateway: GatewayAddress;
@@ -108,7 +105,7 @@ export function installedApps(setting: string): string[] {
     .map((app) => app.trim().toLowerCase())
     .filter(Boolean);
   for (const app of apps)
-    if (!/^[a-z0-9-]+$/.test(app) || app === "home" || app === "accounts")
+    if (!/^[a-z0-9-]+$/.test(app) || app === "accounts")
       throw new Error(`HOMELAB_APPS names ${app}, which can't be an app`);
   return apps;
 }

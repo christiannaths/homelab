@@ -26,10 +26,10 @@ describe("with test sign-in links on, as in dev", () => {
   it("signs the browser in as the person and goes on to the return address", async () => {
     const response = await request(
       accounts,
-      link(ADA.email, `https://home.${DOMAIN}/`),
+      link(ADA.email, `https://notes.${DOMAIN}/`),
     );
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(`https://home.${DOMAIN}/`);
+    expect(response.headers.get("location")).toBe(`https://notes.${DOMAIN}/`);
     const answer = await askGateway(accounts, cookiesOf(response));
     expect(answer.status).toBe(200);
     expect(answer.headers.get("remote-email")).toBe(ADA.email);

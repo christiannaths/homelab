@@ -13,14 +13,6 @@ accounts.{$SITE_DOMAIN} {
 	reverse_proxy accounts:3000
 }
 
-home.{$SITE_DOMAIN} {
-	route {
-		import /etc/caddy/signed-in.caddyfile
-		import /etc/caddy/switcher.caddyfile
-		reverse_proxy home:3000
-	}
-}
-
 notes.{$SITE_DOMAIN} {
 	route {
 		import /etc/caddy/signed-in.caddyfile

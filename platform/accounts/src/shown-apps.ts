@@ -5,9 +5,6 @@ import type { App, AppDirectory } from "@homelab/app-manifests";
 import type { Grants } from "./app-access.ts";
 import { appName } from "./pages.ts";
 
-/** Home's subdomain. Home is open to every account, so it is in everyone's apps. */
-export const HOME = "home";
-
 export class ShownApps {
   readonly #directory: AppDirectory;
   readonly #warn: (message: string) => void;
@@ -45,10 +42,10 @@ export class ShownApps {
     };
   }
 
-  /** Home and the apps in a person's App access, sorted by name. */
+  /** The apps in a person's App access, sorted by name. */
   async of(grants: Grants): Promise<App[]> {
     const apps = await Promise.all(
-      [HOME, ...Object.keys(grants)].map((id) => this.app(id)),
+      Object.keys(grants).map((id) => this.app(id)),
     );
     return apps.toSorted((a, b) => a.name.localeCompare(b.name));
   }

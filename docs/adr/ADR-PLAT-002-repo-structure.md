@@ -17,13 +17,13 @@ Apps share approach and deployment, not features: each ships alone and must neve
   | Kind | Folder | What | Scope tag |
   | --- | --- | --- | --- |
   | App | `apps/<app>/` | Knows only itself; uses the app contract alone ([ADR-PLAT-009](ADR-PLAT-009-app-contract.md)) | `scope:<app>` |
-  | Platform | `platform/` | Code needing platform knowledge (e.g. App access across apps): gateway, accounts, Home, App switcher, manifest reading, `e2e/` | `scope:platform` |
+  | Platform | `platform/` | Code needing platform knowledge (e.g. App access across apps): gateway, accounts, App switcher, manifest reading, `e2e/` | `scope:platform` |
   | Package | `packages/` | Libraries apps may use, e.g. `@homelab/theme` | `scope:shared` |
   | Tools | `tools/` | Repo scripts (`tools` project) | `scope:tools` |
 
-- Optional isn't the test: Home is platform though an install can leave it out.
+- Optional isn't the test: platform code an install can leave out is still platform.
 - A package starts when a second app needs it, or when a platform ADR requires every app to use it (e.g. `@homelab/settings`, [ADR-PLAT-005](ADR-PLAT-005-app-settings.md)).
-- **Projects:** an app's workspace packages are `<app>-<package>` (e.g. `notes-web`); platform projects are named after their folder (`accounts`, `gateway`, `platform-e2e`), except `home-server` and `home-web`. Each also gets `platform:browser`, `platform:node` or `platform:any`.
+- **Projects:** an app's workspace packages are `<app>-<package>` (e.g. `notes-web`); platform projects are named after their folder (`accounts`, `gateway`, `platform-e2e`). Each also gets `platform:browser`, `platform:node` or `platform:any`.
 - Each app has its own `Dockerfile` and `compose.yaml`, built with plain npm, no Nx.
 - **Docs follow the split:** `apps/<app>/docs/` per app; root `docs/` for the platform.
 - **Boundaries:** `npm run boundaries` (`tools/check-boundaries.ts`) checks the Nx graph:
@@ -44,8 +44,8 @@ Apps share approach and deployment, not features: each ships alone and must neve
 
 - **Turborepo**: adds little, in the maintainer's experience.
 - **`@nx/enforce-module-boundaries`**: needs typescript-eslint, which stops at TypeScript 6.0.
+- **Optional-means-app**: optional platform code still needs platform knowledge, such as App access across apps, which no app may rely on.
 - **Platform services in `apps/`**: the boundary rule couldn't tell an app reaching into the platform from one using a library.
-- **Optional-means-app** (Home as an app): Home shows App access across apps, which no app may rely on.
 
 ## Evidence
 

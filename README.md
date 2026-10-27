@@ -22,7 +22,7 @@ Talked through, not committed to; any may change or be dropped. Apps are for a h
 
 | Idea | What it would be | Notes |
 | --- | --- | --- |
-| **Search across apps** | One search on Home that finds things in every app | Home exists; the search doesn't. |
+| **Search across apps** | One search that finds things in every app | Needs a page of its own (Home was retired in #128) and apps exposing search through the [app contract](docs/adr/ADR-PLAT-009-app-contract.md). |
 | **Library** | What a household saves from elsewhere to read later: ebooks, and read-later web pages kept offline in full | Pocket is a loose reference for read-later. Links to Encyclopedia; a "send to Notes" action clips a page into Notes. |
 | **Photos and videos** | The household's shared library of photos and home videos | Definitely wanted. Immich is the candidate to bundle. |
 | **Media** | Movies and TV: a library the household watches from, which also finds and fetches new episodes and films people ask for | In the spirit of Sonarr or Sick Beard plus Plex. Likely bundles Sonarr, Radarr and Jellyfin, with a small household request page on top. Also worth a look: [a TorBox and Stremio how-to guide](https://arnav.au/2026/05/16/torbox-stremio-how-to-guide/). |
@@ -66,7 +66,7 @@ One project: `npx nx <target> <project>` (e.g. `npx nx typecheck tools`). All: `
 
 ```text
 apps/<app>/          one app: npm workspace packages (web, server, e2e), its docs and, once it ships, its Dockerfile
-platform/            the platform around the apps: accounts, Home, the gateway, the App switcher, manifest reading and its e2e suite
+platform/            the platform around the apps: accounts, the gateway, the App switcher, manifest reading and its e2e suite
 packages/            libraries apps may use
 spikes/<spike>/      a frozen proof of concept, laid out like an app and skipped by repo-wide commands
 docs/adr/            platform ADRs, which hold for every app, and the ADR format

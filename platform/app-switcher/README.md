@@ -7,12 +7,12 @@ The tab atop every app and its menu ([`GLOSSARY.md`](../../GLOSSARY.md)). One sc
 - Nothing to do, no options; floats over the page.
 - An offline-first app shows the switcher saved in its cached page until it next updates that page; no app caching needed.
 - Shadow DOM + constructed style sheet: no style leaks either way; page style policies don't block it. The gateway adds its script, accounts-site requests and icons to the page's CSP.
-- On load asks the accounts site's [`/api/me`](../accounts/README.md); signed out → shows nothing (sign-in is the app's job). Works without Home.
+- On load asks the accounts site's [`/api/me`](../accounts/README.md); signed out → shows nothing (sign-in is the app's job).
 
 ## What it shows
 
 - **Tab:** 16×16 chevron, 24×24 with padding, top centre; hit area a bit larger. Tap, Enter, Space or arrows open it.
-- **Menu:** avatar (initials of first and last name words, or email; `tokens.avatar` colour from `@homelab/theme` picked by account id), name, email → Home → other apps by name, current one marked **Current** → **Account settings** (account page) → **Sign out**.
+- **Menu:** avatar (initials of first and last name words, or email; `tokens.avatar` colour from `@homelab/theme` picked by account id), name, email → apps by name, current one marked **Current** → **Account settings** (account page) → **Sign out**.
 - **Sign out:** posts to the accounts site's `/sign-out` (signs this browser out of every app), then the sign-in page, which returns to the same page. If the accounts site doesn't answer, still signed in and the button says so. No confirm step; one would go before the post.
 - **Keys:** Escape, outside click or Tab close; arrows, Home, End move.
 - Follows the device's light/dark setting.

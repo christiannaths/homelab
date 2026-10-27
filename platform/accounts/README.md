@@ -10,13 +10,13 @@ The accounts service at `accounts.<domain>`: email-and-password sign-in, and the
 | `GET /sign-in`, `POST /sign-in` | Sign-in page and form. `return-to` must be under the parent domain on `HOMELAB_URL`'s scheme and port, else the account page |
 | `POST /sign-out` | Ends this browser's session only; from a homelab page (else 403). A form gets a redirect to `/sign-in`; the App switcher's fetch gets an answer it reads. `GET` → 405, so a link or image can't sign anyone out |
 | `POST /session` | Sent by the App switcher on each load: extends the session and refreshes its cookie, which the gateway's check can't |
-| `GET /` | Account page |
-| `GET /api/me` | For the App switcher and Home: `{ person: { id, name, email }, accountUrl, signOutUrl, apps: [{ id, url, name, icon, opensOffline }] }` (`person.id` = account id). No session → 401 `{ error: "signed_out" }` |
+| `GET /` | Account page; where sign-in lands with no return address |
+| `GET /api/me` | For the App switcher: `{ person: { id, name, email }, accountUrl, signOutUrl, apps: [{ id, url, name, icon, opensOffline }] }` (`person.id` = account id). No session → 401 `{ error: "signed_out" }` |
 
 ## `/api/me`
 
 - From the session cookie. Outside the gateway's check, so signed out gets a readable 401, not a redirect.
-- Apps: Home (always) plus installed apps with App access, by name.
+- Apps: installed apps with App access, by name.
 - Name, icon and opens-offline come from each `/manifest.webmanifest`, fetched through the gateway with no cookie:
 
   | Manifest | Behaviour |
@@ -24,7 +24,7 @@ The accounts service at `accounts.<domain>`: email-and-password sign-in, and the
   | Read | Cached 5 min, shared across requests |
   | Missing | Retried after 1 min |
   | Stops answering | Last copy kept up to a day (app may be restarting) |
-  | Unreadable (Home too) | Subdomain as name (`Vault`), no icon, not offline; one warning, repeated only after a read-then-loss |
+  | Unreadable | Subdomain as name (`Vault`), no icon, not offline; one warning, repeated only after a read-then-loss |
 
   Account and People pages show apps the same way.
 
@@ -36,7 +36,7 @@ The accounts service at `accounts.<domain>`: email-and-password sign-in, and the
 | --- | --- | --- |
 | `HOMELAB_URL` | required | Parent https address, port if any (`https://home.example`, `https://homelab.localhost:8443`). Service at `accounts.` under it; cookie on its domain |
 | `ACCOUNTS_SECRET` | required | ≥32 random characters; signs session cookies |
-| `HOMELAB_APPS` | none | Installed apps' subdomains (`notes,encyclopedia`), the only apps App access can name. Home is always open |
+| `HOMELAB_APPS` | none | Installed apps' subdomains (`notes,encyclopedia`), the only apps App access can name |
 | `DATA_DIR` | `data` | SQLite file location |
 | `PORT` | `3000` |  |
 | `GATEWAY_URL` | each app's own address | Gateway for manifest reads when app names don't resolve to it here. Over `http:` sends `X-Forwarded-Proto: https`, as a TLS-ending proxy would |

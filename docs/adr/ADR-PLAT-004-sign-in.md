@@ -1,7 +1,7 @@
 # ADR-PLAT-004. How do people sign in to the homelab's apps?
 
 - Status: Accepted
-- Date: 2026-10-26
+- Date: 2026-10-27
 - Depends on: [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)
 - Dependency of: [ADR-ENCY-004](../../apps/encyclopedia/docs/adr/ADR-ENCY-004-identity.md), [ADR-NOTE-004](../../apps/notes/docs/adr/ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-009](../../apps/notes/docs/adr/ADR-NOTE-009-identity.md), [ADR-NOTE-014](../../apps/notes/docs/adr/ADR-NOTE-014-http-and-accounts.md), [ADR-PLAT-008](ADR-PLAT-008-work-previews.md), [ADR-PLAT-009](ADR-PLAT-009-app-contract.md)
 
@@ -16,7 +16,7 @@ A few people use several apps on one home server behind an HTTPS-terminating pro
 - [`platform/accounts/`](../../platform/accounts/README.md) at `accounts.<domain>` ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)): Node on Better Auth (exact version), one SQLite file. Better Auth keeps accounts, passwords, sessions; the service owns pages, App access, forward auth and `/api/me`. Routes and settings: its README.
 - Email + password; emails stored lowercase, matched in any case. Better Auth's sign-up is off: accounts come from invites or the test-people loader.
 - Each app at the root of its own subdomain under one parent domain (`notes.home.example`): own origin keeps offline data separate; bundled apps expect a root. Cookie on the parent domain, so one sign-in and sign-out cover all.
-- `HOMELAB_URL` (https, parent domain, port) is the only address setting; the service derives the rest, apps and Home take none. Whatever starts the gateway passes it the hostname from that value.
+- `HOMELAB_URL` (https, parent domain, port) is the only address setting; the service derives the rest, apps take none. Whatever starts the gateway passes it the hostname from that value.
 - Gateway: pinned Caddy 2.10.2 build ([`platform/gateway`](../../platform/gateway/README.md)); each app's site imports the sign-in-check and switcher snippets. Only it reaches apps and the service.
 - The gateway deletes browser-sent `Remote-*`, then asks `/api/authz/forward-auth`, answered from the database each time (no cookie cache, so revocations bite next request):
 
@@ -29,12 +29,11 @@ A few people use several apps on one home server behind an HTTPS-terminating pro
 
 - Apps have no sign-in code or session; they key people by `Remote-User`, never email or name ([ADR-PLAT-009](ADR-PLAT-009-app-contract.md)).
 
-### App access and Home
+### App access
 
 - Records of (person, app, `member` | `admin`), sent as `<app>` / `<app>-admins` in `Remote-Groups`; the app decides what levels mean. Only apps in `HOMELAB_APPS`.
 - Homelab admin is a flag for managing people; it opens no app.
-- `/api/me` (person, addresses, Home + granted apps from manifests read via the gateway, [`platform/app-manifests`](../../platform/app-manifests)) feeds the switcher and Home, so apps never register. It's outside the sign-in check, so signed out is a readable 401, not "unreachable". An unreadable manifest logs one warning. Details: [README](../../platform/accounts/README.md#who-is-signed-in-and-their-apps).
-- Home: open to all, always listed, optional; its server only serves its client.
+- `/api/me` (person, addresses, granted apps from manifests read via the gateway, [`platform/app-manifests`](../../platform/app-manifests)) feeds the switcher, so apps never register. It's outside the sign-in check, so signed out is a readable 401, not "unreachable". An unreadable manifest logs one warning. Details: [README](../../platform/accounts/README.md#who-is-signed-in-and-their-apps).
 
 ### Sessions and checks
 
@@ -46,7 +45,7 @@ A few people use several apps on one home server behind an HTTPS-terminating pro
 ### Pages
 
 - Server-rendered, `@homelab/theme`, light/dark, no script, loading screen or language picker: sign-in, account, People, join, "invite can't be used", no access.
-- Account page (`/`, signed out → sign in and back): name, email, apps with level. Change name (in `Remote-Name` next request) or password (needs current; 8+ chars; old stops at once; other devices stay in). Admins get a `/people` link.
+- Account page (`/`, signed out → sign in and back): name, email, apps with level. Where sign-in lands with no return address, and the homelab's only landing page. Change name (in `Remote-Name` next request) or password (needs current; 8+ chars; old stops at once; other devices stay in). Admins get a `/people` link.
 
 ### Invites
 
@@ -76,7 +75,7 @@ Admins only (else 403), acting on anyone, self too, via `/people/<account id>/<a
 
 - One script from `platform/app-switcher`, inlined by the gateway into every HTML page of every app and the accounts site, so no app installs it. Shadow DOM; same everywhere, no options; a top-centre tab that never changes layout ([README](../../platform/app-switcher/README.md)).
 - Whole-page fetches only, incl. service workers saving pages. Script-limiting CSPs get its hash, with no per-app setting, except `'unsafe-inline'`-only lists, which a hash would disable. Validators dropped so no stale switcher ([rules](../../platform/gateway/README.md#what-the-switchers-module-changes)).
-- Offline it shows its kept answer and icons; apps not opening offline, Account settings and Sign out grey out. Home's tiles match.
+- Offline it shows its kept answer and icons; apps not opening offline, Account settings and Sign out grey out.
 
 ### Test people and dev sign-in
 
@@ -109,7 +108,7 @@ Admins only (else 403), acting on anyone, self too, via `/people/<account id>/<a
 - Better Auth spike, PR #109 ([`FINDINGS.md`](../../spikes/better-auth-sign-in-poc/FINDINGS.md)): 11 Chromium tests through the gateway.
 - `platform/gateway/test/signed-in.test.ts` (#86): only manifest and icons are public.
 - `platform/e2e/` (#87): people see only granted apps.
-- `platform/accounts/test/me.test.ts` (#124): `/api/me` answers; switcher works without Home.
+- `platform/accounts/test/me.test.ts` (#124): `/api/me` answers.
 - `platform/e2e/` (#88, #102, #104): switcher menu, theme, isolation; tab moves nothing.
 - `platform/e2e/` + gateway unit tests (#103): strict CSP still shows the switcher.
 - `platform/gateway/test/switcher.test.ts` (#102, #103): injection, pass-through, compression, CSP.
@@ -119,7 +118,7 @@ Admins only (else 403), acting on anyone, self too, via `/people/<account id>/<a
 ## Consequences
 
 - Apps and the service trust headers, so only the gateway may reach them.
-- New app = gateway site + [app contract](ADR-PLAT-009-app-contract.md) + `HOMELAB_APPS` entry; Home doesn't change.
+- New app = gateway site + [app contract](ADR-PLAT-009-app-contract.md) + `HOMELAB_APPS` entry.
 - Manifests are read at public addresses, or via `GATEWAY_URL` (`GATEWAY_CA`).
 - Every app request needs the service up; offline-first apps use what they kept.
 - The homelab owns the security code around Better Auth; fixes = bumping the pin.
@@ -136,6 +135,7 @@ Admins only (else 403), acting on anyone, self too, via `/people/<account id>/<a
 
 ## Changelog
 
+- 2026-10-27: Home is removed and the account page is the landing page, because Home's tiles repeated the switcher and account page and its cross-app search was never built (issue #128).
 - 2026-10-26: `/api/me` moves from Home to the accounts service, which already holds session, access and manifests, so Home no longer duplicates that work and installs without Home keep the switcher (issue #124, spec #119).
 - 2026-10-26: One `HOMELAB_URL` replaces `HOMELAB_DOMAIN` and `ACCOUNTS_URL`, two shapes of one fact that could disagree ([ADR-PLAT-005](ADR-PLAT-005-app-settings.md); issue #122, spec #119).
 - 2026-10-24: The switcher extends sessions via `/session`, so people who only use apps aren't signed out after a year (maintainer, in review, spec #110).

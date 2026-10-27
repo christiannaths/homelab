@@ -4,7 +4,6 @@
 import { identityHeaders } from "@homelab/identity";
 import type { Grants } from "./app-access.ts";
 import { onHomelab, type Config } from "./config.ts";
-import { HOME } from "./shown-apps.ts";
 
 /** Who the session belongs to, as far as the gateway's answer needs. */
 export interface Person {
@@ -59,10 +58,9 @@ export function answer(
   const app = appOf(forwarded.host, site.domain);
   // A hostname that isn't one installed app under the domain fails closed.
   const opens =
-    app === HOME ||
-    (app !== undefined &&
-      site.apps.includes(app) &&
-      Object.hasOwn(person.grants, app));
+    app !== undefined &&
+    site.apps.includes(app) &&
+    Object.hasOwn(person.grants, app);
   if (!opens) return { kind: "no-access", app: app ?? forwarded.host };
   return {
     kind: "allow",

@@ -37,16 +37,8 @@ export const ADMIN: TestPerson = {
   homelabAdmin: true,
 };
 
-/**
- * Home's and the installed apps' manifests, as the gateway would serve them, by hostname on any
- * port.
- */
+/** The installed apps' manifests, as the gateway would serve them, by hostname on any port. */
 const MANIFESTS: Record<string, unknown> = {
-  [`home.${DOMAIN}`]: {
-    name: "Home",
-    homelab: { opens_offline: true },
-    icons: [{ src: "icons/icon-192.png", sizes: "192x192" }],
-  },
   [`notes.${DOMAIN}`]: {
     name: "Notes",
     icons: [{ src: "icons/icon-192.png", sizes: "192x192" }],
@@ -166,6 +158,35 @@ export function askGateway(
       "x-forwarded-method": "GET",
     },
   });
+}
+
+/** `/api/me`'s answer for a signed-in person, as far as the tests read it. */
+interface Me {
+  person: { id: string; name: string; email: string };
+  apps: { id: string }[];
+}
+
+const isMe = (body: unknown): body is Me =>
+  typeof body === "object" &&
+  body !== null &&
+  "person" in body &&
+  "apps" in body &&
+  Array.isArray(body.apps);
+
+/**
+ * Who `/api/me` says the browser's cookies belong to, and the ids of their apps; undefined when
+ * signed out. Reads someone with no App access, whom the gateway lets into nothing.
+ */
+export async function whoIsSignedIn(
+  accounts: Accounts,
+  cookie: string,
+): Promise<{ person: Me["person"]; apps: string[] } | undefined> {
+  const response = await request(accounts, "/api/me", { headers: { cookie } });
+  if (response.status !== 200) return undefined;
+  const body: unknown = await response.json();
+  if (!isMe(body))
+    throw new Error(`Not an answer from /api/me: ${JSON.stringify(body)}`);
+  return { person: body.person, apps: body.apps.map((app) => app.id) };
 }
 
 /** Posts a form as the browser does from one of the accounts site's own pages. */

@@ -50,19 +50,10 @@ function compose(...args: string[]): string {
 }
 
 async function startHomelab(): Promise<void> {
-  console.log("Building Home, Notes and the Encyclopedia…");
+  console.log("Building Notes and the Encyclopedia…");
   execFileSync(
     "npx",
-    [
-      "nx",
-      "run-many",
-      "-t",
-      "build",
-      "-p",
-      "home-web",
-      "notes-web",
-      "encyclopedia-web",
-    ],
+    ["nx", "run-many", "-t", "build", "-p", "notes-web", "encyclopedia-web"],
     { cwd: ROOT, stdio: ["ignore", "ignore", "inherit"] },
   );
   console.log("Building the gateway, with the App switcher in it…");
@@ -132,9 +123,9 @@ async function loadTestPeople(): Promise<void> {
   );
 }
 
-/** A link that signs the browser in as the person, with no password, and opens Home. */
+/** A link that signs the browser in as the person, with no password, and opens their account page. */
 const signInLink = (email: string) =>
-  `${ACCOUNTS_URL}/test-sign-in?email=${encodeURIComponent(email)}&return-to=${encodeURIComponent(appUrl("home"))}`;
+  `${ACCOUNTS_URL}/test-sign-in?email=${encodeURIComponent(email)}`;
 
 function printSummary(): void {
   console.log(`

@@ -1,7 +1,6 @@
 // Managing people on the People page (issue #116): a homelab admin changes someone's App access,
 // makes them a homelab admin or not, signs them out everywhere and removes their account, and each
 // change reaches the person on their next request.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Locator, Page } from "playwright";
 import {
   afterAll,
@@ -16,7 +15,6 @@ import {
   ACCOUNTS_URL,
   ADMIN,
   ENCYCLOPEDIA_URL,
-  HOME_URL,
   KATHERINE,
   launchChromium,
   loadPeople,
@@ -25,24 +23,20 @@ import {
   NOTES_URL,
   onSignInPage,
   signIn,
-  startHome,
   tab,
   typePassword,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 let admin: Page;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
   admin = await newDevice(browser);
   await signIn(admin, ADMIN);
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 // Katherine is changed by each test here, so each starts from her account as loaded.
 afterEach(async () => {
@@ -158,10 +152,10 @@ describe("signing someone out everywhere", () => {
     );
 
     for (const device of [phone, laptop]) {
-      await device.goto(HOME_URL);
+      await device.goto(NOTES_URL);
       await onSignInPage(device);
     }
-    await admin.goto(HOME_URL);
+    await admin.goto(ACCOUNTS_URL);
     await admin.getByRole("list", { name: "Your apps" }).waitFor();
   });
 });

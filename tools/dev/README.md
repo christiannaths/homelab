@@ -1,6 +1,6 @@
 # The homelab on your machine
 
-Everything so far (gateway, [accounts](../../platform/accounts), [Home](../../platform/home/README.md), [Notes](../../apps/notes/README.md), [Encyclopedia](../../apps/encyclopedia/README.md)) under `homelab.localhost`, with test people. Not for real use: passwords are public and certificates come from the gateway's own CA.
+Everything so far (gateway, [accounts](../../platform/accounts), [Notes](../../apps/notes/README.md), [Encyclopedia](../../apps/encyclopedia/README.md)) under `homelab.localhost`, with test people. Not for real use: passwords are public and certificates come from the gateway's own CA.
 
 ## Start it
 
@@ -24,7 +24,6 @@ Restart the browser. Firefox: Settings → Privacy & Security → Certificates �
 
 | Address                                        |                          |
 | ---------------------------------------------- | ------------------------ |
-| <https://home.homelab.localhost:8443/>         | Home                     |
 | <https://notes.homelab.localhost:8443/>        | Notes                    |
 | <https://encyclopedia.homelab.localhost:8443/> | Encyclopedia             |
 | <https://accounts.homelab.localhost:8443/>     | Sign-in and account page |
@@ -34,9 +33,9 @@ Restart the browser. Firefox: Settings → Privacy & Security → Certificates �
 | `admin@example.com` | `violet-quartz-harbour-71` | Homelab admin; Notes owner, Encyclopedia |
 | `ada@example.com` | `lantern-meadow-copper-48` | Notes owner, Encyclopedia |
 | `dana@example.com` | `quartz-ember-willow-27` | Notes member |
-| `bob@example.com` | `harbour-violet-thistle-93` | No apps: Home only |
+| `bob@example.com` | `harbour-violet-thistle-93` | No apps |
 
-People: [`tools/test-people.ts`](../test-people.ts), shared with previews. One-click links (e.g. <https://accounts.homelab.localhost:8443/test-sign-in?email=ada%40example.com>) sign in with no password and open Home; they need `TEST_SIGN_IN_LINKS=on` (set in `compose.yaml`, refused in production). Sign out from the switcher.
+People: [`tools/test-people.ts`](../test-people.ts), shared with previews. One-click links (e.g. <https://accounts.homelab.localhost:8443/test-sign-in?email=ada%40example.com>) sign in with no password and open the account page; they need `TEST_SIGN_IN_LINKS=on` (set in `compose.yaml`, refused in production). Sign out from the switcher.
 
 ## Start over
 

@@ -12,9 +12,9 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Account id**: The permanent id of a homelab account, sent in `Remote-User`; apps key data by it. Survives email and name changes. _Avoid_: username, user id
 
-**Accounts service**: The homelab's Better Auth service at `accounts.<domain>`: sign-in, account management, the gateway's sign-in check, and `/api/me` for the App switcher and Home. _Avoid_: auth server, identity provider, VoidAuth
+**Accounts service**: The homelab's Better Auth service at `accounts.<domain>`: sign-in, account management, the gateway's sign-in check, and `/api/me` for the App switcher. _Avoid_: auth server, identity provider, VoidAuth
 
-**Account page**: A person's own page on the accounts service (Account settings in the App switcher): name, email, apps; change name and password. _Avoid_: profile, settings page, account settings
+**Account page**: A person's own page on the accounts service (Account settings in the App switcher), where sign-in lands with no return address: name, email, apps; change name and password. _Avoid_: profile, settings page, account settings, home page, dashboard
 
 **People page**: Admin-only page on the accounts service, linked from the account page: everyone and their apps; change App access and admins; sign people out everywhere; remove accounts; make, list, cancel invites. _Avoid_: admin panel, user management, dashboard
 
@@ -26,9 +26,7 @@ Self-hosted apps a household installs on its own server and uses with one shared
 
 **Bundled app**: An existing open-source app run behind the homelab sign-in instead of building one, e.g. Vaultwarden. _Avoid_: third-party app, integration
 
-**Home**: The platform's installable page at `home.<domain>`, open to every account, showing a person's apps. Optional; the App switcher works without it. _Avoid_: home page, dashboard, launcher, portal
-
-**Platform**: Everything around the apps: gateway, accounts service, Home, App switcher, manifest reading. Code belongs here when it needs cross-app knowledge such as App access. _Avoid_: core, framework, infrastructure
+**Platform**: Everything around the apps: gateway, accounts service, App switcher, manifest reading. Code belongs here when it needs cross-app knowledge such as App access. _Avoid_: core, framework, infrastructure
 
 **App contract**: What an app provides and relies on to plug in ([ADR-PLAT-009](docs/adr/ADR-PLAT-009-app-contract.md)). _Avoid_: app API, plugin interface, integration
 

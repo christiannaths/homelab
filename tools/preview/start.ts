@@ -1,6 +1,6 @@
 // The preview image's entrypoint (ADR-PLAT-008): runs the whole homelab in one container, since Fly
 // mounts a volume into only one container per machine. It starts the gateway, the accounts
-// service, the Home and Notes servers, with all their data under DATA_DIR, then loads the test
+// service and the Notes server, with all their data under DATA_DIR, then loads the test
 // people. Loading again on a later start only adds the people missing, so data survives restarts.
 //
 //   node tools/preview/start.ts         run the preview until stopped
@@ -76,8 +76,8 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
   };
 
   // The gateway starts first and alone, so a request that wakes a stopped machine reaches it within
-  // Fly's proxy's few seconds of patience. It holds requests until the accounts service, Home and
-  // Notes are up (Caddyfile).
+  // Fly's proxy's few seconds of patience. It holds requests until the accounts service and Notes
+  // are up (Caddyfile).
   run(
     "the gateway",
     "caddy",
@@ -112,11 +112,6 @@ async function startPreview(onExit: (name: string) => void): Promise<Running> {
     ["--no-experimental-webstorage", "platform/accounts/src/index.ts"],
     { cwd: ROOT, env: accountsEnv },
   );
-
-  run("Home", process.execPath, ["platform/home/server/src/index.ts"], {
-    cwd: ROOT,
-    env: { PORT: "3002" },
-  });
 
   run(
     "Notes",

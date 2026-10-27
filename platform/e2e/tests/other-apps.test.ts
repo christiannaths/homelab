@@ -1,7 +1,6 @@
 // The App switcher in the other apps, which the gateway adds to their pages (issues #89, #90 and
-// #102): the same person as in Home, and the app marked as current. Its Sign out is in
+// #102): the same person as on the account page, and the app marked as current. Its Sign out is in
 // sign-out.test.ts.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
@@ -13,20 +12,16 @@ import {
   newDevice,
   NOTES_URL,
   signIn,
-  startHome,
   tab,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 /** The colour of the person's icon in the switcher's menu. */
@@ -60,14 +55,13 @@ for (const app of APPS)
       expect(await initialsInMenu(page)).toBe("AL");
       const items = await menuItems(page);
       expect(items).toContain(`${app.name}Current`);
-      expect(items[0]).toBe("Home");
     });
 
-    it("shows the same icon colour for the person as Home", async () => {
+    it("shows the same icon colour for the person as the account page", async () => {
       const page = await newDevice(browser);
       await signIn(page, ADA);
-      const inHome = await iconColour(page);
+      const onAccountPage = await iconColour(page);
       await open(page, app.url);
-      expect(await iconColour(page)).toBe(inHome);
+      expect(await iconColour(page)).toBe(onAccountPage);
     });
   });

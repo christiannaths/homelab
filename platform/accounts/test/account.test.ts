@@ -12,6 +12,7 @@ import {
   request,
   signIn,
   startAccounts,
+  whoIsSignedIn,
   submitSignIn,
   type TestAccounts,
 } from "./helpers.ts";
@@ -148,8 +149,9 @@ describe("changing one's name", () => {
     ).text();
     expect(html).toContain("<h1>Dana K. Scully</h1>");
     expect(html).toContain('<p role="status">Your name is changed.</p>');
-    const gateway = await askGateway(accounts, cookie, `home.${DOMAIN}`);
-    expect(gateway.headers.get("remote-name")).toBe("Dana K. Scully");
+    expect((await whoIsSignedIn(accounts, cookie))?.person.name).toBe(
+      "Dana K. Scully",
+    );
   });
 
   it("needs a name", async () => {
@@ -290,9 +292,9 @@ describe("the session cookie", () => {
 
   it("isn't extended by the gateway's check, which can't pass a cookie on", async () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
-    const cookie = await signIn(accounts, BOB);
+    const cookie = await signIn(accounts, ADA);
     vi.setSystemTime(Date.now() + 2 * DAY);
-    const checked = await askGateway(accounts, cookie, `home.${DOMAIN}`);
+    const checked = await askGateway(accounts, cookie);
     expect(checked.status).toBe(200);
     expect(checked.headers.getSetCookie()).toEqual([]);
     // Still due an extension, so the next accounts page gives it.

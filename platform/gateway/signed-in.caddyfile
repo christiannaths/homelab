@@ -27,6 +27,6 @@ forward_auth @needs-sign-in {$ACCOUNTS_UPSTREAM:accounts:3000} {
 }
 
 # The manifest and icons are public, and readable from every other app's page: the App switcher
-# and Home keep icons for offline with CORS (platform/app-switcher/src/icons.ts).
+# keeps icons for offline with CORS (platform/app-switcher/src/icons.ts).
 @homelab-public path /manifest.webmanifest /icons/*
 header @homelab-public Access-Control-Allow-Origin "*"

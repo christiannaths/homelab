@@ -36,9 +36,6 @@ describe("loading only the missing people", () => {
       password: "a-new-password-ada-chose",
     });
     expect((await askGateway(accounts, ada)).status).toBe(403);
-    const bob = await signIn(accounts, BOB);
-    expect((await askGateway(accounts, bob, "home.home.test")).status).toBe(
-      200,
-    );
+    await signIn(accounts, BOB);
   });
 });

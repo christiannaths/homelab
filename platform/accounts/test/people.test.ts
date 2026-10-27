@@ -15,6 +15,7 @@ import {
   request,
   signIn,
   startAccounts,
+  whoIsSignedIn,
   submitForm,
   submitSignIn,
   type TestAccounts,
@@ -308,14 +309,10 @@ describe("removing an account", () => {
       password: "analytical-engine-2",
     });
     expect(joined.status).toBe(303);
-    const gateway = await askGateway(
-      accounts,
-      cookiesOf(joined),
-      `home.${DOMAIN}`,
-    );
-    expect(gateway.status).toBe(200);
-    expect(gateway.headers.get("remote-user")).not.toBe(oldId);
-    expect(gateway.headers.get("remote-groups")).toBe("");
+    const signedIn = await whoIsSignedIn(accounts, cookiesOf(joined));
+    expect(signedIn?.person.id).toBeDefined();
+    expect(signedIn?.person.id).not.toBe(oldId);
+    expect(signedIn?.apps).toEqual([]);
   });
 
   it("lets an admin remove themselves while another admin is left", async () => {
@@ -353,9 +350,7 @@ describe("the People page's actions on people", () => {
 
   /** Bob's account is just as it was loaded, and his session still works. */
   async function bobUnchanged(accounts: TestAccounts, bob: string) {
-    const gateway = await askGateway(accounts, bob, `home.${DOMAIN}`);
-    expect(gateway.status).toBe(200);
-    expect(gateway.headers.get("remote-groups")).toBe("");
+    expect((await whoIsSignedIn(accounts, bob))?.apps).toEqual([]);
     expect(await opensPeople(accounts, bob)).toBe(403);
   }
 

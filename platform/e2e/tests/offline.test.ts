@@ -1,7 +1,6 @@
 // The App switcher with no connection (issues #91 and #102): it shows the accounts site's last
 // answer, in the page each app's service worker saved with the switcher in it, greys out what needs
 // a connection, and catches up once back online.
-import type { HomeServer } from "@homelab/home-server";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import {
@@ -11,7 +10,6 @@ import {
   goOnline,
   GRACE,
   HEDY,
-  HOME_URL,
   initialsInMenu,
   launchChromium,
   loadPeople,
@@ -20,21 +18,17 @@ import {
   NOTES_URL,
   SESSION_COOKIE,
   signIn,
-  startHome,
   tab,
   waitUntilOfflineReady,
 } from "./stack.ts";
 
-let home: HomeServer;
 let browser: Browser;
 
 beforeAll(async () => {
-  home = await startHome();
   browser = await launchChromium(inject("gatewayCaSpki"));
 });
 afterAll(async () => {
   await browser?.close();
-  await home?.close();
 });
 
 /**
@@ -104,7 +98,6 @@ describe("the App switcher offline", () => {
     page = await newDevice(browser);
     await signIn(page, GRACE);
     // One online visit to each app.
-    await visit(page, HOME_URL);
     await visit(page, NOTES_URL);
     await visit(page, ENCYCLOPEDIA_URL);
     await goOffline(page, inject("composeEnv"));
@@ -116,7 +109,6 @@ describe("the App switcher offline", () => {
   });
 
   for (const app of [
-    { name: "Home", url: HOME_URL },
     { name: "Notes", url: NOTES_URL },
     { name: "Encyclopedia", url: ENCYCLOPEDIA_URL },
   ])
@@ -125,7 +117,7 @@ describe("the App switcher offline", () => {
       await tab(page).waitFor();
       expect(await initialsInMenu(page)).toBe("GH");
       expect(await menuItems(page)).toEqual(
-        ["Home", "Encyclopedia", "Notes", "Vault"]
+        ["Encyclopedia", "Notes", "Vault"]
           .map((name) => (name === app.name ? `${name}Current` : name))
           .concat(
             "Account settingsNeeds a connection",
@@ -136,35 +128,21 @@ describe("the App switcher offline", () => {
     });
 
   it("greys out an app that doesn't open offline, which can't be opened", async () => {
-    await page.goto(HOME_URL);
+    await page.goto(NOTES_URL);
     await menuItems(page);
     const vault = menuItem(page, "Vault");
     expect(await vault.getAttribute("aria-disabled")).toBe("true");
     expect(await vault.getAttribute("href")).toBe(null);
     // Forced, as a person could still click it; Playwright otherwise waits for it to be enabled.
     await vault.click({ force: true });
-    expect(page.url()).toBe(`${HOME_URL}/`);
-    expect(await menuItem(page, "Notes").getAttribute("aria-disabled")).toBe(
-      null,
-    );
-  });
-
-  it("greys out the same app's tile in Home", async () => {
-    await page.goto(HOME_URL);
-    const tiles = page.getByRole("list", { name: "Your apps" });
-    const vault = tiles.getByRole("link", { name: "Vault" });
-    await tiles.waitFor();
-    expect(await vault.count()).toBe(0);
+    expect(page.url()).toBe(`${NOTES_URL}/`);
     expect(
-      await tiles.locator('[aria-disabled="true"]').textContent(),
-    ).toContain("Vault");
-    expect(
-      await tiles.getByRole("link", { name: "Notes" }).getAttribute("href"),
-    ).toBe(`${NOTES_URL}/`);
+      await menuItem(page, "Encyclopedia").getAttribute("aria-disabled"),
+    ).toBe(null);
   });
 
   it("greys out Sign out, which needs a connection", async () => {
-    await page.goto(HOME_URL);
+    await page.goto(NOTES_URL);
     await menuItems(page);
     const signOut = menuItem(page, "Sign out");
     expect(await signOut.getAttribute("aria-disabled")).toBe("true");
@@ -172,7 +150,7 @@ describe("the App switcher offline", () => {
   });
 
   it("stops greying out once the device is back online", async () => {
-    await page.goto(HOME_URL);
+    await page.goto(NOTES_URL);
     await menuItems(page);
     await goOnline(page, inject("composeEnv"));
     offline = false;
@@ -190,7 +168,6 @@ describe("the App switcher catching up", () => {
     try {
       await signIn(page, HEDY);
       expect(await menuItems(page)).toEqual([
-        "HomeCurrent",
         "Notes",
         "Account settings",
         "Sign out",
@@ -202,7 +179,6 @@ describe("the App switcher catching up", () => {
       await page.reload();
       await tab(page).waitFor();
       expect(await menuItems(page)).toEqual([
-        "HomeCurrent",
         "Encyclopedia",
         "Notes",
         "Account settings",
@@ -216,12 +192,7 @@ describe("the App switcher catching up", () => {
       await page.context().setOffline(false);
       await expect
         .poll(() => menuItems(page))
-        .toEqual([
-          "HomeCurrent",
-          "Encyclopedia",
-          "Account settings",
-          "Sign out",
-        ]);
+        .toEqual(["Encyclopedia", "Account settings", "Sign out"]);
     } finally {
       await page.context().close();
       await loadPeople(composeEnv, [HEDY]);
@@ -239,7 +210,6 @@ describe("the App switcher catching up", () => {
         await page.reload();
         await tab(page).waitFor();
         expect(await menuItems(page)).toEqual([
-          "Home",
           "Encyclopedia",
           "NotesCurrent",
           "Vault",
@@ -263,17 +233,13 @@ describe("the icons the App switcher keeps", () => {
     const icon = (app: string) => `${app}.home.test`;
     try {
       await signIn(page, HEDY);
-      await expect
-        .poll(() => keptIcons(page))
-        .toEqual([icon("home"), icon("notes")]);
+      await expect.poll(() => keptIcons(page)).toEqual([icon("notes")]);
 
       await loadPeople(composeEnv, [
         { ...HEDY, apps: { encyclopedia: "member" } },
       ]);
       await page.reload();
-      await expect
-        .poll(() => keptIcons(page))
-        .toEqual([icon("encyclopedia"), icon("home")]);
+      await expect.poll(() => keptIcons(page)).toEqual([icon("encyclopedia")]);
 
       await page.context().clearCookies({ name: SESSION_COOKIE });
       // A new switcher asks the accounts site again, as one does on every page load.

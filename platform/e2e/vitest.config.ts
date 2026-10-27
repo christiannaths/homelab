@@ -1,8 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 // Runs against the gateway, the accounts service, Notes and the Encyclopedia (compose.yaml),
-// started once in global setup. Files run one at a time, since every file starts Home on the same
-// port.
+// started once in global setup. Files run one at a time, since some stop the gateway or change people.
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],

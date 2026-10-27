@@ -163,7 +163,7 @@ export async function createAccounts(
     return withCookiesOf(answerForPage(origin), cookies);
   });
 
-  // Who is signed in and which apps they have, for the App switcher in every app and Home's tiles.
+  // Who is signed in and which apps they have, for the App switcher in every app.
   // The accounts site is outside the gateway's sign-in check, so a signed-out browser gets an
   // answer its page can read rather than the gateway's redirect. A fetch from an app's page is a
   // simple GET with no preflight; one from this site's own pages sends no Origin.
