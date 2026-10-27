@@ -7,29 +7,26 @@
 
 ## Context
 
-The target platforms are macOS and iOS, with a desktop-like experience on the Mac. The app must start without a network ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
+Targets: macOS (desktop-like) and iOS. The app must start offline ([ADR-NOTE-001](ADR-NOTE-001-offline-use.md)).
 
 ## Decision
 
-- **One web app, installed as a Progressive Web App:**
-  - macOS: Safari 17+ **File → Add to Dock** (installing from Chrome or Edge also works).
-  - iOS: Safari **Add to Home Screen**.
-- A service worker precaches the whole app shell, so the app starts with no network.
-- The app requests persistent storage (`navigator.storage.persist()`).
-- **The app is served over HTTPS with a certificate the devices trust**, even on a home network (for example `tailscale serve`, or Caddy with a DNS-01 challenge). `http://localhost` is acceptable for development on the same machine.
+- **One web app, installed as a PWA:** macOS via Safari 17+ **File → Add to Dock** (Chrome/Edge work too); iOS via Safari **Add to Home Screen**.
+- A service worker precaches the whole shell; the app requests `navigator.storage.persist()`.
+- **HTTPS with a certificate devices trust**, even at home (e.g. `tailscale serve`, Caddy with DNS-01). `http://localhost` is fine for local development.
 
 ## Alternatives considered
 
-- **Separate native apps** for macOS and iOS, which would multiply the work.
+- **Native macOS and iOS apps:** multiplies the work.
 
 ## Evidence
 
-- PR #1: offline cold start works in Chromium. Multi-user editing works in two browsers on the Mac, and the app loads in Safari on an iPhone through `tailscale serve`.
-- Plain `http://<LAN-IP>` does not work, because service workers and `crypto.randomUUID` need a secure context.
-- Not yet confirmed on Apple devices: an offline cold start of the installed app, and how long Safari keeps stored data. Both are in the manual checklists of PR #1 and PR #2. If they fail, this decision changes, for example to wrapping the app in Capacitor or Tauri.
+- PR #1 → offline cold start in Chromium; multi-user editing in two Mac browsers; loads in iPhone Safari via `tailscale serve`.
+- `http://<LAN-IP>` fails: service workers and `crypto.randomUUID` need a secure context.
+- Unconfirmed: installed offline cold start on Apple devices, and Safari data retention (PR #1/#2 checklists). Failure would change this, e.g. to Capacitor or Tauri.
 
 ## Consequences
 
-- Safari has no background sync, so changes sync only while the app is open.
-- There is no deep OS integration (menu bar, global shortcuts) for now.
-- The same frontend can still be wrapped in Tauri (macOS) or Capacitor (iOS) without a rewrite.
+- No background sync in Safari: sync only while open.
+- No deep OS integration (menu bar, global shortcuts) for now.
+- Can still be wrapped in Tauri (macOS) or Capacitor (iOS) without a rewrite.
