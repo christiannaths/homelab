@@ -7,25 +7,25 @@
 
 ## Context
 
-ZIM files carry Wikipedia's rendered HTML and styling ([ADR-ENCY-001](ADR-ENCY-001-content-source.md)). People know Wikipedia's article layout: infoboxes, tables, references. Encyclopedia sits beside other homelab apps, such as Notes, and should feel like part of the same set, dark mode included. Article text must not change ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
+ZIM files carry Wikipedia's rendered HTML and styles ([ADR-ENCY-001](ADR-ENCY-001-content-source.md)), whose layout (infoboxes, tables, references) people know. Encyclopedia should feel like part of the homelab set, dark mode included, and article text must not change ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
 
 ## Decision
 
-- **The app's own screens use the homelab's look:** search, saved lists, menus and settings.
-- **Articles keep Wikipedia's layout,** with infoboxes, tables and references where Wikipedia puts them, restyled in the homelab's fonts and colours, with dark mode.
-- **Restyling changes styles only,** never article text or structure, and the attribution footer stays visible ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
+- **App screens** (search, lists, menus, settings) **use the homelab look.**
+- **Articles keep Wikipedia's layout**, restyled in homelab fonts and colours, with dark mode.
+- **Styles only**: never article text or structure; the attribution footer stays visible ([ADR-ENCY-003](ADR-ENCY-003-licensing.md)).
 
 ## Alternatives considered
 
-- **Articles exactly as Wikipedia shows them.** Less work, but out of place next to the other apps and without dark mode.
-- **Articles rebuilt into the homelab's own layout.** It would lose Wikipedia's familiar structure and risks changing content.
+- **Articles exactly as Wikipedia**: less work, but out of place and no dark mode.
+- **Rebuilt into a homelab layout**: loses familiar structure; risks changing content.
 
 ## Evidence
 
-- Product decision by Christian, 2026-10-18, in the project thread.
-- Nothing has been built yet. How well Wikipedia's HTML takes a new stylesheet, notably in dark mode, is untested.
+- Christian, 2026-10-18, project thread.
+- Nothing built; how Wikipedia's HTML takes a new stylesheet, especially dark, is untested.
 
 ## Consequences
 
-- The app ships a stylesheet for Wikipedia's article HTML, which may need fixing when Kiwix changes how it renders articles.
-- The homelab's shared look (fonts, colours, dark mode) has to exist as something both Notes and Encyclopedia use.
+- Ships a stylesheet for Wikipedia's HTML, which may break when Kiwix changes rendering.
+- The shared look (fonts, colours, dark mode) must be something Notes and Encyclopedia both use.

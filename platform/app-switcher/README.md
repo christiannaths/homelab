@@ -1,31 +1,32 @@
 # App switcher
 
-The tab at the top of every app and the menu it opens: the person's name and email, Home, every app they have access to, Account settings and Sign out (`GLOSSARY.md`: **App switcher**). It is one standalone script that the [gateway](../gateway/README.md) puts inline into every page of every app, so no app installs it and updating the gateway updates it everywhere ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md)).
+The tab atop every app and its menu ([`GLOSSARY.md`](../../GLOSSARY.md)). One script the [gateway](../gateway/README.md) inlines into every page, so apps install nothing and a gateway update updates it everywhere ([ADR-PLAT-004](../../docs/adr/ADR-PLAT-004-sign-in.md)).
 
 ## In an app
 
-An app does nothing to get the switcher beyond its site in the gateway, and the switcher has no options: every app gets the same tab in the same place. It never changes the app's layout, since it floats over the page.
-
-An offline-first app's saved page carries the switcher the gateway put in it, so the app shows the switcher from its last saved page, online too, until the app next updates that page. Nothing in the app's offline caching is needed for the switcher.
-
-The switcher renders in its own shadow DOM, styled by a constructed style sheet, so the app's styles and its own don't reach each other and a page's style policy doesn't block it. The gateway lets its script, and its requests to the accounts site and for icons, through a page's security policy.
-
-It asks the accounts site's `/api/me` ([accounts service](../accounts/README.md)) for the person and their apps on load, and shows nothing when they turn out to be signed out: signing in is left to the app. The accounts site is outside the gateway's sign-in check, so a signed-out browser gets an answer saying so, and an install without Home still has the switcher.
+- Nothing to do, no options; floats over the page.
+- An offline-first app shows the switcher saved in its cached page until it next updates that page; no app caching needed.
+- Shadow DOM + constructed style sheet: no style leaks either way; page style policies don't block it. The gateway adds its script, accounts-site requests and icons to the page's CSP.
+- On load asks the accounts site's [`/api/me`](../accounts/README.md); signed out → shows nothing (sign-in is the app's job). Works without Home.
 
 ## What it shows
 
-- The tab: a 16×16 chevron with 4px around it (24×24), hanging from the top centre of the screen over the page. It can be tapped a little beyond its edges. Tapping it, or Enter, Space or the arrow keys on it, pulls the menu down.
-- The menu: the person's icon (the first letters of the first and last words of their name, or of their email, on a colour from `tokens.avatar` in `@homelab/theme` picked from their account id alone), their name and email, then Home, then the person's other apps by name, with the app in use marked **Current**, then **Account settings**, the person's account page on the accounts site, then **Sign out**, a button that posts to the accounts site's `/sign-out` and so signs this browser out of every app, then shows the sign-in page, which brings the person back to the page they were on. If the accounts site doesn't answer, the person stays signed in and the button says it didn't work. There is no "are you sure?" step; one would go before the post.
-- It closes on Escape, a click outside or Tab. The arrow keys, Home and End move through it.
-- It follows the device's light or dark setting.
+- **Tab:** 16×16 chevron, 24×24 with padding, top centre; hit area a bit larger. Tap, Enter, Space or arrows open it.
+- **Menu:** avatar (initials of first and last name words, or email; `tokens.avatar` colour from `@homelab/theme` picked by account id), name, email → Home → other apps by name, current one marked **Current** → **Account settings** (account page) → **Sign out**.
+- **Sign out:** posts to the accounts site's `/sign-out` (signs this browser out of every app), then the sign-in page, which returns to the same page. If the accounts site doesn't answer, still signed in and the button says so. No confirm step; one would go before the post.
+- **Keys:** Escape, outside click or Tab close; arrows, Home, End move.
+- Follows the device's light/dark setting.
 
 ## Offline
 
-The switcher keeps the accounts site's last answer in the app's `localStorage` (`homelab.switcher`) and shows it when the device is offline or the accounts site can't be reached. While the device is offline, apps whose manifest doesn't mark them as opening offline are greyed out and can't be opened, and Account settings and Sign out are greyed out with **Needs a connection**. It asks again on every load and when the device comes back online, so apps granted or removed meanwhile show up then. A signed-out answer clears what it kept.
-
-Whenever the answer says the person is signed in, the switcher also posts to the accounts site's `/session`, which extends the session and refreshes its cookie once a day, so using any app keeps the person signed in. The gateway's check on each request can't refresh the cookie itself.
-
-With each answer it also keeps the apps' icons (`homelab.switcher.icons`), drawn at 40 pixels as data addresses, and shows them with the kept answer. A signed-out answer clears them too. Icons load with CORS, which the gateway allows for `/icons/*`, so an error page is never kept as an icon.
+| What | How |
+| --- | --- |
+| Last answer | `localStorage` `homelab.switcher`; shown offline or when the accounts site is unreachable |
+| Icons | `homelab.switcher.icons`, 40px data URLs; fetched with CORS (gateway allows `/icons/*`) so error pages aren't kept |
+| Offline state | Apps not marked opens-offline, Account settings and Sign out greyed (**Needs a connection**) |
+| Refresh | Every load and on reconnect |
+| Signed-out answer | Clears both |
+| Session | Each signed-in answer → post to `/session`, which extends it and refreshes the cookie daily (the gateway's check can't) |
 
 ## Building and testing
 
