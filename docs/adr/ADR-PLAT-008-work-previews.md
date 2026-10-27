@@ -7,59 +7,72 @@
 
 ## Context
 
-Most work on the homelab is done by Claude threads in cloud environments, and the maintainer often reviews it away from a computer, on a phone. Seeing a change run meant checking out its branch on a computer and starting the local stack (`npm run dev`, in `tools/dev/`). A change has to be seen as a whole homelab: the gateway, the accounts service and every app, on hostnames that share one sign-in ([ADR-PLAT-004](ADR-PLAT-004-sign-in.md)). Apps are installed as offline PWAs, so a preview needs certificates that browsers trust without setup. The repo is public, so anything posted on a pull request or printed in a workflow log is public too.
+Cloud Claude threads do most work, and the maintainer often reviews on a phone. A change must be seen as a whole homelab on hostnames sharing one sign-in ([ADR-PLAT-004](ADR-PLAT-004-sign-in.md)), with browser-trusted certificates for offline PWAs. The repo is public, so PR comments and workflow logs are too.
 
 ## Decision
 
-- **A preview** is the whole homelab, built from one branch, running on the public internet for trying by hand. Each preview has a name, which is the one input that varies between previews:
-  - `pr-<number>` for an open pull request from this repo.
-  - `staging` for the one long-lived preview, which follows `main`.
-- **Hosting is Fly.io**, in the region named by the `FLY_REGION` setting (`dfw`, Dallas, for the maintainer). Each preview is one Fly app with one machine and one volume. The machine is suspended when idle, keeping its memory, and resumes on the next request. When it has to boot instead, its gateway starts first and holds requests until the accounts service and the apps answer, so a waking preview is slow rather than failing.
-- **The Fly app** is named after the preview's name and domain, with dots as hyphens (`pr-81-homelab-ops-bz` for `pr-81` under `homelab.ops.bz`), because Fly app names are shared by every Fly user.
-- **Addresses** are `<site>.<name>.<preview domain>`, for example `notes.pr-81.homelab.ops.bz`, with the site `accounts` for the accounts service and one per app, the same sites as a real install. The accounts service's session cookie is on `<name>.<preview domain>`, so signing in to one preview signs in to that preview's apps only, as on a real install.
-- **The preview domain** is a setting (`PREVIEW_DOMAIN`), never a value in the repo. Its DNS is hosted at DNSimple.
-- **Certificates and DNS:** each preview has one wildcard certificate, `*.<name>.<preview domain>`, issued by Fly. The deploy adds two CNAME records through the DNSimple API, the wildcard one pointing at the Fly app's own `<app>.fly.dev` name and the `_acme-challenge` one that Fly validates the certificate through, and the removal deletes them. A new app therefore needs no DNS or certificate change. The workflows set up the app, its certificate and its DNS records before building the image, since a new certificate takes minutes to issue and can do so while the image builds.
-- **TLS ends at Fly's proxy.** The preview's gateway serves plain HTTP inside the machine and routes by hostname. It must still strip `Remote-*` request headers from clients ([ADR-PLAT-004](ADR-PLAT-004-sign-in.md)). It trusts the client address Fly's proxy adds to `X-Forwarded-For`, the last entry not from a private address, and passes only that one on to the accounts service, so sign-in attempts are limited per client rather than for everyone at once.
-- **One image per preview** runs the gateway, the accounts service, and every app's server and web build in one container, with all their data on the one volume, because Fly mounts a volume into only one container per machine. It lives in `tools/preview/` ([ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)) and reuses the gateway's shared sign-in check (`platform/gateway`) and the accounts service's loader for test people ([ADR-PLAT-004](ADR-PLAT-004-sign-in.md)).
-- **Previews are open.** They hold the same test people, App access and published passwords as `tools/dev` ([`tools/test-people.ts`](../../tools/test-people.ts)), which the pull request comment lists by email. People sign in on the accounts service's sign-in page, as on a real install: a preview adds no site or shortcut that a real install lacks, so dev's one-click sign-in links are off. The accounts service's `ACCOUNTS_SECRET`, which signs its session cookies, is generated per preview and kept as a Fly secret.
-- **Data** is kept across deploys and restarts of the same preview: a later start only adds the test people that are missing, and leaves the others as they were. Removing a preview deletes its volume. Resetting a preview signals the running image, which stops every service, wipes the volume and starts again with fresh test people, so a reset needs no redeploy. A volume with no accounts data, such as one from before the accounts service, is wiped on start, so its apps' data never belongs to accounts that no longer exist.
-- **GitHub Actions** deploys and removes previews:
-  - Every push to an open pull request from this repo deploys its preview, and the pull request comment says which commit it runs. Pull requests from forks get no preview, since they get no secrets. Nor do pull requests that change nothing the image is built from (only docs and Markdown, for example), since their preview would show nothing new.
-  - The workflow builds the image once on its own runner, with its layers kept in GitHub's cache so a push that leaves dependencies alone reinstalls nothing, then tests that image and pushes the same image to Fly. Building on Fly's builder instead meant waiting for it and building everything a second time.
-  - Closing or merging a pull request removes its preview: the Fly app, its volume and its DNS records.
-  - Every push to `main` that changes what the image is built from deploys it to staging, so staging always shows what has merged. Deploying another branch to staging and resetting a preview are run by hand (`workflow_dispatch`); the next push to `main` puts staging back on `main`.
-- **Settings** are GitHub repository settings, set by `tools/preview/setup.sh`:
-  - Secrets: `FLY_API_TOKEN`, `DNSIMPLE_TOKEN` and `DNSIMPLE_ACCOUNT_ID`.
-  - Variables: `PREVIEW_DOMAIN`, `FLY_ORG` and `FLY_REGION`.
+- **A preview** is the whole homelab from one branch, public, for trying by hand. Its name is the one varying input: `pr-<number>` (open PR from this repo) or `staging` (long-lived, follows `main`).
+- **Fly.io**, region `FLY_REGION` (maintainer: `dfw`). One Fly app, machine and volume per preview, suspended when idle. On boot the gateway starts first and holds requests until services answer.
+- **Names and addresses:** Fly app `pr-81-homelab-ops-bz` for `pr-81` under `homelab.ops.bz` (Fly names are global); sites are `<site>.<name>.<preview domain>` (`accounts` + one per app); the session cookie is on `<name>.<preview domain>`, so sign-in covers one preview.
+- **Domain** from `PREVIEW_DOMAIN`, DNS at DNSimple. One Fly wildcard certificate, `*.<name>.<preview domain>`; deploy adds the wildcard and `_acme-challenge` CNAMEs via DNSimple, removal deletes them, and setup runs before the image build so issuance overlaps it. New apps need no DNS change.
+- **TLS ends at Fly's proxy.** The gateway serves HTTP, routes by hostname, must strip clients' `Remote-*` headers ([ADR-PLAT-004](ADR-PLAT-004-sign-in.md)), and passes only the last non-private `X-Forwarded-For` entry to accounts, so sign-in limits are per client.
+- **One image** (`tools/preview/`, [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)) runs gateway, accounts and every app in one container, since Fly mounts a volume into one container per machine. Reuses `platform/gateway`'s sign-in check and accounts' test-people loader.
+- **Open:** test people, App access and passwords from [`tools/test-people.ts`](../../tools/test-people.ts), listed in the PR comment. Sign-in is the real accounts page; no dev shortcuts. `ACCOUNTS_SECRET` is generated per preview as a Fly secret.
+- **Data:**
+
+  | Event | Effect |
+  | --- | --- |
+  | Redeploy, restart | Kept; missing test people added |
+  | Reset | Image wipes the volume and restarts with fresh test people; no redeploy |
+  | Remove | Volume deleted |
+  | Volume has no accounts data | Wiped on start |
+
+- **GitHub Actions:**
+
+  | Trigger | Does |
+  | --- | --- |
+  | Push to a PR from this repo | Deploys; comment names the commit. Not for forks (no secrets) or PRs not touching the image (e.g. docs only) |
+  | PR closed or merged | Removes Fly app, volume, DNS records |
+  | Push to `main` touching the image | Deploys staging |
+  | `workflow_dispatch` | Another branch to staging (until the next `main` push), or a reset |
+
+  The image builds once on GitHub's runner with cached layers, is tested, then that image goes to Fly.
+
+- **Settings**, set by `tools/preview/setup.sh`:
+
+  | Kind      | Names                                                    |
+  | --------- | -------------------------------------------------------- |
+  | Secrets   | `FLY_API_TOKEN`, `DNSIMPLE_TOKEN`, `DNSIMPLE_ACCOUNT_ID` |
+  | Variables | `PREVIEW_DOMAIN`, `FLY_ORG`, `FLY_REGION`                |
 
 ## Alternatives considered
 
-- **A Hetzner or DigitalOcean server running every preview**, the first choices. It costs a fixed monthly price and needs a server kept up to date, where a Fly machine costs only while awake plus its disk.
-- **Google Cloud Run.** Its disk is wiped whenever an instance stops, so accounts and data would not survive a quiet hour.
-- **Cloudflare.** Its containers have no persistent disk.
-- **The host's own domain** (`fly.dev`, `run.app`, `up.railway.app`, `onrender.com`). Each gives one hostname per service and is on the Public Suffix List, so a preview's apps could not share one sign-in cookie.
-- **`sslip.io` hostnames.** The domain is not on the Public Suffix List, so every user of it shares one Let's Encrypt rate limit.
-- **One certificate per hostname** instead of a wildcard. Each app would add a DNS record and a certificate to every preview, and every preview would count against Let's Encrypt's rate limits once per site.
-- **A secret key in each preview's links.** The links are posted on public pull requests, so the key would be public too, and the maintainer does not mind strangers signing in to test accounts.
+- **Hetzner or DigitalOcean server**: fixed monthly cost plus upkeep; Fly bills only while awake plus disk.
+- **Google Cloud Run**: disk wiped when an instance stops.
+- **Cloudflare**: no persistent container disk.
+- **Host domains** (`fly.dev`, `run.app`…): on the Public Suffix List, so no shared sign-in cookie.
+- **`sslip.io`**: not on the PSL, so one shared Let's Encrypt rate limit.
+- **Per-hostname certificates**: DNS and certificate work per app per preview, more rate limit.
+- **Secret key in links**: links are public, and strangers on test accounts are fine.
 
 ## Evidence
 
-- The decisions were made with the maintainer in the spec for previews, [#76](https://github.com/christiannaths/homelab/issues/76), on 2026-10-20 to 2026-10-22, and rest on Fly's documentation for wildcard certificates, volumes and machines that suspend when idle.
-- PR #85 deployed its own preview, `pr-85`, on 2026-10-22 through the Preview workflow: the wildcard certificate was issued and each test account got the right apps over HTTPS. Its first wake from a stopped machine answered 502, because Fly's proxy waits about 8 seconds and the gateway listened after 9 and the sign-in service after 14, which is why the gateway now starts first and holds requests.
-- The image test (`tools/preview/preview.test.ts`) runs the image in Docker as Fly would, over plain HTTP with Fly's `X-Forwarded-Proto` and `X-Forwarded-For`, and passes: each test person signs in by email and opens the right apps, a wrong password is refused, sign-in attempts are limited per client address, a request with no session goes to the accounts sign-in page, forged `Remote-*` headers are ignored, the session cookie is scoped to the preview's domain, there are no test sign-in links, accounts, sessions and a Notes document survive a restart, a later start adds only the missing test people, a volume without accounts data starts fresh, and a reset leaves only the test people (issue #112).
-- The running image used about 430 MB of memory, summed over its processes, so each preview's machine has 1 GB (issue #112).
+- Spec [#76](https://github.com/christiannaths/homelab/issues/76) with the maintainer, 2026-10-20 to 22.
+- PR #85's preview: first wake gave 502 (Fly waits ~8 s; gateway listened at 9 s), hence gateway-first.
+- `tools/preview/preview.test.ts` (issue #112): test people sign in and reach their apps, forged `Remote-*` ignored, per-client sign-in limits, data survives restart, reset leaves only test people.
+- Image uses ~430 MB, so machines get 1 GB (issue #112).
 
 ## Consequences
 
-- Adding an app to the homelab means adding it to `tools/dev`, the preview image and the preview's test data together.
-- A preview runs differently from `tools/dev` and from a real install: one container instead of one per service, behind Fly's proxy instead of the gateway's own TLS. A bug that depends on that difference can pass in a preview.
-- Anyone can sign in to a preview and change its data. Previews must never hold real data or send real email.
-- Previews cost a few dollars a month at the expected use, mostly the volumes of stopped machines, and nothing limits how many exist at once.
-- Another installer brings their own Fly organization, domain and DNSimple account by running the setup script; a domain hosted elsewhere than DNSimple needs another way to manage its records.
+- A new app is added to `tools/dev`, the preview image and test data together.
+- Previews differ from real installs (one container, Fly's TLS); such bugs can slip through.
+- Anyone can change a preview's data: previews must never hold real data or send real email.
+- A few dollars a month, mostly idle volumes; no cap on count.
+- Other installers bring their own Fly org, domain and DNSimple account; non-DNSimple DNS needs other tooling.
 
 ## Changelog
 
-- 2026-10-23: Previews run the homelab's own accounts service in place of VoidAuth, with the same test people signing in by email, and `ACCOUNTS_SECRET` in place of VoidAuth's `STORAGE_KEY`. Staging and existing previews start fresh on their next deploy, since their data belonged to VoidAuth's accounts (issue #112, spec #110).
-- 2026-10-23: Faster deploys: the workflows build the image once on GitHub's runner with cached layers and deploy the image they tested, a new preview's certificate is requested before the build so it issues meanwhile, and pull requests or pushes to `main` that change nothing in the image (docs only) deploy nothing.
-- 2026-10-23: Staging follows `main`: every push to `main` deploys it, so the maintainer always has one address showing what has merged. Deploying another branch there stays available by hand.
-- 2026-10-22: Accepted. One preview per pull request on Fly.io, plus a staging preview deployed only on request.
+- 2026-10-23: Own accounts service instead of VoidAuth; `ACCOUNTS_SECRET` replaces `STORAGE_KEY`; existing previews start fresh (issue #112, spec #110).
+- 2026-10-23: Faster deploys: one cached build on GitHub's runner, certificate requested before the build, image-untouched changes skip deploys.
+- 2026-10-23: Staging follows `main`, so one address always shows what has merged.
+- 2026-10-22: Accepted. One preview per PR on Fly.io, plus staging on request.
