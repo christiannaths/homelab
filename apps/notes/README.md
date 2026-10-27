@@ -6,6 +6,7 @@ Self-hosted Notion-style workspace. **Offline-first**: every device keeps a full
 
 | Docs |  |
 | --- | --- |
+| [`GLOSSARY.md`](GLOSSARY.md) | Notes terms (workspace, teamspace, page, access levels) |
 | [`docs/adr/`](docs/adr/README.md) | Notes ADRs and what's not decided; see also [platform ADRs](../../docs/adr/README.md) |
 | [`docs/specs/`](docs/specs) | Feature specs |
 | [`docs/research/`](docs/research) | Landscape survey, requirements, architecture sketch, spike findings |
