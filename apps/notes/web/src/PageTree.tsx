@@ -1,7 +1,7 @@
 import { ActionIcon, Box, Group, NavLink } from "@mantine/core";
 import type { TreeNode } from "@homelab/notes-model";
 import { useState, type MouseEvent } from "react";
-import { ChevronIcon, PlusIcon } from "./icons.tsx";
+import { ChevronIcon, PlusIcon, TrashIcon } from "./icons.tsx";
 import { followLink, pagePath } from "./routes.ts";
 
 /**
@@ -14,6 +14,7 @@ export function PageTree({
   currentId,
   above,
   onAddSubpage,
+  onTrash,
   onNavigate,
 }: {
   roots: readonly TreeNode[];
@@ -21,6 +22,8 @@ export function PageTree({
   /** The ids of the pages above the current one, from the top down. */
   above: readonly string[];
   onAddSubpage: (parentId: string) => void;
+  /** Moves a page to the Trash; its subpages go with it. */
+  onTrash: (id: string) => void;
   /** Called after going to a page, so a phone can close the sidebar. */
   onNavigate: () => void;
 }) {
@@ -43,11 +46,13 @@ export function PageTree({
   return (
     <PageList
       nodes={roots}
+      label="Pages"
       state={{
         currentId,
         expanded,
         onToggle: toggle,
         onAddSubpage,
+        onTrash,
         onNavigate,
       }}
     />
@@ -59,6 +64,7 @@ interface ItemState {
   expanded: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onAddSubpage: (parentId: string) => void;
+  onTrash: (id: string) => void;
   onNavigate: () => void;
 }
 
@@ -137,6 +143,15 @@ function PageItem({ node, state }: { node: TreeNode; state: ItemState }) {
           onClick={() => state.onAddSubpage(id)}
         >
           <PlusIcon />
+        </ActionIcon>
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
+          aria-label={`Move ${title} to Trash`}
+          onClick={() => state.onTrash(id)}
+        >
+          <TrashIcon />
         </ActionIcon>
       </Group>
       {open && (
