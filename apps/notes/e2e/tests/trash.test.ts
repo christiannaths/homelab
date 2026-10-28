@@ -5,6 +5,7 @@ import type { Locator, Page } from "playwright";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   ADA,
+  DANA,
   newDevice,
   OFFLINE_STATUS,
   pageTitle,
@@ -183,6 +184,30 @@ describe("the Trash", () => {
         .getByRole("link", { name: title, exact: true })
         .waitFor({ state: "detached" });
     }
+  });
+
+  it("leaves Notes on no page after trashing the only page, rather than going back to it", async () => {
+    // Dana's Private section holds only the page Notes gave her.
+    const page = await newDevice(stack.browser);
+    await signIn(page, stack.frontDoor, DANA);
+    await page.waitForURL(PAGE_PATH);
+    await pageTitle(page).fill("Only page");
+    await privateSection(page)
+      .getByRole("link", { name: "Only page", exact: true })
+      .waitFor();
+
+    await trash(page, "Only page");
+    await (
+      await openTrash(page)
+    )
+      .getByText("Only page", { exact: true })
+      .waitFor();
+    await page.waitForTimeout(500);
+    expect(new URL(page.url()).pathname).toBe("/");
+    await page.reload();
+    await sidebar(page).waitFor();
+    await page.waitForTimeout(500);
+    expect(new URL(page.url()).pathname).toBe("/");
   });
 
   it("offers no way to delete forever or empty it", async () => {

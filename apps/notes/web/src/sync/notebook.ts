@@ -141,6 +141,9 @@ export class Notebook {
   /** Moves page `id` to the Trash, with its subpages. */
   trashPage(id: string): void {
     this.updatePage(id, trashPatch(Date.now()));
+    // Published at once, so where the app goes next is worked out from the tree without the
+    // page, not one that still shows it live.
+    this.#publish();
   }
 
   /** Restores page `id` from the Trash, with its subpages; see `restorePatch` for where to. */
@@ -211,14 +214,18 @@ export class Notebook {
     if (this.#publishScheduled) return;
     this.#publishScheduled = true;
     const publish = () => {
-      this.#publishScheduled = false;
-      this.#publishedAt = performance.now();
-      this.#snapshot = this.#read();
-      for (const listener of this.#listeners) listener();
+      if (this.#publishScheduled) this.#publish();
     };
     const wait = this.#publishedAt + PUBLISH_INTERVAL_MS - performance.now();
     if (wait <= 0) queueMicrotask(publish);
     else setTimeout(publish, wait);
+  }
+
+  #publish(): void {
+    this.#publishScheduled = false;
+    this.#publishedAt = performance.now();
+    this.#snapshot = this.#read();
+    for (const listener of this.#listeners) listener();
   }
 
   #read(): NotebookSnapshot {
