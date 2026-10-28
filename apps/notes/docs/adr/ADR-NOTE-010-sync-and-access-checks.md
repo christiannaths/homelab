@@ -1,7 +1,7 @@
 # ADR-NOTE-010. How do changes reach other devices, and how is access enforced on them?
 
 - Status: Accepted
-- Date: 2026-10-17
+- Date: 2026-10-28
 - Depends on: [ADR-NOTE-001](ADR-NOTE-001-offline-use.md), [ADR-NOTE-002](ADR-NOTE-002-merging-edits.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md), [ADR-NOTE-013](ADR-NOTE-013-data-layout.md)
 - Dependency of: [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md)
 
@@ -13,7 +13,7 @@ Access differs per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [AD
 
 - **Hocuspocus 4**, limits raised to 20,000 pending documents, 100,000 queued messages, 256 MB: they guard public servers, and this endpoint is private and authenticated ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
 - **Identity** once per connection, from the upgrade's gateway headers.
-- **Open** (`onAuthenticate`, per document): below Can view → refused `no-access`; Can view/comment → read-only; above → read-write.
+- **Open** (`onAuthenticate`, per document): below Can view → refused `no-access`; Can view/comment → read-only; above → read-write. An index opens read-only to its person only; a workspace document read-write to its members only.
 - **Every update** (`beforeSync`, live or handshake) is checked on a scratch copy at the current level:
 
   | Level | Accepted |
@@ -27,7 +27,7 @@ Access differs per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [AD
 
 - **Refusals** are whole and close only that document, reason `read-only`, `access-change-refused`, `placement-refused`, `structure-refused`, `teamspace-change-refused` or `last-owner`. The device destroys provider, `Y.Doc` and local storage, then reopens from the server (`sessionAwareness: true` keeps old and new providers apart).
 - **Access changes apply live:** after each index change, that person's connections are re-checked; lost ones close with `access-revoked` (device deletes its copy), others switch read-only/writable.
-- **In-memory catalog** of every page's `meta`/`access` and every teamspace, from which indexes are written ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)). Storage unchanged ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
+- **In-memory catalog** of every page's `meta`/`access`, every teamspace and every workspace's members, from which indexes are written ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)). Storage unchanged ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
 - **Index writes** use `disconnect({ unloadImmediately: false })`, so no device attaches to a dying document.
 - **Providers start after the local copy loads**, so stored content rides the handshake (a live update on a read-only connection stays "not applied" forever).
 - Gate: `SLOW=1` `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts`, until the real app has its own.
@@ -66,5 +66,6 @@ Access differs per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [AD
 
 ## Changelog
 
+- 2026-10-28: Workspace documents and workspace members in the catalog, since an instance holds many workspaces ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), issue #131, spec #130).
 - 2026-10-17: Access checked per document and update, not once per connection, since per-document access ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)) let readers write. Gate moved to `access-scale.spec.ts`. Evidence: access spike ([`research/07-access-spike-findings.md`](../research/07-access-spike-findings.md), PR #23). Merged in from a separate ADR.
 - 2026-10-16: Accepted. Hocuspocus 4, limits raised, session checked per connection. Gate: `spikes/notes-block-editing-collaboration-poc/e2e/tests/sync-scale.spec.ts`, 2,000 pages. Evidence: PR #1.

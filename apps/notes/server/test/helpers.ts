@@ -9,6 +9,7 @@ import {
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { identityHeaders, type AppAccess } from "@homelab/identity";
+import { readIndex, readWorkspaceName } from "@homelab/notes-model";
 import { startServer, type NotesServer } from "../src/server.ts";
 
 /** Who the gateway says is signing in, as the accounts service tells it. */
@@ -19,18 +20,18 @@ export interface Account {
   access: AppAccess;
 }
 
-export const OWNER: Account = {
+export const ALEX: Account = {
   id: "alex",
   name: "Alex",
   access: { notes: "admin" },
 };
-export const MEMBER: Account = {
+export const SAM: Account = {
   id: "sam",
   name: "Sam",
   access: { notes: "member" },
 };
 /** The Encyclopedia's admin, and a Notes member. The gateway sends no name for this account. */
-export const OTHER_APPS_ADMIN: Account = {
+export const KIM: Account = {
   id: "kim",
   access: { encyclopedia: "admin", notes: "member" },
 };
@@ -105,6 +106,8 @@ export interface Device {
     provider: HocuspocusProvider;
     synced: Promise<void>;
     denied: Promise<string>;
+    /** Resolves with the reason the server gave for closing this document. */
+    closed: Promise<string>;
   };
   closed: Promise<number>;
   destroy(): void;
@@ -128,8 +131,12 @@ export function device(server: TestServer, account: Account): Device {
       const doc = new Y.Doc();
       let onSynced!: () => void;
       let onDenied!: (reason: string) => void;
+      let onDocumentClosed!: (reason: string) => void;
       const synced = new Promise<void>((resolve) => (onSynced = resolve));
       const denied = new Promise<string>((resolve) => (onDenied = resolve));
+      const documentClosed = new Promise<string>(
+        (resolve) => (onDocumentClosed = resolve),
+      );
       const provider = new HocuspocusProvider({
         websocketProvider: socket,
         name,
@@ -138,16 +145,46 @@ export function device(server: TestServer, account: Account): Device {
         token: "gateway",
         onSynced: () => onSynced(),
         onAuthenticationFailed: ({ reason }) => onDenied(reason),
+        onClose: ({ event }) => onDocumentClosed(event.reason),
+        // A document can be opened again on the same socket right after it was refused.
+        sessionAwareness: true,
       });
       provider.attach();
       providers.push(provider);
-      return { doc, provider, synced, denied };
+      return { doc, provider, synced, denied, closed: documentClosed };
     },
     destroy() {
       for (const p of providers) p.destroy();
       socket.destroy();
     },
   };
+}
+
+/** The ids of the workspaces a device's index lists. */
+export const indexedWorkspaces = (index: Y.Doc): string[] => [
+  ...readIndex(index).workspaces,
+];
+
+export const workspaceName = (workspace: Y.Doc | undefined): string | null =>
+  workspace ? readWorkspaceName(workspace) : null;
+
+/**
+ * Opens Notes on `d` as `account`, as the web client does: asks who is signed in, then opens
+ * the person's index and the one workspace it lists, and waits for both to sync.
+ */
+export async function openNotes(
+  server: TestServer,
+  d: Device,
+  account: Account,
+) {
+  await request(server, "/api/session", account);
+  const index = d.open(`index:${account.id}`);
+  await index.synced;
+  const [workspaceId] = indexedWorkspaces(index.doc);
+  if (!workspaceId) throw new Error(`${account.id}'s index lists no workspace`);
+  const workspace = d.open(`workspace:${workspaceId}`);
+  await workspace.synced;
+  return { index, workspaceId, workspace };
 }
 
 export async function waitFor(

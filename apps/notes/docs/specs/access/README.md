@@ -15,8 +15,9 @@ LocalNotion copies **Notion's** sharing and permissions model, so it behaves the
 
 | LocalNotion | Notion | Note |
 | --- | --- | --- |
-| Instance | Workspace | One instance is one workspace. The specs say "workspace" to match Notion. |
-| Admin ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)) | Workspace owner |  |
+| Instance | — | One Notes server. It holds many workspaces, each like a Notion workspace; anyone with Notes access creates them ([ADR-NOTE-011](../../adr/ADR-NOTE-011-access-control.md)). |
+| Workspace | Workspace | Each person gets one of their own the first time they open Notes. |
+| Workspace owner | Workspace owner | A role in one workspace, not an App access level ([ADR-NOTE-009](../../adr/ADR-NOTE-009-identity.md)). |
 | Account | Member or guest | Every person signs in through the homelab's accounts service ([ADR-PLAT-004](../../../../../docs/adr/ADR-PLAT-004-sign-in.md)). |
 
 ## Adapted from Notion, not copied

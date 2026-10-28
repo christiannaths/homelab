@@ -88,7 +88,7 @@ export function onSignInPage(page: Page, frontDoor: FrontDoor): Promise<void> {
   );
 }
 
-/** Opens Notes and signs in on the sign-in page; resolves once the protected page shows. */
+/** Opens Notes and signs in on the sign-in page; resolves once the sidebar shows. */
 export async function signIn(
   page: Page,
   frontDoor: FrontDoor,
@@ -97,8 +97,15 @@ export async function signIn(
   await page.goto(frontDoor.notesUrl);
   await onSignInPage(page, frontDoor);
   await page.getByRole("button", { name: `Sign in as ${person.name}` }).click();
-  await page.getByText("Signed in as").waitFor();
+  await sidebar(page).waitFor();
 }
+
+export const sidebar = (page: Page) =>
+  page.getByRole("navigation", { name: "Sidebar" });
+
+/** The workspace a person is given the first time they open Notes. */
+export const defaultWorkspaceOf = (person: Person) =>
+  `${person.name}'s workspace`;
 
 /** Ends the device's session, as signing out in any app or on the accounts site does. */
 export async function signOut(page: Page): Promise<void> {

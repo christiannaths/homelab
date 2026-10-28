@@ -1,5 +1,6 @@
 // The Notes app in a real Chromium, behind the stand-in front door: signing in with the homelab
-// account, signing out of it, and starting offline (issue #47, ADR-PLAT-009). Notes has no
+// account, signing out of it, the default workspace, and starting offline (issue #47, #131,
+// ADR-PLAT-009). Notes has no
 // sign-out of its own: the App switcher's Sign out ends the session, which these tests stand in
 // for by dropping the session cookie. The platform's own behaviour, such as the no-access page and
 // the gateway dropping forged headers, is tested in platform/e2e.
@@ -8,11 +9,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   ADA,
   DANA,
+  defaultWorkspaceOf,
   goOffline,
   goOnline,
   newDevice,
   onSignInPage,
   SESSION_COOKIE,
+  sidebar,
   signIn,
   signOut,
   startStack,
@@ -38,6 +41,8 @@ const notesUrl = () => stack.frontDoor.notesUrl;
 const signedInAs = (page: Page, person: typeof ADA) =>
   signIn(page, stack.frontDoor, person);
 const toSignIn = (page: Page) => onSignInPage(page, stack.frontDoor);
+const workspaceShows = (page: Page, person: typeof ADA) =>
+  sidebar(page).getByText(defaultWorkspaceOf(person)).waitFor();
 
 /** What Notes' API says about the signed-in person, asked from a Notes page. */
 function sessionFrom(page: Page) {
@@ -73,27 +78,17 @@ describe("signing in with the homelab account", () => {
     await toSignIn(page);
   });
 
-  it("lands an owner on the protected page, and opens again without signing in", async () => {
+  it("lands on Notes signed in, and opens again without signing in", async () => {
     const page = await device();
     await signedInAs(page, ADA);
     expect(new URL(page.url()).origin).toBe(notesUrl());
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
     expect(await sessionFrom(page)).toMatchObject({
       status: 200,
-      body: { person: { id: ADA.id, role: "owner" } },
+      body: { person: { id: ADA.id, name: ADA.name } },
     });
 
     await page.goto(notesUrl());
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
-  });
-
-  it("lets in a member, as their App access says", async () => {
-    const page = await device();
-    await signedInAs(page, DANA);
-    await page.getByText(`Signed in as ${DANA.name}`).waitFor();
-    expect(await sessionFrom(page)).toMatchObject({
-      body: { person: { id: DANA.id, role: "member" } },
-    });
+    await workspaceShows(page, ADA);
   });
 
   it("syncs only while signed in", async () => {
@@ -102,6 +97,38 @@ describe("signing in with the homelab account", () => {
     expect(await syncOpens(page)).toBe(true);
     await signOut(page);
     expect(await syncOpens(page)).toBe(false);
+  });
+});
+
+describe("the default workspace", () => {
+  it("is in the sidebar the first time someone opens Notes, at either level of App access", async () => {
+    for (const person of [ADA, DANA]) {
+      const page = await device();
+      await signedInAs(page, person);
+      await workspaceShows(page, person);
+    }
+  });
+
+  it("is the same on another device of the same person, and only theirs", async () => {
+    const phone = await device();
+    await signedInAs(phone, ADA);
+    await workspaceShows(phone, ADA);
+
+    const laptop = await device();
+    await signedInAs(laptop, ADA);
+    await workspaceShows(laptop, ADA);
+    expect(
+      await sidebar(laptop)
+        .getByText(/workspace/)
+        .count(),
+    ).toBe(1);
+
+    const someoneElse = await device();
+    await signedInAs(someoneElse, DANA);
+    await workspaceShows(someoneElse, DANA);
+    expect(
+      await sidebar(someoneElse).getByText(defaultWorkspaceOf(ADA)).count(),
+    ).toBe(0);
   });
 });
 
@@ -165,21 +192,22 @@ describe("offline", () => {
     });
   });
 
-  it("opens signed in with no network, says it is offline, and clears that on reconnecting", async () => {
+  it("opens with the workspace and no network after one online start, and says it is offline until reconnecting", async () => {
     const page = await device();
     await signedInAs(page, ADA);
+    await workspaceShows(page, ADA);
     await waitUntilOfflineReady(page);
 
     await goOffline(page, stack.frontDoor);
     await page.reload();
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+    await workspaceShows(page, ADA);
     await page.getByText("Offline", { exact: true }).waitFor();
 
     await goOnline(page, stack.frontDoor);
     await page
       .getByText("Offline", { exact: true })
       .waitFor({ state: "detached" });
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+    await workspaceShows(page, ADA);
   });
 
   it("says signing in needs a connection when opened signed out with no network", async () => {

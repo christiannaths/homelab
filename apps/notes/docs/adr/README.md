@@ -12,11 +12,11 @@ Settled decisions for Notes (LocalNotion), from the requirements and three spike
 | [ADR-NOTE-006](ADR-NOTE-006-merge-safety.md) | How do features avoid conflicts and lost edits when changes merge? | Five CRDT rules | Accepted |
 | [ADR-NOTE-007](ADR-NOTE-007-page-editing-and-ui.md) | How do people edit pages, and how is the interface built? | BlockNote, Mantine | Accepted |
 | [ADR-NOTE-008](ADR-NOTE-008-model-correctness.md) | How is the data model kept correct? | Pure TypeScript, unit and e2e tested | Accepted |
-| [ADR-NOTE-009](ADR-NOTE-009-identity.md) | How does an instance know who is editing? | Gateway sign-in and headers | Accepted |
+| [ADR-NOTE-009](ADR-NOTE-009-identity.md) | How does an instance know who is editing? | Gateway sign-in and headers; App access sets no role | Accepted |
 | [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md) | How do changes reach other devices, and how is access enforced on them? | Hocuspocus, checking every document and update | Accepted |
-| [ADR-NOTE-011](ADR-NOTE-011-access-control.md) | How does an instance control who can see and change each page? | Notion's teamspaces and sharing | Accepted |
+| [ADR-NOTE-011](ADR-NOTE-011-access-control.md) | How does an instance control who can see and change each page? | Notion's workspaces, teamspaces and sharing; many workspaces per instance | Accepted |
 | [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md) | How finely can access to a page be granted? | Notion's access levels | Accepted |
-| [ADR-NOTE-013](ADR-NOTE-013-data-layout.md) | How is data laid out so each person receives only what they can open? | A document per page, plus a per-person index | Accepted |
+| [ADR-NOTE-013](ADR-NOTE-013-data-layout.md) | How is data laid out so each person receives only what they can open? | A document per page and per workspace, plus a per-person index; workspaces in SQLite | Accepted |
 | [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md) | How does the server handle HTTP requests and account security? | Hono; person from gateway headers | Accepted |
 
 ## Not decided yet

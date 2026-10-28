@@ -19,6 +19,7 @@ import {
   tab,
   typePassword,
   VAULT_URL,
+  inNotesAs,
 } from "./stack.ts";
 
 let browser: Browser;
@@ -37,7 +38,7 @@ describe("signing in", () => {
     await onSignInPage(page);
     await typePassword(page, { ...ADA, email: "Ada@Example.COM" });
     await page.waitForURL(`${NOTES_URL}/`);
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+    await inNotesAs(page, ADA.name);
   });
 
   it("opens every app the person has, with no second sign-in", async () => {

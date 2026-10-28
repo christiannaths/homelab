@@ -1,7 +1,7 @@
 # ADR-NOTE-011. How does an instance control who can see and change each page?
 
 - Status: Accepted
-- Date: 2026-10-17
+- Date: 2026-10-28
 - Depends on: [ADR-NOTE-009](ADR-NOTE-009-identity.md)
 - Dependency of: [ADR-NOTE-001](ADR-NOTE-001-offline-use.md), [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-012](ADR-NOTE-012-page-permissions.md), [ADR-NOTE-013](ADR-NOTE-013-data-layout.md), [ADR-NOTE-014](ADR-NOTE-014-http-and-accounts.md)
 
@@ -15,7 +15,8 @@ Drafts and journals are personal, and outsiders (a contractor, a babysitter) nee
 
   | Part | Rule |
   | --- | --- |
-  | Workspace roles | owner, member, guest; one instance = one workspace |
+  | Workspaces | an instance holds many; anyone with Notes access creates them and owns the ones they create; everyone gets a default one on first open |
+  | Workspace roles | owner, member, guest, per workspace |
   | Teamspaces | open, closed or private, optionally default; owners (always Full access), members, default levels. Open: non-joined members get the non-member level (Can view, comment or edit) |
   | Private / Shared | Moving to Private removes others' access; explicit subpage invites stay, top of the invitee's Shared (as Notion) |
   | Page sharing | levels ([ADR-NOTE-012](ADR-NOTE-012-page-permissions.md)) and general access; subpages inherit; any page may expand or restrict; most permissive wins |
@@ -37,9 +38,15 @@ Drafts and journals are personal, and outsiders (a contractor, a babysitter) nee
   - `model/src/access.test.ts`, `model/src/overrides.test.ts`, `model/src/teamspaces.test.ts`, `model/src/guests.test.ts` → inheritance, overrides, most-permissive-wins, teamspaces, guests.
   - `model/src/sharing.test.ts`, `model/src/overrides.convergence.test.ts` → concurrent access changes and moves converge.
 - `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts` → 2,272 pages: per-person sync as fast as whole-workspace.
+- `apps/notes/server/test/server.test.ts` ("the default workspace", "sync"), `apps/notes/e2e/tests/notes-app.test.ts` → one default workspace per person at either App access level; others refused its documents.
 - [`research/06-notion-access-verification.md`](../research/06-notion-access-verification.md) → checked item by item against Notion's help centre; differences applied to the specs.
 
 ## Consequences
 
 - Where Notion is silent, specs record the spike's choice, pending a decision ("Not decided yet" in the [index](README.md)).
 - "Private" must be worded honestly: the server admin can read everything (no end-to-end encryption).
+
+## Changelog
+
+- 2026-10-28: An instance holds many workspaces, made by anyone with Notes access, who owns them; each person gets a default one on first open, since Notes is useless without one and a household may want separate areas (issue #131, spec #130).
+- 2026-10-17: Accepted. Notion's model, one instance = one workspace.

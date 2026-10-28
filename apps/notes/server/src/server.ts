@@ -8,7 +8,15 @@ import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
 import { identityFrom } from "@homelab/identity";
+import {
+  canEdit,
+  documentLevel,
+  previewUpdate,
+  reviewUpdate,
+} from "@homelab/notes-model";
+import { Notebooks, type SyncContext } from "./notebooks.ts";
 import { People, type Person } from "./people.ts";
+import { Workspaces } from "./workspaces.ts";
 
 export interface ServerOptions {
   /** Holds the instance's one SQLite file (ADR-NOTE-004, ADR-NOTE-005). */
@@ -17,11 +25,6 @@ export interface ServerOptions {
   port: number;
   /** The web client's build (apps/notes/web/dist). Without it, only the API is served. */
   clientDir?: string;
-}
-
-/** Who is on the other end of a sync socket. Read once, when the socket opens. */
-interface SyncContext {
-  person: Person;
 }
 
 /** What the /sync middleware hands to the WebSocket upgrade. */
@@ -43,10 +46,30 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     maxUnauthenticatedQueueSize: 256 * 1024 * 1024,
 
     // Runs for every document a socket opens; the person was read when the socket opened.
-    // Until the access rules are built (ADR-NOTE-011), only owners open documents.
-    async onAuthenticate({ context }) {
-      if (people.get(context.person.id)?.role !== "owner")
-        throw new Error("No access");
+    async onAuthenticate({ context, documentName, connectionConfig }) {
+      const level = documentLevel(
+        notebooks.catalog,
+        context.person.id,
+        documentName,
+      );
+      // A plain object, without a message, keeps Hocuspocus from logging every refusal.
+      if (level === "none") throw { reason: "no-access" };
+      connectionConfig.readOnly = !canEdit(level);
+    },
+
+    // ADR-NOTE-010: every update is checked at the person's access now, not at open. A refused
+    // one is not applied, and throwing closes only this document, with the reason; the device
+    // then throws its copy away and syncs it again. Hocuspocus's own read-only handling would
+    // drop the update silently, and the device would resend it on every reconnect.
+    async beforeSync({ type, payload, document, documentName, context }) {
+      if (type === SYNC_STEP_1) return;
+      const reason = reviewUpdate(
+        notebooks.catalog,
+        context.person.id,
+        documentName,
+        previewUpdate(documentName, document, payload),
+      );
+      if (reason) throw { reason };
     },
 
     async onLoadDocument({ documentName, document }) {
@@ -60,10 +83,20 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     },
   });
 
-  /** The person the gateway signed in, added to or brought up to date in Notes' people. */
-  const admitted = (c: Context): Person | undefined => {
+  const notebooks = new Notebooks(new Workspaces(db), hocuspocus);
+  // Indexes stored by an earlier run may list what the rules no longer give.
+  await notebooks.refreshIndexes();
+
+  /**
+   * The person the gateway signed in, added to or brought up to date in Notes' people, with a
+   * workspace of their own.
+   */
+  const admitted = async (c: Context): Promise<Person | undefined> => {
     const identity = identityFrom(c.req.raw.headers);
-    return identity && people.admit(identity);
+    if (!identity) return undefined;
+    const person = people.admit(identity);
+    await notebooks.admit(person);
+    return person;
   };
 
   const app = new Hono<SyncEnv>();
@@ -77,8 +110,8 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 
   // The PWA calls this whenever it starts online or reconnects. A signed-out browser never gets
   // here: the gateway answers with a redirect to sign in instead.
-  app.get("/api/session", (c) => {
-    const person = admitted(c);
+  app.get("/api/session", async (c) => {
+    const person = await admitted(c);
     if (!person) return c.json({ error: "signed_out" }, 401);
     return c.json({ person });
   });
@@ -87,7 +120,7 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     "/sync",
     // Refuse an upgrade that did not come through the gateway, before any WebSocket exists.
     async (c, next) => {
-      const person = admitted(c);
+      const person = await admitted(c);
       if (!person) return c.text("Unauthorized", 401);
       c.set("sync", { person });
       return next();
@@ -150,6 +183,7 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     db,
     hocuspocus,
     async close() {
+      await notebooks.settled();
       hocuspocus.flushPendingStores();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -159,3 +193,6 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 }
 
 export type NotesServer = Awaited<ReturnType<typeof startServer>>;
+
+/** The y-protocols sync message that only asks for what the device lacks. */
+const SYNC_STEP_1 = 0;
