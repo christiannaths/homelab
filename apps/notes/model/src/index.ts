@@ -45,6 +45,7 @@ export {
 export { ancestors, buildTree, type Tree, type TreeNode } from "./tree.ts";
 export {
   applyPagePatch,
+  observePage,
   pageContent,
   previewUpdate,
   readIndex,

@@ -61,6 +61,19 @@ export function applyPagePatch(doc: Y.Doc, patch: PagePatch): void {
   });
 }
 
+/**
+ * Calls `onChange` whenever what `readPage` reads may have changed, but not for body edits, so
+ * a sidebar isn't rebuilt on every keystroke. Returns a function that stops.
+ */
+export function observePage(doc: Y.Doc, onChange: () => void): () => void {
+  meta(doc).observe(onChange);
+  access(doc).observe(onChange);
+  return () => {
+    meta(doc).unobserve(onChange);
+    access(doc).unobserve(onChange);
+  };
+}
+
 const string = (value: unknown, fallback: string) =>
   typeof value === "string" ? value : fallback;
 const number = (value: unknown) => (typeof value === "number" ? value : null);

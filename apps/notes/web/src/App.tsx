@@ -9,9 +9,18 @@ import {
   Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { buildTree } from "@homelab/notes-model";
 import type { SignedInState } from "@homelab/signed-in-state";
 import type { Person } from "./api.ts";
+import { NoPage, PageView } from "./PageView.tsx";
+import { navigate, pageIdFrom, pagePath, usePath } from "./routes.ts";
+import { Sidebar } from "./Sidebar.tsx";
 import { notebookFor } from "./sync/notebook.ts";
 
 export function App({ state }: { state: SignedInState<Person> }) {
@@ -39,13 +48,33 @@ export function App({ state }: { state: SignedInState<Person> }) {
 
 function Notes({ me, online }: { me: Person; online: boolean }) {
   const notebook = notebookFor(me.id);
-  const { workspaces } = useSyncExternalStore(
+  const { workspaces, pages, levels, indexSynced } = useSyncExternalStore(
     notebook.subscribe,
     notebook.getSnapshot,
   );
-  const [opened, { toggle }] = useDisclosure();
+  const [opened, { toggle, close }] = useDisclosure();
   // Choosing between workspaces comes with the workspace switcher; a new person has one.
   const workspace = workspaces[0];
+  const tree = useMemo(
+    () => (workspace ? buildTree(pages, workspace.id) : undefined),
+    [pages, workspace],
+  );
+  const pageId = pageIdFrom(usePath());
+  const page = pageId ? tree?.byId.get(pageId)?.page : undefined;
+  const firstPage = tree?.roots[0]?.page.id;
+
+  // Anywhere but a page's address lands on the first page of the Private section (spec #130).
+  useEffect(() => {
+    if (pageId === null && firstPage)
+      navigate(pagePath(firstPage), { replace: true });
+  }, [pageId, firstPage]);
+
+  const addPage = () => {
+    if (!workspace) return;
+    navigate(pagePath(notebook.addPage(workspace.id)));
+    close();
+  };
+
   return (
     <AppShell
       header={{ height: 56 }}
@@ -75,26 +104,36 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
             <Badge
               color="gray"
               variant="light"
+              tt="none"
             >
-              Offline
+              Offline · saved locally
             </Badge>
           )}
         </Group>
       </AppShell.Header>
-      <AppShell.Navbar
-        p="md"
-        aria-label="Sidebar"
-      >
-        {workspace && (
-          <Text
-            fw={600}
-            truncate
-          >
-            {workspace.name}
-          </Text>
+      <Sidebar
+        workspace={workspace}
+        privatePages={tree?.roots ?? []}
+        currentId={page?.id ?? null}
+        onAddPage={addPage}
+        onNavigate={close}
+      />
+      <AppShell.Main>
+        {page ? (
+          <PageView
+            key={page.id}
+            notebook={notebook}
+            page={page}
+            level={levels.get(page.id)}
+            me={me}
+          />
+        ) : (
+          pageId !== null && (
+            // Until the index has synced, a page this device lacks may still be on its way.
+            <NoPage loading={(online && !indexSynced) || levels.has(pageId)} />
+          )
         )}
-      </AppShell.Navbar>
-      <AppShell.Main />
+      </AppShell.Main>
     </AppShell>
   );
 }

@@ -103,6 +103,20 @@ export async function signIn(
 export const sidebar = (page: Page) =>
   page.getByRole("navigation", { name: "Sidebar" });
 
+/** The sidebar's Private section, with a link to each of the person's pages there. */
+export const privateSection = (page: Page) =>
+  sidebar(page).getByRole("region", { name: "Private" });
+
+/** The open page's title field. */
+export const pageTitle = (page: Page) =>
+  page.getByRole("textbox", { name: "Title" });
+
+/** The open page's body, in BlockNote. */
+export const pageBody = (page: Page) => page.locator(".bn-editor");
+
+/** What Notes shows while the device has no connection. */
+export const OFFLINE_STATUS = "Offline · saved locally";
+
 /** The workspace a person is given the first time they open Notes. */
 export const defaultWorkspaceOf = (person: Person) =>
   `${person.name}'s workspace`;
