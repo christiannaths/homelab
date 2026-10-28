@@ -86,7 +86,8 @@ for (const app of APPS)
       await page.getByRole("menuitem", { name: "Sign out" }).click();
       await onSignInPage(page);
       await typePassword(page, ADA);
-      await page.waitForURL(`${app.url}/`);
+      // Back on the page signed out from: Notes had already moved / on to its first page.
+      await page.waitForURL((url) => url.origin === app.url);
       await tab(page).waitFor();
     });
   });
