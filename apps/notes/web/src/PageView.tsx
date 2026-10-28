@@ -1,19 +1,31 @@
-import { Center, Loader, Stack, Text, Textarea } from "@mantine/core";
+import {
+  Anchor,
+  Breadcrumbs,
+  Center,
+  Loader,
+  Stack,
+  Text,
+  Textarea,
+} from "@mantine/core";
 import { canEdit, type AccessLevel, type Page } from "@homelab/notes-model";
 import { useState } from "react";
 import type { Person } from "./api.ts";
 import { PageEditor } from "./PageEditor.tsx";
+import { followLink, pagePath } from "./routes.ts";
 import type { Notebook } from "./sync/notebook.ts";
 
-/** An open page: its title and body. */
+/** An open page: the breadcrumb of the pages above it, its title and body. */
 export function PageView({
   notebook,
   page,
+  above,
   level,
   me,
 }: {
   notebook: Notebook;
   page: Page;
+  /** The pages above it, from the top down. */
+  above: readonly Page[];
   /** The person's level from their index; a page the index doesn't list yet is one made here. */
   level: AccessLevel | undefined;
   me: Person;
@@ -29,6 +41,35 @@ export function PageView({
       gap="md"
       py="md"
     >
+      {above.length > 0 && (
+        <Breadcrumbs
+          component="nav"
+          aria-label="Breadcrumb"
+          px={54}
+          separatorMargin={6}
+          styles={{ root: { flexWrap: "wrap" } }}
+        >
+          {above.map((parent) => (
+            <Anchor
+              key={parent.id}
+              href={pagePath(parent.id)}
+              size="sm"
+              c="dimmed"
+              onClick={(event) =>
+                followLink(event.nativeEvent, pagePath(parent.id))
+              }
+            >
+              {parent.title || "Untitled"}
+            </Anchor>
+          ))}
+          <Text
+            size="sm"
+            truncate
+          >
+            {page.title || "Untitled"}
+          </Text>
+        </Breadcrumbs>
+      )}
       <Title
         page={page}
         editable={editable}

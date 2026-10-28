@@ -29,6 +29,7 @@ import {
   readPage,
   setWorkspaceName,
   writeIndex,
+  type AccessLevel,
 } from "@homelab/notes-model";
 import { integer, text } from "../src/rows.ts";
 
@@ -82,6 +83,25 @@ async function addPage(
     workspaceId: notes.workspaceId,
     creatorId: account.id,
   });
+  await opened.synced;
+  await waitFor(() => indexedPages(notes.index.doc)[id] === "full");
+  return { id, ...opened };
+}
+
+/** A subpage `account` adds at the end of `parentId`'s subpages on `d`, once their index lists it. */
+async function addSubpage(
+  notes: Awaited<ReturnType<typeof openNotes>>,
+  d: Device,
+  account: Account,
+  parentId: string,
+) {
+  const id = pageId();
+  const opened = d.open(`page:${id}`);
+  writePage(
+    opened.doc,
+    { id, workspaceId: notes.workspaceId, creatorId: account.id },
+    { parentId, access: { people: {} } },
+  );
   await opened.synced;
   await waitFor(() => indexedPages(notes.index.doc)[id] === "full");
   return { id, ...opened };
@@ -259,6 +279,109 @@ describe("pages", () => {
     await waitFor(
       () => Object.keys(indexedPages(notes.index.doc)).length === 301,
     );
+  });
+});
+
+describe("subpages", () => {
+  test("nest to any depth, inherit their parent's access, and reach the person's other device", async () => {
+    const s = await server();
+    const d = track(device(s, ALEX));
+    const notes = await openNotes(s, d, ALEX);
+    const parent = await addPage(notes, d, ALEX);
+    const child = await addSubpage(notes, d, ALEX, parent.id);
+    const grandchild = await addSubpage(notes, d, ALEX, child.id);
+    applyPagePatch(grandchild.doc, { title: "Deep" });
+
+    const laptop = track(device(s, ALEX));
+    await openNotes(s, laptop, ALEX);
+    const onLaptop = laptop.open(`page:${grandchild.id}`);
+    await onLaptop.synced;
+    await waitFor(
+      () => readPage(grandchild.id, onLaptop.doc)?.title === "Deep",
+    );
+    expect(readPage(grandchild.id, onLaptop.doc)).toMatchObject({
+      parentId: child.id,
+      access: { people: {} },
+    });
+    const sams = track(device(s, SAM)).open(`page:${grandchild.id}`);
+    expect(await sams.denied).toBe("no-access");
+  });
+
+  /** Sam in Alex's workspace with `level` on a page of Alex's, and the device Sam has it on. */
+  async function samOnAlexsPage(level: AccessLevel) {
+    let s = await server();
+    const alexFirst = await signedIn(s, ALEX);
+    const samFirst = await signedIn(s, SAM);
+    // Adding workspace members comes later (spec #130); here Sam joins Alex's workspace in storage.
+    s.db
+      .prepare(
+        `INSERT INTO workspace_members (workspace_id, person_id, role, created_at)
+         VALUES (?, 'sam', 'member', 0)`,
+      )
+      .run(alexFirst.workspaceId);
+    s = await restart(s);
+
+    const alexsDevice = track(device(s, ALEX));
+    await openNotes(s, alexsDevice, ALEX);
+    const id = pageId();
+    const shared = alexsDevice.open(`page:${id}`);
+    writePage(
+      shared.doc,
+      { id, workspaceId: alexFirst.workspaceId, creatorId: ALEX.id },
+      { access: { people: { alex: "full", sam: level } } },
+    );
+    await shared.synced;
+
+    const samsDevice = track(device(s, SAM));
+    const sam = await openNotes(s, samsDevice, SAM);
+    await waitFor(() => indexedPages(sam.index.doc)[id] === level);
+    return {
+      s,
+      samsDevice,
+      parentId: id,
+      alexsWorkspace: alexFirst.workspaceId,
+      samsWorkspace: samFirst.workspaceId,
+    };
+  }
+
+  /** Sam's device writing a new subpage of `parentId` in `workspaceId`. */
+  function samsSubpage(
+    samsDevice: Device,
+    workspaceId: string,
+    parentId: string,
+  ) {
+    const id = pageId();
+    const opened = samsDevice.open(`page:${id}`);
+    writePage(
+      opened.doc,
+      { id, workspaceId, creatorId: SAM.id },
+      { parentId, access: { people: {} } },
+    );
+    return { id, ...opened };
+  }
+
+  test("are accepted under a page the person can edit", async () => {
+    const { s, samsDevice, parentId, alexsWorkspace } =
+      await samOnAlexsPage("edit");
+    const sub = samsSubpage(samsDevice, alexsWorkspace, parentId);
+    await sub.synced;
+    await waitFor(() => storedPage(s, sub.id)?.parentId === parentId);
+  });
+
+  test("are refused under a page the person can only view", async () => {
+    const { s, samsDevice, parentId, alexsWorkspace } =
+      await samOnAlexsPage("view");
+    const sub = samsSubpage(samsDevice, alexsWorkspace, parentId);
+    expect(await sub.closed).toBe("placement-refused");
+    expect(storedPage(s, sub.id)).toBeNull();
+  });
+
+  test("are refused in another workspace than their parent's, even one the person belongs to", async () => {
+    const { s, samsDevice, parentId, samsWorkspace } =
+      await samOnAlexsPage("edit");
+    const sub = samsSubpage(samsDevice, samsWorkspace, parentId);
+    expect(await sub.closed).toBe("placement-refused");
+    expect(storedPage(s, sub.id)).toBeNull();
   });
 });
 
