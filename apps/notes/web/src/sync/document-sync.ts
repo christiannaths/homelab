@@ -3,17 +3,11 @@ import {
   HocuspocusProviderWebsocket,
 } from "@hocuspocus/provider";
 import { clearDocument, IndexeddbPersistence } from "y-indexeddb";
+import { REFUSALS } from "@homelab/notes-model";
 import * as Y from "yjs";
 
 /** Why the server closes a document whose update it refused (ADR-NOTE-010). */
-const REFUSALS = new Set([
-  "read-only",
-  "access-change-refused",
-  "placement-refused",
-  "structure-refused",
-  "teamspace-change-refused",
-  "last-owner",
-]);
+const REFUSED = new Set<string>(REFUSALS);
 /** Why the server refuses or closes a document the person may no longer open. */
 const LOST = new Set(["no-access", "access-revoked"]);
 
@@ -165,7 +159,7 @@ export class DocumentSync {
   #closedByServer(name: string, entry: Entry, reason: string): void {
     if (this.#entries.get(name) !== entry) return;
     if (LOST.has(reason)) void this.forget(name);
-    else if (REFUSALS.has(reason)) void this.#resync(name);
+    else if (REFUSED.has(reason)) void this.#resync(name);
   }
 
   /**

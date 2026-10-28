@@ -13,8 +13,13 @@ import { PRIVATE_SECTION, type Page } from "./page.ts";
  *   under a page they can't edit, under itself or a page in the Trash, outside their own Private
  *   section, or into another workspace.
  */
-export type Refusal =
-  "read-only" | "access-change-refused" | "placement-refused";
+export const REFUSALS = [
+  "read-only",
+  "access-change-refused",
+  "placement-refused",
+] as const;
+
+export type Refusal = (typeof REFUSALS)[number];
 
 /** What an update would do to a document, from applying it to a scratch copy (`previewUpdate`). */
 export interface DocumentChange {

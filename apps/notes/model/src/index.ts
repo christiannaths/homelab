@@ -38,6 +38,7 @@ export {
 } from "./page.ts";
 export {
   documentLevel,
+  REFUSALS,
   reviewUpdate,
   type DocumentChange,
   type Refusal,
