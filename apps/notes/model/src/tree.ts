@@ -32,6 +32,19 @@ function comparePages(a: Page, b: Page): number {
   );
 }
 
+/** The parent `page` names, if it is here, in the same workspace and not the page itself. */
+export function namedParent(
+  pages: ReadonlyMap<string, Page>,
+  page: Page,
+): string | null {
+  const target = page.parentId === null ? undefined : pages.get(page.parentId);
+  return target !== undefined &&
+    target.id !== page.id &&
+    target.workspaceId === page.workspaceId
+    ? target.id
+    : null;
+}
+
 /**
  * Each page's effective parent. Every device runs this on the same pages and gets the same answer
  * (ADR-NOTE-006 rule 1):
@@ -42,14 +55,7 @@ export function resolveParents(
   pages: ReadonlyMap<string, Page>,
 ): Map<string, string | null> {
   const parent = new Map<string, string | null>();
-  for (const p of pages.values()) {
-    const target = p.parentId === null ? undefined : pages.get(p.parentId);
-    const usable =
-      target !== undefined &&
-      target.id !== p.id &&
-      target.workspaceId === p.workspaceId;
-    parent.set(p.id, usable ? target.id : null);
-  }
+  for (const p of pages.values()) parent.set(p.id, namedParent(pages, p));
 
   const acyclic = new Set<string>();
   for (const start of pages.keys()) {

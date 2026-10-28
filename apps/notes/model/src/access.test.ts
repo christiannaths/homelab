@@ -118,4 +118,28 @@ describe("a person's level on a page", () => {
     ]);
     expect(levels(c, BEN)).toEqual({ orphan: "view", x: "edit", y: "edit" });
   });
+
+  it("for one page is what the whole tree's levels give it, cycles and missing parents too", () => {
+    const c = catalog([
+      page("top", { access: { people: { [ADA]: "full", [BEN]: "view" } } }),
+      page("sub", { parentId: "top", access: { people: { [CY]: "edit" } } }),
+      page("orphan", {
+        parentId: "gone",
+        access: { people: { [BEN]: "edit" } },
+      }),
+      page("x", { parentId: "z", access: { people: { [BEN]: "edit" } } }),
+      page("y", { parentId: "x", access: { people: { [CY]: "full" } } }),
+      page("z", { parentId: "y" }),
+      page("below", { parentId: "z", access: { people: { [ADA]: "view" } } }),
+      page("other", { workspaceId: "ws-2", parentId: "top" }),
+    ]);
+    for (const person of [ADA, BEN, CY]) {
+      const all = pageLevels(c, person);
+      for (const id of c.pages.keys())
+        expect(levelOn(c, person, id), `${person} on ${id}`).toBe(
+          all.get(id) ?? "none",
+        );
+    }
+    expect(levelOn(c, BEN, "nowhere")).toBe("none");
+  });
 });

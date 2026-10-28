@@ -1,4 +1,4 @@
-import { levelOn, pageLevels, type Catalog } from "./access.ts";
+import { levelOn, pageLevels, resolveAccess, type Catalog } from "./access.ts";
 import { parseDocName } from "./documents.ts";
 import { canEdit, canShare, type AccessLevel } from "./levels.ts";
 import { PRIVATE_SECTION, type Page } from "./page.ts";
@@ -187,9 +187,11 @@ function levelsChange(
   after: Catalog,
   workspaceId: string,
 ): boolean {
+  const resolvedBefore = resolveAccess(before.pages);
+  const resolvedAfter = resolveAccess(after.pages);
   for (const personId of before.members.get(workspaceId) ?? []) {
-    const was = pageLevels(before, personId);
-    const now = pageLevels(after, personId);
+    const was = pageLevels(before, personId, resolvedBefore);
+    const now = pageLevels(after, personId, resolvedAfter);
     if (was.size !== now.size || [...was].some(([id, l]) => now.get(id) !== l))
       return true;
   }
