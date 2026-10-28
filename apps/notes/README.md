@@ -2,7 +2,7 @@
 
 Self-hosted Notion-style workspace. **Offline-first**: every device keeps a full copy. **Multiplayer**: edits and cursors sync live.
 
-**Status: early.** The [server](server/README.md) reads identity from the gateway, syncs documents and checks every update; the [web client](web) signs in, opens offline, and lets a person write pages and subpages in their Private section, synced across their devices, and make, rename and switch between workspaces.
+**Status: early.** The [server](server/README.md) reads identity from the gateway, syncs documents and checks every update; the [web client](web) signs in, opens offline, and lets a person write pages and subpages in their Private section and move them to the Trash and back, synced across their devices, and make, rename and switch between workspaces.
 
 | Docs |  |
 | --- | --- |

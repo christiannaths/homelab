@@ -9,7 +9,9 @@ import {
   readIndex,
   readPage,
   readWorkspaceName,
+  restorePatch,
   setWorkspaceName,
+  trashPatch,
   workspaceDocName,
   writeNewPage,
   type AccessLevel,
@@ -134,6 +136,17 @@ export class Notebook {
       const stop = this.subscribe(check);
       check();
     });
+  }
+
+  /** Moves page `id` to the Trash, with its subpages. */
+  trashPage(id: string): void {
+    this.updatePage(id, trashPatch(Date.now()));
+  }
+
+  /** Restores page `id` from the Trash, with its subpages; see `restorePatch` for where to. */
+  restorePage(id: string): void {
+    const patch = restorePatch(this.#snapshot.pages, id);
+    if (patch) this.updatePage(id, patch);
   }
 
   /** Page `id`'s document, for its editor, once its local copy has loaded. */

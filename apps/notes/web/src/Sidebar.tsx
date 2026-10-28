@@ -10,11 +10,12 @@ import type { TreeNode } from "@homelab/notes-model";
 import type { ReactNode } from "react";
 import { PlusIcon } from "./icons.tsx";
 import { PageTree } from "./PageTree.tsx";
+import { Trash } from "./Trash.tsx";
 import type { Workspace } from "./sync/notebook.ts";
 
 /**
- * The sidebar, in Notion's order (spec #130): the workspace switcher, then the Private section.
- * The Trash takes its place here as it arrives.
+ * The sidebar, in Notion's order (spec #130): the workspace switcher, then the Private section,
+ * then the Trash.
  */
 export function Sidebar({
   switcher,
@@ -23,6 +24,9 @@ export function Sidebar({
   currentId,
   currentAbove,
   onAddPage,
+  trashedPages,
+  onTrash,
+  onRestore,
   onNavigate,
 }: {
   /** The workspace switcher, at the top. */
@@ -35,6 +39,10 @@ export function Sidebar({
   currentAbove: readonly string[];
   /** Adds a page at the end of the Private section, or of `parentId`'s subpages. */
   onAddPage: (parentId: string | null) => void;
+  /** The top of each trashed subtree, with its subpages. */
+  trashedPages: readonly TreeNode[];
+  onTrash: (id: string) => void;
+  onRestore: (id: string) => void;
   /** Called after going to a page, so a phone can close the sidebar. */
   onNavigate: () => void;
 }) {
@@ -86,9 +94,14 @@ export function Sidebar({
             currentId={currentId}
             above={currentAbove}
             onAddSubpage={onAddPage}
+            onTrash={onTrash}
             onNavigate={onNavigate}
           />
         </Stack>
+        <Trash
+          pages={trashedPages}
+          onRestore={onRestore}
+        />
       </AppShell.Section>
     </AppShell.Navbar>
   );

@@ -140,10 +140,18 @@ function Title({
 }
 
 /** Where a page would be when this device doesn't have it. */
-export function NoPage({ loading }: { loading: boolean }) {
+export function NoPage({
+  loading,
+  trashed,
+}: {
+  loading: boolean;
+  trashed: boolean;
+}) {
   return (
     <Center py="xl">
-      {loading ? (
+      {trashed ? (
+        <Text c="dimmed">This page is in the Trash.</Text>
+      ) : loading ? (
         <Loader size="sm" />
       ) : (
         <Text c="dimmed">This page isn't available.</Text>
