@@ -10,7 +10,8 @@ import { PRIVATE_SECTION, type Page } from "./page.ts";
  * - "access-change-refused": changes access without Full access, gives an entry to someone outside
  *   the page's workspace, or moves a page so that someone's level changes without Full access.
  * - "placement-refused": puts a page where its author may not: a workspace they don't belong to,
- *   under a page they can't edit, outside their own Private section, or into another workspace.
+ *   under a page they can't edit, under itself or a page in the Trash, outside their own Private
+ *   section, or into another workspace.
  */
 export type Refusal =
   "read-only" | "access-change-refused" | "placement-refused";
@@ -124,7 +125,7 @@ function reviewNewPage(
  * Whether `personId` may not put `page` where it says, judged in `placed` (the catalog with the
  * page there). In this slice a page is placed in their own workspace's Private section: at the
  * top level only if it gives them Full access, as their own pages do; as a subpage only under a
- * page of the same workspace they can edit.
+ * page of the same workspace they can edit, not below itself and not in the Trash.
  */
 function placementRefused(
   catalog: Catalog,
@@ -139,10 +140,27 @@ function placementRefused(
   const parent = catalog.pages.get(page.parentId);
   return (
     parent === undefined ||
-    parent.id === page.id ||
     parent.workspaceId !== page.workspaceId ||
-    !canEdit(levelOn(catalog, personId, parent.id))
+    !canEdit(levelOn(catalog, personId, parent.id)) ||
+    cycleOrTrash(catalog, page.id, parent)
   );
+}
+
+/**
+ * Whether `parent` is page `id` itself or below it, which would make a cycle, or is in the
+ * Trash, where a live page can't go.
+ */
+function cycleOrTrash(catalog: Catalog, id: string, parent: Page): boolean {
+  const seen = new Set<string>();
+  for (
+    let cur: Page | undefined = parent;
+    cur !== undefined && !seen.has(cur.id);
+    cur = cur.parentId === null ? undefined : catalog.pages.get(cur.parentId)
+  ) {
+    if (cur.id === id || cur.deletedAt !== null) return true;
+    seen.add(cur.id);
+  }
+  return false;
 }
 
 /** Whether every person entry `page` adds or changes (against `before`) is for a workspace member. */

@@ -130,6 +130,42 @@ describe("reviewing an update that moves a page", () => {
     expect(review(ADA, "x", changeTo(xUnder("cys")))).toBe("placement-refused");
   });
 
+  it("refuses moving it under one of its own subpages", () => {
+    const withSubs = {
+      ...catalog,
+      pages: new Map(catalog.pages)
+        .set("y", page("y", { parentId: "x" }))
+        .set("z", page("z", { parentId: "y" })),
+    };
+    for (const parentId of ["x", "y", "z"])
+      expect(
+        reviewUpdate(
+          withSubs,
+          ADA,
+          pageDocName("x"),
+          changeTo(xUnder(parentId)),
+        ),
+      ).toBe("placement-refused");
+  });
+
+  it("refuses moving it under a page in the Trash, or below one", () => {
+    const trashed = {
+      ...catalog,
+      pages: new Map(catalog.pages)
+        .set("bin", page("bin", { access: both, deletedAt: 5 }))
+        .set("binned", page("binned", { parentId: "bin" })),
+    };
+    for (const parentId of ["bin", "binned"])
+      expect(
+        reviewUpdate(
+          trashed,
+          ADA,
+          pageDocName("x"),
+          changeTo(xUnder(parentId)),
+        ),
+      ).toBe("placement-refused");
+  });
+
   it("accepts a restore to the top level that keeps what the page inherited", () => {
     const restored = xUnder(null, both);
     expect(review(ADA, "x", changeTo(restored, ["meta", "access"]))).toBeNull();
@@ -177,6 +213,24 @@ describe("reviewing an update that creates a page", () => {
       expect(review(BEN, "new", changeTo(created({ parentId })))).toBe(
         "placement-refused",
       );
+  });
+
+  it("refuses a new subpage of a page in the Trash", () => {
+    const trashed = {
+      ...catalog,
+      pages: new Map(catalog.pages).set(
+        "bin",
+        page("bin", { access: both, deletedAt: 5 }),
+      ),
+    };
+    expect(
+      reviewUpdate(
+        trashed,
+        BEN,
+        pageDocName("new"),
+        changeTo(page("new", { parentId: "bin" })),
+      ),
+    ).toBe("placement-refused");
   });
 
   it("refuses a subpage that sets access where its creator is below Full access", () => {
