@@ -15,6 +15,7 @@ import {
   tab,
   typePassword,
   type Account,
+  inNotesAs,
 } from "./stack.ts";
 
 let browser: Browser;
@@ -102,7 +103,7 @@ describe("the account page", () => {
     await page.getByRole("heading", { name: "Joan Murray" }).waitFor();
 
     await page.goto(`${NOTES_URL}/`);
-    await page.getByText("Signed in as Joan Murray").waitFor();
+    await inNotesAs(page, "Joan Murray");
   });
 
   it("changes the password with the current one, after which only the new one signs in", async () => {

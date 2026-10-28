@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { blob, integer } from "./rows.ts";
+import { blob, integer, text } from "./rows.ts";
 
 /** Stores each Yjs document as one merged binary state (ADR-NOTE-005). */
 export class DocumentStore {
@@ -23,6 +23,14 @@ export class DocumentStore {
          ON CONFLICT (name) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at`,
       )
       .run(name, state, Date.now());
+  }
+
+  /** The names of the stored documents whose names start with `prefix`. */
+  names(prefix: string): string[] {
+    return this.#db
+      .prepare("SELECT name FROM documents WHERE substr(name, 1, ?) = ?")
+      .all(prefix.length, prefix)
+      .map((row) => text(row, "name"));
   }
 
   count(): number {

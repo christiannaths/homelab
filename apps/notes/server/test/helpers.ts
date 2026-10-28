@@ -9,6 +9,16 @@ import {
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { identityHeaders, type AppAccess } from "@homelab/identity";
+import { randomUUID } from "node:crypto";
+import {
+  buildTree,
+  newPage,
+  readIndex,
+  readWorkspaceName,
+  writeNewPage,
+  type AccessLevel,
+  type Page,
+} from "@homelab/notes-model";
 import { startServer, type NotesServer } from "../src/server.ts";
 
 /** Who the gateway says is signing in, as the accounts service tells it. */
@@ -19,18 +29,18 @@ export interface Account {
   access: AppAccess;
 }
 
-export const OWNER: Account = {
+export const ALEX: Account = {
   id: "alex",
   name: "Alex",
   access: { notes: "admin" },
 };
-export const MEMBER: Account = {
+export const SAM: Account = {
   id: "sam",
   name: "Sam",
   access: { notes: "member" },
 };
 /** The Encyclopedia's admin, and a Notes member. The gateway sends no name for this account. */
-export const OTHER_APPS_ADMIN: Account = {
+export const KIM: Account = {
   id: "kim",
   access: { encyclopedia: "admin", notes: "member" },
 };
@@ -90,6 +100,24 @@ export function request(
   });
 }
 
+/** Makes a workspace through the API, as the web client does; `body` overrides what is sent. */
+export function createWorkspace(
+  server: TestServer,
+  account: Account | undefined,
+  body: unknown = { name: "Side projects" },
+  contentType = "application/json",
+): Promise<Response> {
+  return fetch(`${server.url}/api/workspaces`, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      ...(account ? gatewayHeaders(account) : {}),
+      "content-type": contentType,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 /** A WebSocket whose upgrade request carries the gateway's headers. */
 function gatewayWebSocket(account: Account) {
   return class extends WebSocket {
@@ -105,6 +133,8 @@ export interface Device {
     provider: HocuspocusProvider;
     synced: Promise<void>;
     denied: Promise<string>;
+    /** Resolves with the reason the server gave for closing this document. */
+    closed: Promise<string>;
   };
   closed: Promise<number>;
   destroy(): void;
@@ -128,8 +158,12 @@ export function device(server: TestServer, account: Account): Device {
       const doc = new Y.Doc();
       let onSynced!: () => void;
       let onDenied!: (reason: string) => void;
+      let onDocumentClosed!: (reason: string) => void;
       const synced = new Promise<void>((resolve) => (onSynced = resolve));
       const denied = new Promise<string>((resolve) => (onDenied = resolve));
+      const documentClosed = new Promise<string>(
+        (resolve) => (onDocumentClosed = resolve),
+      );
       const provider = new HocuspocusProvider({
         websocketProvider: socket,
         name,
@@ -138,16 +172,73 @@ export function device(server: TestServer, account: Account): Device {
         token: "gateway",
         onSynced: () => onSynced(),
         onAuthenticationFailed: ({ reason }) => onDenied(reason),
+        onClose: ({ event }) => onDocumentClosed(event.reason),
+        // A document can be opened again on the same socket right after it was refused.
+        sessionAwareness: true,
       });
       provider.attach();
       providers.push(provider);
-      return { doc, provider, synced, denied };
+      return { doc, provider, synced, denied, closed: documentClosed };
     },
     destroy() {
       for (const p of providers) p.destroy();
       socket.destroy();
     },
   };
+}
+
+/** The ids of the workspaces a device's index lists. */
+export const indexedWorkspaces = (index: Y.Doc): string[] => [
+  ...readIndex(index).workspaces,
+];
+
+/** The pages a device's index lists, with the level it gives on each. */
+export const indexedPages = (index: Y.Doc): Record<string, AccessLevel> =>
+  Object.fromEntries(readIndex(index).pages);
+
+/**
+ * Writes a new page into `doc`, as the web client does when `creatorId` adds one at the top of
+ * their Private section in `workspaceId`; `fields` overrides what a faulty client would change.
+ */
+export function writePage(
+  doc: Y.Doc,
+  opts: { id: string; workspaceId: string; creatorId: string },
+  fields: Partial<Page> = {},
+): Page {
+  const page = {
+    ...newPage(buildTree([], opts.workspaceId), {
+      ...opts,
+      parentId: null,
+      now: Date.now(),
+    }),
+    ...fields,
+  };
+  writeNewPage(doc, page);
+  return page;
+}
+
+export const pageId = (): string => randomUUID();
+
+export const workspaceName = (workspace: Y.Doc | undefined): string | null =>
+  workspace ? readWorkspaceName(workspace) : null;
+
+/**
+ * Opens Notes on `d` as `account`, as the web client does: asks who is signed in, then opens
+ * the person's index and the one workspace it lists, and waits for both to sync.
+ */
+export async function openNotes(
+  server: TestServer,
+  d: Device,
+  account: Account,
+) {
+  await request(server, "/api/session", account);
+  const index = d.open(`index:${account.id}`);
+  await index.synced;
+  const [workspaceId] = indexedWorkspaces(index.doc);
+  if (!workspaceId) throw new Error(`${account.id}'s index lists no workspace`);
+  const workspace = d.open(`workspace:${workspaceId}`);
+  await workspace.synced;
+  return { index, workspaceId, workspace };
 }
 
 export async function waitFor(
