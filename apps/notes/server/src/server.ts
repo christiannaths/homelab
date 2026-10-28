@@ -129,6 +129,22 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     return c.json({ person });
   });
 
+  // Needs a connection, since membership is server data (ADR-NOTE-013); the name then lives in
+  // the workspace document. JSON only: a cross-site form can't send it, so another site can't
+  // make workspaces for whoever is signed in (ADR-NOTE-014).
+  app.post("/api/workspaces", async (c) => {
+    const person = await admitted(c);
+    if (!person) return c.json({ error: "signed_out" }, 401);
+    if (
+      c.req.header("content-type")?.split(";")[0].trim() !== "application/json"
+    )
+      return c.json({ error: "json_only" }, 415);
+    const name = workspaceNameFrom(await c.req.json().catch(() => undefined));
+    if (name === undefined) return c.json({ error: "name_required" }, 400);
+    const id = await notebooks.create(person, name);
+    return c.json({ workspace: { id, name } }, 201);
+  });
+
   app.get(
     "/sync",
     // Refuse an upgrade that did not come through the gateway, before any WebSocket exists.
@@ -219,6 +235,20 @@ function* storedPages(documents: DocumentStore): Generator<Page> {
     doc.destroy();
     if (page) yield page;
   }
+}
+
+/** The longest workspace name kept; longer ones are cut. */
+const MAX_WORKSPACE_NAME = 100;
+
+/** The trimmed, non-empty name in a create-workspace request, or undefined. */
+function workspaceNameFrom(body: unknown): string | undefined {
+  const name =
+    typeof body === "object" && body !== null && "name" in body
+      ? body.name
+      : undefined;
+  if (typeof name !== "string") return undefined;
+  const trimmed = name.trim().slice(0, MAX_WORKSPACE_NAME);
+  return trimmed === "" ? undefined : trimmed;
 }
 
 /** The y-protocols sync message that only asks for what the device lacks. */

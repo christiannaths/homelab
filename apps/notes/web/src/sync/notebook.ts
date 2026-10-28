@@ -9,6 +9,7 @@ import {
   readIndex,
   readPage,
   readWorkspaceName,
+  setWorkspaceName,
   workspaceDocName,
   writeNewPage,
   type AccessLevel,
@@ -114,6 +115,25 @@ export class Notebook {
   updatePage(id: string, patch: PagePatch): void {
     const doc = this.#sync.get(pageDocName(id));
     if (doc) applyPagePatch(doc, patch);
+  }
+
+  /** Renames workspace `id` through its document, so it works offline and merges. */
+  renameWorkspace(id: string, name: string): void {
+    const doc = this.#sync.get(workspaceDocName(id));
+    if (doc) setWorkspaceName(doc, name);
+  }
+
+  /** Resolves once the snapshot lists workspace `id`, as it does soon after it is made. */
+  whenListed(id: string): Promise<void> {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (!this.#snapshot.workspaces.some((w) => w.id === id)) return;
+        stop();
+        resolve();
+      };
+      const stop = this.subscribe(check);
+      check();
+    });
   }
 
   /** Page `id`'s document, for its editor, once its local copy has loaded. */

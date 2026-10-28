@@ -56,11 +56,12 @@ A Yjs document ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) syncs whole, and 
 
 - **Startup cost is per document:** one per openable page, plus the index; the sidebar is complete only once all load (5.8 s for 1,973 in the spike).
 - Trees can differ: briefly across one person's devices while the index arrives, and legitimately between people (a cycle through a hidden page isn't one). Access is always computed on the server's full tree.
-- Besides indexes, the server writes only a new workspace's name, a new person's first page (an empty one in Private, so two devices opening Notes at once don't each make one) and new people's default-teamspace membership.
+- Besides indexes, the server writes only a new workspace's name and first page (an empty one in its owner's Private section, so two devices opening Notes for the first time at once don't each make one) and new people's default-teamspace membership.
 - Creating a workspace needs a connection: membership is server data.
 
 ## Changelog
 
+- 2026-10-28: Every new workspace gets a server-written first page, not only a new person's default one, so each opens on a page (issue #136, spec #130).
 - 2026-10-28: The server writes a new person's first page, and `meta` names the page's workspace, since pages arrived in the real app (issue #133, spec #130).
 - 2026-10-28: Workspaces and members in SQLite, each workspace's name in `workspace:<id>`, the index lists workspaces, since an instance holds many workspaces ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), issue #131, spec #130).
 - 2026-10-17: Accepted. Page, index, teamspace and schema documents; no workspace document; people and roles server data.

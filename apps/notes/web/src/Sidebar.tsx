@@ -8,21 +8,24 @@ import {
   Text,
 } from "@mantine/core";
 import type { TreeNode } from "@homelab/notes-model";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { navigate, pagePath } from "./routes.ts";
 import type { Workspace } from "./sync/notebook.ts";
 
 /**
- * The sidebar, in Notion's order (spec #130): the workspace, then the Private section. The
- * workspace switcher and the Trash take their places here as they arrive.
+ * The sidebar, in Notion's order (spec #130): the workspace switcher, then the Private section.
+ * The Trash takes its place here as it arrives.
  */
 export function Sidebar({
+  switcher,
   workspace,
   privatePages,
   currentId,
   onAddPage,
   onNavigate,
 }: {
+  /** The workspace switcher, at the top. */
+  switcher: ReactNode;
   workspace: Workspace | undefined;
   /** The live top-level pages of the Private section, with their subpages. */
   privatePages: readonly TreeNode[];
@@ -36,15 +39,11 @@ export function Sidebar({
       p="xs"
       aria-label="Sidebar"
     >
-      <AppShell.Section p="xs">
-        {workspace && (
-          <Text
-            fw={600}
-            truncate
-          >
-            {workspace.name}
-          </Text>
-        )}
+      <AppShell.Section
+        component="section"
+        aria-label="Workspace"
+      >
+        {switcher}
       </AppShell.Section>
       <AppShell.Section
         grow

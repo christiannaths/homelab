@@ -3,7 +3,7 @@
 Hono for HTTP, Hocuspocus for sync, one SQLite file ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md)). Behind the gateway, which supplies the person in `Remote-*` headers ([ADR-PLAT-004](../../../docs/adr/ADR-PLAT-004-sign-in.md), [ADR-NOTE-009](../docs/adr/ADR-NOTE-009-identity.md)); no sign-in or sessions of its own.
 
 - People keyed by `Remote-User` (read by [`@homelab/identity`](../../../packages/identity)); member- and admin-level App access are treated alike.
-- A person's first request makes them a workspace they own, "Ada's workspace" or "My workspace", with one empty page in their Private section ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
+- A person's first request makes them a workspace they own, "Ada's workspace" or "My workspace", with one empty page in their Private section; they can make more (`POST /api/workspaces`), which can't be deleted ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
 - Serves the web client ([`../web`](../web)), plus the gateway's [App switcher](../../../platform/app-switcher/README.md), which owns sign-out.
 
 ## Data
@@ -23,6 +23,7 @@ Shapes and access rules: [`notes-model`](../model) (`ydoc.ts`, `review.ts`). Oth
 | --- | --- |
 | `GET /api/health` | `{ ok: true }` |
 | `GET /api/session` | `{ person: { id, name } }`, after making their default workspace on a first visit; 401 if not via the gateway |
+| `POST /api/workspaces` | `{ name }` (JSON only, else 415) → 201 `{ workspace: { id, name } }`: a workspace the caller owns, with one empty page in their Private section, once their index lists it. Name trimmed, cut to 100 characters; missing or blank → 400. Renaming is through `workspace:<id>`, not HTTP |
 | `GET /api/sign-in` | Redirects to `/`; loaded as a page so the gateway can send a signed-out browser to sign in and back |
 | `GET /sync` | Hocuspocus WebSocket, one per device for all its documents; 401 before upgrade if not via the gateway |
 | `GET /*` | Client files; app shell for other paths outside `/api` and `/sync`, such as a page's address `/pages/<id>` |

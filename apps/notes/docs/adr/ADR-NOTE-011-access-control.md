@@ -39,6 +39,7 @@ Drafts and journals are personal, and outsiders (a contractor, a babysitter) nee
   - `model/src/sharing.test.ts`, `model/src/overrides.convergence.test.ts` → concurrent access changes and moves converge.
 - `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts` → 2,272 pages: per-person sync as fast as whole-workspace.
 - `apps/notes/server/test/server.test.ts` ("the default workspace", "sync"), `apps/notes/e2e/tests/notes-app.test.ts` → one default workspace per person at either App access level; others refused its documents.
+- `apps/notes/server/test/server.test.ts` ("another workspace"), `apps/notes/e2e/tests/workspaces.test.ts` → anyone with Notes access makes more workspaces, owning each; others refused them.
 - [`research/06-notion-access-verification.md`](../research/06-notion-access-verification.md) → checked item by item against Notion's help centre; differences applied to the specs.
 
 ## Consequences
