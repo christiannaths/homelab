@@ -131,14 +131,15 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 
   // Needs a connection, since membership is server data (ADR-NOTE-013); the name then lives in
   // the workspace document. JSON only: a cross-site form can't send it, so another site can't
-  // make workspaces for whoever is signed in (ADR-NOTE-014).
+  // make workspaces for whoever is signed in (ADR-NOTE-014). Checked before admitting the person,
+  // which may write their first workspace.
   app.post("/api/workspaces", async (c) => {
-    const person = await admitted(c);
-    if (!person) return c.json({ error: "signed_out" }, 401);
     if (
       c.req.header("content-type")?.split(";")[0].trim() !== "application/json"
     )
       return c.json({ error: "json_only" }, 415);
+    const person = await admitted(c);
+    if (!person) return c.json({ error: "signed_out" }, 401);
     const name = workspaceNameFrom(await c.req.json().catch(() => undefined));
     if (name === undefined) return c.json({ error: "name_required" }, 400);
     const id = await notebooks.create(person, name);

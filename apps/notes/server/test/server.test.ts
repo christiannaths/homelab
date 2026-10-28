@@ -590,6 +590,14 @@ describe("another workspace", () => {
     expect((await created(s, ALEX, "  Trimmed  ")).name).toBe("Trimmed");
   });
 
+  test("from a cross-site form writes nothing, not even the caller's first workspace", async () => {
+    const s = await server();
+    for (const type of ["application/x-www-form-urlencoded", "text/plain"])
+      expect((await createWorkspace(s, ALEX, {}, type)).status).toBe(415);
+    expect(s.db.prepare("SELECT id FROM people").all()).toEqual([]);
+    expect(s.db.prepare("SELECT * FROM workspace_members").all()).toEqual([]);
+  });
+
   test("survives a restart, with its name", async () => {
     let s = await server();
     await signedIn(s, ALEX);
