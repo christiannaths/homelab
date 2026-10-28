@@ -9,7 +9,16 @@ import {
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { identityHeaders, type AppAccess } from "@homelab/identity";
-import { readIndex, readWorkspaceName } from "@homelab/notes-model";
+import { randomUUID } from "node:crypto";
+import {
+  buildTree,
+  newPage,
+  readIndex,
+  readWorkspaceName,
+  writeNewPage,
+  type AccessLevel,
+  type Page,
+} from "@homelab/notes-model";
 import { startServer, type NotesServer } from "../src/server.ts";
 
 /** Who the gateway says is signing in, as the accounts service tells it. */
@@ -164,6 +173,33 @@ export function device(server: TestServer, account: Account): Device {
 export const indexedWorkspaces = (index: Y.Doc): string[] => [
   ...readIndex(index).workspaces,
 ];
+
+/** The pages a device's index lists, with the level it gives on each. */
+export const indexedPages = (index: Y.Doc): Record<string, AccessLevel> =>
+  Object.fromEntries(readIndex(index).pages);
+
+/**
+ * Writes a new page into `doc`, as the web client does when `creatorId` adds one at the top of
+ * their Private section in `workspaceId`; `fields` overrides what a faulty client would change.
+ */
+export function writePage(
+  doc: Y.Doc,
+  opts: { id: string; workspaceId: string; creatorId: string },
+  fields: Partial<Page> = {},
+): Page {
+  const page = {
+    ...newPage(buildTree([], opts.workspaceId), {
+      ...opts,
+      parentId: null,
+      now: Date.now(),
+    }),
+    ...fields,
+  };
+  writeNewPage(doc, page);
+  return page;
+}
+
+export const pageId = (): string => randomUUID();
 
 export const workspaceName = (workspace: Y.Doc | undefined): string | null =>
   workspace ? readWorkspaceName(workspace) : null;

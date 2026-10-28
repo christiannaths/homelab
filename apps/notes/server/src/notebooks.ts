@@ -1,11 +1,18 @@
+import { randomUUID } from "node:crypto";
 import type { Connection, Hocuspocus } from "@hocuspocus/server";
-import * as Y from "yjs";
+import type * as Y from "yjs";
 import {
+  buildTree,
   canEdit,
   documentLevel,
+  newPage,
+  pageDocName,
+  readPage,
   setWorkspaceName,
   workspaceDocName,
   writeIndex,
+  writeNewPage,
+  type Page,
 } from "@homelab/notes-model";
 import { Catalog } from "./catalog.ts";
 import type { Person } from "./people.ts";
@@ -27,27 +34,52 @@ export class Notebooks {
   /** Server writes to documents, one at a time, in order. */
   #writes: Promise<void> = Promise.resolve();
 
-  constructor(workspaces: Workspaces, hocuspocus: Hocuspocus<SyncContext>) {
+  constructor(
+    workspaces: Workspaces,
+    pages: Iterable<Page>,
+    hocuspocus: Hocuspocus<SyncContext>,
+  ) {
     this.#workspaces = workspaces;
     this.#hocuspocus = hocuspocus;
-    this.catalog = new Catalog(workspaces.memberships());
+    this.catalog = new Catalog(workspaces.memberships(), pages);
   }
 
   /**
-   * Gives a person who belongs to no workspace a default one, which they own, and resolves once
-   * it and their index are written.
+   * Gives a person who belongs to no workspace a default one, which they own, with an empty page
+   * in their Private section to land on (spec #130), and resolves once it and their index are
+   * written. The server writes that page, not the device: two devices opening Notes for the
+   * first time at once would each make one.
    */
   async admit(person: Person): Promise<void> {
     // Checked and recorded before the first await, so two requests at once make one workspace.
     if (!this.catalog.hasWorkspace(person.id)) {
       const membership = this.#workspaces.create(person.id);
+      const { workspaceId } = membership;
       this.catalog.add(membership);
       const name = person.name ? `${person.name}'s workspace` : "My workspace";
-      void this.#write(workspaceDocName(membership.workspaceId), (doc) =>
+      void this.#write(workspaceDocName(workspaceId), (doc) =>
         setWorkspaceName(doc, name),
       );
+      const page = newPage(buildTree([], workspaceId), {
+        id: randomUUID(),
+        workspaceId,
+        parentId: null,
+        creatorId: person.id,
+        now: Date.now(),
+      });
+      this.catalog.setPage(page);
+      void this.#write(pageDocName(page.id), (doc) => writeNewPage(doc, page));
     }
     await this.refreshIndexes();
+  }
+
+  /**
+   * Keeps the catalog in step with page `id`'s document after a change was applied, and the
+   * indexes with it.
+   */
+  pageChanged(id: string, doc: Y.Doc): void {
+    const page = readPage(id, doc);
+    if (page && this.catalog.setPage(page)) void this.refreshIndexes();
   }
 
   /** Rewrites the index of everyone whose index lists the wrong things. */

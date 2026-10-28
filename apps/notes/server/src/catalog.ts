@@ -4,6 +4,7 @@ import {
   type Catalog as ModelCatalog,
   type Index,
   type Page,
+  type PageAccess,
 } from "@homelab/notes-model";
 import type { Membership } from "./workspaces.ts";
 
@@ -19,8 +20,26 @@ export class Catalog implements ModelCatalog {
   /** The index each person was last given, so only changed indexes are rewritten. */
   readonly #written = new Map<string, Index>();
 
-  constructor(memberships: Iterable<Membership>) {
+  constructor(memberships: Iterable<Membership>, pages: Iterable<Page>) {
     for (const membership of memberships) this.add(membership);
+    for (const page of pages) this.pages.set(page.id, page);
+  }
+
+  /**
+   * Records a page as its document now reads. Returns whether that can change anyone's level on
+   * any page (a new page, a move, or a change to its access), so indexes need rewriting; a title
+   * or Trash change can't.
+   */
+  setPage(page: Page): boolean {
+    const before = this.pages.get(page.id);
+    this.pages.set(page.id, page);
+    return (
+      !before ||
+      before.workspaceId !== page.workspaceId ||
+      before.parentId !== page.parentId ||
+      before.section !== page.section ||
+      !sameAccess(before.access, page.access)
+    );
   }
 
   add({ workspaceId, personId }: Membership): void {
@@ -62,6 +81,15 @@ export class Catalog implements ModelCatalog {
   indexWritten(personId: string, index: Index): void {
     this.#written.set(personId, index);
   }
+}
+
+function sameAccess(a: PageAccess, b: PageAccess): boolean {
+  const people = (access: PageAccess) => Object.entries(access.people);
+  return (
+    a.workspace === b.workspace &&
+    people(a).length === people(b).length &&
+    people(a).every(([id, level]) => b.people[id] === level)
+  );
 }
 
 const sameIndex = (a: Index, b: Index): boolean =>
