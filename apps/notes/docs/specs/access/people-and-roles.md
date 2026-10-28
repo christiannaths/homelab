@@ -7,8 +7,8 @@
 
 | Role | Who | Can |
 | --- | --- | --- |
-| **Workspace owner** | Whoever set up the instance, plus anyone they promote | Everything a member can, plus: manage workspace settings; invite and remove people; change anyone's role; manage teamspaces they are not in (see [Teamspaces](teamspaces.md)). There is always at least one. |
-| **Member** | The household: people who use the instance regularly | Create pages in their Private section and in teamspaces they can edit; join open teamspaces; create teamspaces; share pages they have Full access to, with members or guests. |
+| **Workspace owner** | Whoever created the workspace, plus anyone they promote | Everything a member can, plus: manage workspace settings; invite and remove people; change anyone's role; manage teamspaces they are not in (see [Teamspaces](teamspaces.md)). There is always at least one. |
+| **Member** | The household: people who use the workspace regularly | Create pages in their Private section and in teamspaces they can edit; join open teamspaces; create teamspaces; share pages they have Full access to, with members or guests. |
 | **Guest** | Outsiders: a contractor, a babysitter, an accountant | Open only the pages shared with them, at the level given (see [Page sharing](page-sharing.md)). |
 
 ### What guests cannot do

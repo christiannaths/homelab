@@ -1,6 +1,6 @@
 // Notes through the real gateway and accounts service (ADR-PLAT-009): the one place the real
 // platform and a real app are proven together, since Notes' own suite runs it behind a stand-in.
-// Notes learns who is there, and their level in it, from the identity headers alone.
+// Notes learns who is there from the identity headers alone.
 import { identityHeaders } from "@homelab/identity";
 import type { Browser, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
@@ -14,6 +14,7 @@ import {
   onSignInPage,
   SESSION_COOKIE,
   typePassword,
+  inNotesAs,
 } from "./stack.ts";
 
 let browser: Browser;
@@ -32,7 +33,7 @@ async function openNotes(page: Page, account: Account): Promise<void> {
   await page.goto(NOTES_URL);
   await onSignInPage(page);
   await typePassword(page, account);
-  await page.getByText(`Signed in as ${account.name}`).waitFor();
+  await inNotesAs(page, account.name);
 }
 
 /** What Notes' API says about the signed-in person, asked from a Notes page. */
@@ -59,11 +60,11 @@ function syncOpens(page: Page): Promise<boolean> {
 }
 
 describe("Notes through the gateway", () => {
-  it("knows an owner by their account id, and syncs only while they are signed in", async () => {
+  it("knows an admin-level person by their account id, and syncs only while they are signed in", async () => {
     const page = await newDevice(browser);
     await openNotes(page, ADA);
     expect(await sessionFrom(page)).toMatchObject({
-      person: { id: idOf(ADA), role: "owner", name: ADA.name },
+      person: { id: idOf(ADA), name: ADA.name },
     });
     expect(await syncOpens(page)).toBe(true);
 
@@ -71,15 +72,15 @@ describe("Notes through the gateway", () => {
     expect(await syncOpens(page)).toBe(false);
   });
 
-  it("knows a member by their account id", async () => {
+  it("knows a member-level person by their account id", async () => {
     const page = await newDevice(browser);
     await openNotes(page, DANA);
     expect(await sessionFrom(page)).toMatchObject({
-      person: { id: idOf(DANA), role: "member", name: DANA.name },
+      person: { id: idOf(DANA), name: DANA.name },
     });
   });
 
-  it("can't be told someone else's name or level by a browser sending the identity headers", async () => {
+  it("can't be told someone else's name by a browser sending the identity headers", async () => {
     const page = await newDevice(browser);
     await openNotes(page, DANA);
     expect(
@@ -93,7 +94,7 @@ describe("Notes through the gateway", () => {
         }),
       ),
     ).toEqual({
-      person: { id: idOf(DANA), role: "member", name: DANA.name },
+      person: { id: idOf(DANA), name: DANA.name },
     });
   });
 });

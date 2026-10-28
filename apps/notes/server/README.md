@@ -2,18 +2,28 @@
 
 Hono for HTTP, Hocuspocus for sync, one SQLite file ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md)). Behind the gateway, which supplies the person in `Remote-*` headers ([ADR-PLAT-004](../../../docs/adr/ADR-PLAT-004-sign-in.md), [ADR-NOTE-009](../docs/adr/ADR-NOTE-009-identity.md)); no sign-in or sessions of its own.
 
-- Admin-level App access = owner, member-level = member (read by [`@homelab/identity`](../../../packages/identity)); keyed by `Remote-User`.
-- Only owners open documents until access rules exist ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)).
-- Serves the web client ([`../web`](../web)): one page saying who's signed in, plus the gateway's [App switcher](../../../platform/app-switcher/README.md), which owns sign-out.
+- People keyed by `Remote-User` (read by [`@homelab/identity`](../../../packages/identity)); member- and admin-level App access are treated alike.
+- A person's first request makes them a workspace they own, "Ada's workspace" or "My workspace" ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)).
+- Serves the web client ([`../web`](../web)), plus the gateway's [App switcher](../../../platform/app-switcher/README.md), which owns sign-out.
+
+## Data
+
+| Where | What |
+| --- | --- |
+| SQLite `people`, `workspaces`, `workspace_members` | Account data: who belongs to which workspace, as `owner`, `member` or `guest` |
+| `index:<personId>` | Server-written, read-only to that person: `workspaces` map, id → role |
+| `workspace:<id>` | `meta` map, `name`; read-write to the workspace's members |
+
+Any other document is refused `no-access`. Every update is checked; one to a read-only document closes it with `read-only` ([ADR-NOTE-010](../docs/adr/ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
 
 ## Routes
 
 | Route |  |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }` |
-| `GET /api/session` | `{ person }`; 401 if not via the gateway |
+| `GET /api/session` | `{ person: { id, name } }`, after making their default workspace on a first visit; 401 if not via the gateway |
 | `GET /api/sign-in` | Redirects to `/`; loaded as a page so the gateway can send a signed-out browser to sign in and back |
-| `GET /sync` | Hocuspocus WebSocket; 401 before upgrade if not via the gateway |
+| `GET /sync` | Hocuspocus WebSocket, one per device for all its documents; 401 before upgrade if not via the gateway |
 | `GET /*` | Client files; app shell for other paths outside `/api` and `/sync` |
 
 ## Settings
