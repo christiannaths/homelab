@@ -32,7 +32,7 @@ import {
   writeIndex,
   type AccessLevel,
 } from "@homelab/notes-model";
-import { integer, text } from "../src/rows.ts";
+import { blob, integer, text } from "../src/rows.ts";
 
 const servers: TestServer[] = [];
 const devices: Device[] = [];
@@ -65,9 +65,25 @@ async function restart(s: TestServer): Promise<TestServer> {
   return server(s.dataDir);
 }
 
+/**
+ * Document `name` as the server holds it: its loaded copy, or else what it stored. A refusal
+ * closes the document, and Hocuspocus may unload it at any moment after, once it is stored.
+ */
+function storedDoc(s: TestServer, name: string): Y.Doc | undefined {
+  const loaded = s.hocuspocus.documents.get(name);
+  if (loaded) return loaded;
+  const row = s.db
+    .prepare("SELECT state FROM documents WHERE name = ?")
+    .get(name);
+  if (!row) return undefined;
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, new Uint8Array(blob(row, "state")));
+  return doc;
+}
+
 /** The page called `id` as the server holds it, or null if it has none. */
 function storedPage(s: TestServer, id: string) {
-  const doc = s.hocuspocus.documents.get(`page:${id}`);
+  const doc = storedDoc(s, `page:${id}`);
   return doc ? readPage(id, doc) : null;
 }
 
@@ -645,7 +661,7 @@ describe("sync", () => {
       workspaces: new Set(["someone-elses"]),
     });
     expect(await index.closed).toBe("read-only");
-    const stored = s.hocuspocus.documents.get(`index:${ALEX.id}`);
+    const stored = storedDoc(s, `index:${ALEX.id}`);
     expect(stored && indexedWorkspaces(stored)).toEqual([workspaceId]);
   });
 
