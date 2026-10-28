@@ -76,6 +76,18 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
     close();
   };
 
+  // Trashing the open page, or a page above it, goes to the trashed page's parent, else to the
+  // first page left in the Private section.
+  const trashPage = (id: string) => {
+    if (!tree) return;
+    notebook.trashPage(id);
+    if (page?.id !== id && !above.some((p) => p.id === id)) return;
+    const next =
+      tree.byId.get(id)?.parentId ??
+      tree.roots.find((n) => n.page.id !== id)?.page.id;
+    navigate(next ? pagePath(next) : "/", { replace: true });
+  };
+
   return (
     <AppShell
       header={{ height: 56 }}
@@ -118,6 +130,9 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
         currentId={page?.id ?? null}
         currentAbove={above.map((p) => p.id)}
         onAddPage={addPage}
+        trashedPages={tree?.trash ?? []}
+        onTrash={trashPage}
+        onRestore={(id) => notebook.restorePage(id)}
         onNavigate={close}
       />
       <AppShell.Main>
@@ -133,7 +148,13 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
         ) : (
           pageId !== null && (
             // Until the index has synced, a page this device lacks may still be on its way.
-            <NoPage loading={(online && !indexSynced) || levels.has(pageId)} />
+            <NoPage
+              loading={(online && !indexSynced) || levels.has(pageId)}
+              // Here but not in the tree's live pages: in the Trash.
+              trashed={pages.some(
+                (p) => p.id === pageId && p.workspaceId === workspace?.id,
+              )}
+            />
           )
         )}
       </AppShell.Main>
