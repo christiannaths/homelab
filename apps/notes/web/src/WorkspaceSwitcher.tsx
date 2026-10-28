@@ -11,6 +11,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useState, type FormEvent } from "react";
 import { createWorkspace } from "./api.ts";
+import { CheckIcon } from "./icons.tsx";
 import type { Notebook, Workspace } from "./sync/notebook.ts";
 
 const nameOf = (workspace: Workspace) => workspace.name ?? "Untitled workspace";
@@ -229,25 +230,5 @@ function NewWorkspace({
         </Stack>
       </form>
     </Modal>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      aria-hidden
-    >
-      <path
-        d="M3 8.5l3.5 3.5L13 4.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

@@ -16,7 +16,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { buildTree } from "@homelab/notes-model";
+import { ancestors, buildTree } from "@homelab/notes-model";
 import type { SignedInState } from "@homelab/signed-in-state";
 import type { Person } from "./api.ts";
 import { readLastPlace, rememberPlace } from "./last-place.ts";
@@ -70,6 +70,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
     [pages, workspace],
   );
   const page = pageId ? tree?.byId.get(pageId)?.page : undefined;
+  const above = tree && page ? ancestors(tree, page.id).map((n) => n.page) : [];
   // Anywhere but a page's address lands on the page last open in the workspace, or else the
   // first page of its Private section (spec #130).
   const landing = useMemo(() => {
@@ -99,9 +100,9 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
     close();
   };
 
-  const addPage = () => {
+  const addPage = (parentId: string | null) => {
     if (!workspace) return;
-    navigate(pagePath(notebook.addPage(workspace.id)));
+    navigate(pagePath(notebook.addPage(workspace.id, parentId)));
     close();
   };
 
@@ -154,6 +155,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
         workspace={workspace}
         privatePages={tree?.roots ?? []}
         currentId={page?.id ?? null}
+        currentAbove={above.map((p) => p.id)}
         onAddPage={addPage}
         onNavigate={close}
       />
@@ -163,6 +165,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
             key={page.id}
             notebook={notebook}
             page={page}
+            above={above}
             level={levels.get(page.id)}
             me={me}
           />

@@ -2,14 +2,14 @@ import {
   ActionIcon,
   AppShell,
   Group,
-  NavLink,
   ScrollArea,
   Stack,
   Text,
 } from "@mantine/core";
 import type { TreeNode } from "@homelab/notes-model";
-import type { MouseEvent, ReactNode } from "react";
-import { navigate, pagePath } from "./routes.ts";
+import type { ReactNode } from "react";
+import { PlusIcon } from "./icons.tsx";
+import { PageTree } from "./PageTree.tsx";
 import type { Workspace } from "./sync/notebook.ts";
 
 /**
@@ -21,6 +21,7 @@ export function Sidebar({
   workspace,
   privatePages,
   currentId,
+  currentAbove,
   onAddPage,
   onNavigate,
 }: {
@@ -30,7 +31,10 @@ export function Sidebar({
   /** The live top-level pages of the Private section, with their subpages. */
   privatePages: readonly TreeNode[];
   currentId: string | null;
-  onAddPage: () => void;
+  /** The ids of the pages above the current one, from the top down. */
+  currentAbove: readonly string[];
+  /** Adds a page at the end of the Private section, or of `parentId`'s subpages. */
+  onAddPage: (parentId: string | null) => void;
   /** Called after going to a page, so a phone can close the sidebar. */
   onNavigate: () => void;
 }) {
@@ -71,67 +75,21 @@ export function Sidebar({
               color="gray"
               size="sm"
               aria-label="Add a page"
-              onClick={onAddPage}
+              onClick={() => onAddPage(null)}
               disabled={!workspace}
             >
               <PlusIcon />
             </ActionIcon>
           </Group>
-          {privatePages.map((node) => (
-            <PageLink
-              key={node.page.id}
-              node={node}
-              currentId={currentId}
-              onNavigate={onNavigate}
-            />
-          ))}
+          <PageTree
+            roots={privatePages}
+            currentId={currentId}
+            above={currentAbove}
+            onAddSubpage={onAddPage}
+            onNavigate={onNavigate}
+          />
         </Stack>
       </AppShell.Section>
     </AppShell.Navbar>
-  );
-}
-
-function PageLink({
-  node,
-  currentId,
-  onNavigate,
-}: {
-  node: TreeNode;
-  currentId: string | null;
-  onNavigate: () => void;
-}) {
-  const href = pagePath(node.page.id);
-  return (
-    <NavLink
-      href={href}
-      label={node.page.title || "Untitled"}
-      active={node.page.id === currentId}
-      onClick={(event: MouseEvent) => {
-        // A plain click stays in the app; one meant for a new tab or window is the browser's.
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-          return;
-        event.preventDefault();
-        navigate(href);
-        onNavigate();
-      }}
-    />
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      aria-hidden
-    >
-      <path
-        d="M8 3v10M3 8h10"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

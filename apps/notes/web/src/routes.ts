@@ -26,6 +26,18 @@ function subscribe(listener: () => void): () => void {
 export const usePath = (): string =>
   useSyncExternalStore(subscribe, () => location.pathname);
 
+/**
+ * Handles a click on a link to `path` in the app, and says whether it did. A click meant for a
+ * new tab or window is left to the browser.
+ */
+export function followLink(event: MouseEvent, path: string): boolean {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+    return false;
+  event.preventDefault();
+  navigate(path);
+  return true;
+}
+
 /** Goes to `path` without reloading; `replace` keeps it out of the back button's history. */
 export function navigate(path: string, { replace = false } = {}): void {
   if (path === location.pathname) return;
