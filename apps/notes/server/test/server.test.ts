@@ -12,6 +12,7 @@ import {
   SAM,
   KIM,
   ALEX,
+  createWorkspace,
   request,
   openNotes,
   start,
@@ -487,6 +488,102 @@ describe("a page update", () => {
     expect(await page.closed).toBe("access-change-refused");
     applyPagePatch(other.doc, { title: "Still fine" });
     await waitFor(() => storedPage(s, other.id)?.title === "Still fine");
+  });
+});
+
+describe("another workspace", () => {
+  /** Makes a workspace as `account` and returns it as the API describes it. */
+  async function created(s: TestServer, account: Account, name: string) {
+    const response = await createWorkspace(s, account, { name });
+    expect(response.status).toBe(201);
+    return workspaceIn(await response.json());
+  }
+
+  function workspaceIn(body: unknown): { id: string; name: string } {
+    const workspace =
+      typeof body === "object" && body !== null && "workspace" in body
+        ? body.workspace
+        : undefined;
+    if (
+      typeof workspace === "object" &&
+      workspace !== null &&
+      "id" in workspace &&
+      "name" in workspace &&
+      typeof workspace.id === "string" &&
+      typeof workspace.name === "string"
+    )
+      return { id: workspace.id, name: workspace.name };
+    throw new Error("The response holds no workspace");
+  }
+
+  test("is made with the caller as its owner, and reaches their open devices live with one empty page", async () => {
+    const s = await server();
+    const phone = await signedIn(s, ALEX);
+    const laptop = await signedIn(s, ALEX);
+
+    const made = await created(s, ALEX, "Side projects");
+    expect(made).toMatchObject({ name: "Side projects" });
+    expect(made.id).not.toBe(phone.workspaceId);
+    expect(
+      s.db
+        .prepare(
+          "SELECT person_id, role FROM workspace_members WHERE workspace_id = ?",
+        )
+        .all(made.id),
+    ).toEqual([{ person_id: ALEX.id, role: "owner" }]);
+
+    for (const { index } of [phone, laptop])
+      await waitFor(() => indexedWorkspaces(index.doc).includes(made.id));
+    const workspace = track(device(s, ALEX)).open(`workspace:${made.id}`);
+    await workspace.synced;
+    expect(workspaceName(workspace.doc)).toBe("Side projects");
+
+    const pages = Object.keys(indexedPages(laptop.index.doc)).map((id) =>
+      storedPage(s, id),
+    );
+    const inNew = pages.filter((p) => p?.workspaceId === made.id);
+    expect(inNew).toMatchObject([
+      { title: "", parentId: null, access: { people: { [ALEX.id]: "full" } } },
+    ]);
+  });
+
+  test("another person is refused its document, and a rename from them is not applied", async () => {
+    const s = await server();
+    await signedIn(s, ALEX);
+    const made = await created(s, ALEX, "Alex's plans");
+    const sams = track(device(s, SAM));
+    await openNotes(s, sams, SAM);
+
+    const workspace = sams.open(`workspace:${made.id}`);
+    setWorkspaceName(workspace.doc, "Sam's now");
+    expect(await workspace.denied).toBe("no-access");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(
+      workspaceName(s.hocuspocus.documents.get(`workspace:${made.id}`)),
+    ).toBe("Alex's plans");
+  });
+
+  test("needs the gateway, a JSON body and a name", async () => {
+    const s = await server();
+    expect((await createWorkspace(s, undefined)).status).toBe(401);
+    expect(
+      (await createWorkspace(s, ALEX, { name: "Form" }, "text/plain")).status,
+    ).toBe(415);
+    for (const body of [{}, { name: "  " }, { name: 3 }, "Side projects"])
+      expect((await createWorkspace(s, ALEX, body)).status).toBe(400);
+    expect((await created(s, ALEX, "  Trimmed  ")).name).toBe("Trimmed");
+  });
+
+  test("survives a restart, with its name", async () => {
+    let s = await server();
+    await signedIn(s, ALEX);
+    const made = await created(s, ALEX, "Kept");
+    s = await restart(s);
+    const { index } = await signedIn(s, ALEX);
+    expect(indexedWorkspaces(index.doc)).toContain(made.id);
+    const workspace = track(device(s, ALEX)).open(`workspace:${made.id}`);
+    await workspace.synced;
+    expect(workspaceName(workspace.doc)).toBe("Kept");
   });
 });
 

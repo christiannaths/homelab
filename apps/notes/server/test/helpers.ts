@@ -100,6 +100,24 @@ export function request(
   });
 }
 
+/** Makes a workspace through the API, as the web client does; `body` overrides what is sent. */
+export function createWorkspace(
+  server: TestServer,
+  account: Account | undefined,
+  body: unknown = { name: "Side projects" },
+  contentType = "application/json",
+): Promise<Response> {
+  return fetch(`${server.url}/api/workspaces`, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      ...(account ? gatewayHeaders(account) : {}),
+      "content-type": contentType,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 /** A WebSocket whose upgrade request carries the gateway's headers. */
 function gatewayWebSocket(account: Account) {
   return class extends WebSocket {

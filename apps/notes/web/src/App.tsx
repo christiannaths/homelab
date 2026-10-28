@@ -12,16 +12,19 @@ import { useDisclosure } from "@mantine/hooks";
 import {
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { ancestors, buildTree } from "@homelab/notes-model";
 import type { SignedInState } from "@homelab/signed-in-state";
 import type { Person } from "./api.ts";
+import { readLastPlace, rememberPlace } from "./last-place.ts";
 import { NoPage, PageView } from "./PageView.tsx";
 import { navigate, pageIdFrom, pagePath, usePath } from "./routes.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { notebookFor } from "./sync/notebook.ts";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher.tsx";
 
 export function App({ state }: { state: SignedInState<Person> }) {
   const view = useSyncExternalStore(state.subscribe, () => state.view);
@@ -53,22 +56,49 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
     notebook.getSnapshot,
   );
   const [opened, { toggle, close }] = useDisclosure();
-  // Choosing between workspaces comes with the workspace switcher; a new person has one.
-  const workspace = workspaces[0];
+  const [chosenId, setChosenId] = useState(
+    () => readLastPlace(me.id).workspaceId,
+  );
+  const pageId = pageIdFrom(usePath());
+  // A page's address opens its own workspace; anywhere else, the one last chosen on this device.
+  const pageWorkspaceId = pages.find((p) => p.id === pageId)?.workspaceId;
+  const workspace =
+    workspaces.find((w) => w.id === (pageWorkspaceId ?? chosenId)) ??
+    workspaces[0];
   const tree = useMemo(
     () => (workspace ? buildTree(pages, workspace.id) : undefined),
     [pages, workspace],
   );
-  const pageId = pageIdFrom(usePath());
   const page = pageId ? tree?.byId.get(pageId)?.page : undefined;
   const above = tree && page ? ancestors(tree, page.id).map((n) => n.page) : [];
-  const firstPage = tree?.roots[0]?.page.id;
+  // Anywhere but a page's address lands on the page last open in the workspace, or else the
+  // first page of its Private section (spec #130).
+  const landing = useMemo(() => {
+    if (!workspace || !tree) return undefined;
+    const last = readLastPlace(me.id).pages[workspace.id];
+    return last && tree.byId.has(last) ? last : tree.roots[0]?.page.id;
+  }, [me.id, workspace, tree]);
 
-  // Anywhere but a page's address lands on the first page of the Private section (spec #130).
   useEffect(() => {
-    if (pageId === null && firstPage)
-      navigate(pagePath(firstPage), { replace: true });
-  }, [pageId, firstPage]);
+    if (pageId === null && landing)
+      navigate(pagePath(landing), { replace: true });
+  }, [pageId, landing]);
+
+  const workspaceId = workspace?.id;
+  // A page opened by its address makes its workspace the chosen one, so leaving the page stays
+  // there.
+  if (workspaceId && workspaceId !== chosenId) setChosenId(workspaceId);
+  const openPageId = page?.id ?? null;
+  useEffect(() => {
+    if (workspaceId) rememberPlace(me.id, workspaceId, openPageId);
+  }, [me.id, workspaceId, openPageId]);
+
+  const switchTo = (id: string) => {
+    setChosenId(id);
+    rememberPlace(me.id, id, null);
+    navigate("/");
+    close();
+  };
 
   const addPage = (parentId: string | null) => {
     if (!workspace) return;
@@ -125,6 +155,15 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
         </Group>
       </AppShell.Header>
       <Sidebar
+        switcher={
+          <WorkspaceSwitcher
+            notebook={notebook}
+            workspaces={workspaces}
+            current={workspace}
+            online={online}
+            onSwitch={switchTo}
+          />
+        }
         workspace={workspace}
         privatePages={tree?.roots ?? []}
         currentId={page?.id ?? null}

@@ -45,32 +45,51 @@ export class Notebooks {
   }
 
   /**
-   * Gives a person who belongs to no workspace a default one, which they own, with an empty page
-   * in their Private section to land on (spec #130), and resolves once it and their index are
-   * written. The server writes that page, not the device: two devices opening Notes for the
-   * first time at once would each make one.
+   * Gives a person who belongs to no workspace a default one, and resolves once it and their
+   * index are written.
    */
   async admit(person: Person): Promise<void> {
     // Checked and recorded before the first await, so two requests at once make one workspace.
-    if (!this.catalog.hasWorkspace(person.id)) {
-      const membership = this.#workspaces.create(person.id);
-      const { workspaceId } = membership;
-      this.catalog.add(membership);
-      const name = person.name ? `${person.name}'s workspace` : "My workspace";
-      void this.#write(workspaceDocName(workspaceId), (doc) =>
-        setWorkspaceName(doc, name),
+    if (!this.catalog.hasWorkspace(person.id))
+      this.#make(
+        person,
+        person.name ? `${person.name}'s workspace` : "My workspace",
       );
-      const page = newPage(buildTree([], workspaceId), {
-        id: randomUUID(),
-        workspaceId,
-        parentId: null,
-        creatorId: person.id,
-        now: Date.now(),
-      });
-      this.catalog.setPage(page);
-      void this.#write(pageDocName(page.id), (doc) => writeNewPage(doc, page));
-    }
     await this.refreshIndexes();
+  }
+
+  /**
+   * Makes a workspace called `name`, owned by `person`, and resolves once their index lists it,
+   * so it reaches their open devices.
+   */
+  async create(person: Person, name: string): Promise<string> {
+    const workspaceId = this.#make(person, name);
+    await this.refreshIndexes();
+    return workspaceId;
+  }
+
+  /**
+   * Makes the workspace, with an empty page in its owner's Private section to land on (spec
+   * #130). The server writes that page, not the device: two devices opening Notes for the first
+   * time at once would each make one.
+   */
+  #make(owner: Person, name: string): string {
+    const membership = this.#workspaces.create(owner.id);
+    const { workspaceId } = membership;
+    this.catalog.add(membership);
+    void this.#write(workspaceDocName(workspaceId), (doc) =>
+      setWorkspaceName(doc, name),
+    );
+    const page = newPage(buildTree([], workspaceId), {
+      id: randomUUID(),
+      workspaceId,
+      parentId: null,
+      creatorId: owner.id,
+      now: Date.now(),
+    });
+    this.catalog.setPage(page);
+    void this.#write(pageDocName(page.id), (doc) => writeNewPage(doc, page));
+    return workspaceId;
   }
 
   /**
