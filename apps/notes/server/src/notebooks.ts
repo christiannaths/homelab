@@ -31,6 +31,8 @@ export class Notebooks {
   readonly catalog: Catalog;
   readonly #workspaces: Workspaces;
   readonly #hocuspocus: Hocuspocus<SyncContext>;
+  /** People being given their first workspace, until their index lists it. */
+  readonly #admitting = new Map<string, Promise<void>>();
   /** Server writes to documents, one at a time, in order. */
   #writes: Promise<void> = Promise.resolve();
 
@@ -48,14 +50,22 @@ export class Notebooks {
    * Gives a person who belongs to no workspace a default one, and resolves once it and their
    * index are written.
    */
-  async admit(person: Person): Promise<void> {
-    // Checked and recorded before the first await, so two requests at once make one workspace.
-    if (!this.catalog.hasWorkspace(person.id))
-      this.#make(
-        person,
-        person.name ? `${person.name}'s workspace` : "My workspace",
-      );
-    await this.refreshIndexes();
+  admit(person: Person): Promise<void> {
+    // Checked and recorded before returning, so two requests at once make one workspace and
+    // both wait for it.
+    const pending = this.#admitting.get(person.id);
+    if (pending) return pending;
+    // Indexes are current otherwise: written at startup and after every change.
+    if (this.catalog.hasWorkspace(person.id)) return Promise.resolve();
+    this.#make(
+      person,
+      person.name ? `${person.name}'s workspace` : "My workspace",
+    );
+    const admitted = this.refreshIndexes().finally(() =>
+      this.#admitting.delete(person.id),
+    );
+    this.#admitting.set(person.id, admitted);
+    return admitted;
   }
 
   /**

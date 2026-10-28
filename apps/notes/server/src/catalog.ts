@@ -1,10 +1,12 @@
 import {
   indexDocName,
   pageLevels,
+  resolveAccess,
   type Catalog as ModelCatalog,
   type Index,
   type Page,
   type PageAccess,
+  type ResolvedAccess,
 } from "@homelab/notes-model";
 import type { Membership } from "./workspaces.ts";
 
@@ -56,12 +58,15 @@ export class Catalog implements ModelCatalog {
     return [...this.members.values()].some((members) => members.has(personId));
   }
 
-  /** What `personId`'s index should list now. */
-  index(personId: string): Index {
+  /** What `personId`'s index should list now; pass `resolved` when asking for many people. */
+  index(
+    personId: string,
+    resolved: ReadonlyMap<string, ResolvedAccess> = resolveAccess(this.pages),
+  ): Index {
     const workspaces = new Set<string>();
     for (const [workspaceId, members] of this.members)
       if (members.has(personId)) workspaces.add(workspaceId);
-    return { pages: pageLevels(this, personId), workspaces };
+    return { pages: pageLevels(this, personId, resolved), workspaces };
   }
 
   /** The people whose index lists something other than it should, with what it should list. */
@@ -69,8 +74,9 @@ export class Catalog implements ModelCatalog {
     const people = new Set(
       [...this.members.values()].flatMap((members) => [...members]),
     );
+    const resolved = resolveAccess(this.pages);
     return [...people].flatMap((personId) => {
-      const index = this.index(personId);
+      const index = this.index(personId, resolved);
       const written = this.#written.get(personId);
       return written && sameIndex(written, index)
         ? []
