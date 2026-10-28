@@ -15,7 +15,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { buildTree } from "@homelab/notes-model";
+import { ancestors, buildTree } from "@homelab/notes-model";
 import type { SignedInState } from "@homelab/signed-in-state";
 import type { Person } from "./api.ts";
 import { NoPage, PageView } from "./PageView.tsx";
@@ -61,6 +61,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
   );
   const pageId = pageIdFrom(usePath());
   const page = pageId ? tree?.byId.get(pageId)?.page : undefined;
+  const above = tree && page ? ancestors(tree, page.id).map((n) => n.page) : [];
   const firstPage = tree?.roots[0]?.page.id;
 
   // Anywhere but a page's address lands on the first page of the Private section (spec #130).
@@ -69,9 +70,9 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
       navigate(pagePath(firstPage), { replace: true });
   }, [pageId, firstPage]);
 
-  const addPage = () => {
+  const addPage = (parentId: string | null) => {
     if (!workspace) return;
-    navigate(pagePath(notebook.addPage(workspace.id)));
+    navigate(pagePath(notebook.addPage(workspace.id, parentId)));
     close();
   };
 
@@ -115,6 +116,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
         workspace={workspace}
         privatePages={tree?.roots ?? []}
         currentId={page?.id ?? null}
+        currentAbove={above.map((p) => p.id)}
         onAddPage={addPage}
         onNavigate={close}
       />
@@ -124,6 +126,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
             key={page.id}
             notebook={notebook}
             page={page}
+            above={above}
             level={levels.get(page.id)}
             me={me}
           />
