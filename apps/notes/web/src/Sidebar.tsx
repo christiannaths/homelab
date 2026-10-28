@@ -6,7 +6,7 @@ import {
   Stack,
   Text,
 } from "@mantine/core";
-import type { TreeNode } from "@homelab/notes-model";
+import type { AccessLevel, TreeNode } from "@homelab/notes-model";
 import type { ReactNode } from "react";
 import { PlusIcon } from "./icons.tsx";
 import { PageTree } from "./PageTree.tsx";
@@ -24,6 +24,7 @@ export function Sidebar({
   currentId,
   currentAbove,
   onAddPage,
+  levels,
   trashedPages,
   onTrash,
   onRestore,
@@ -39,6 +40,8 @@ export function Sidebar({
   currentAbove: readonly string[];
   /** Adds a page at the end of the Private section, or of `parentId`'s subpages. */
   onAddPage: (parentId: string | null) => void;
+  /** The person's level on each page, from their index. */
+  levels: ReadonlyMap<string, AccessLevel>;
   /** The top of each trashed subtree, with its subpages. */
   trashedPages: readonly TreeNode[];
   onTrash: (id: string) => void;
@@ -93,6 +96,7 @@ export function Sidebar({
             roots={privatePages}
             currentId={currentId}
             above={currentAbove}
+            levels={levels}
             onAddSubpage={onAddPage}
             onTrash={onTrash}
             onNavigate={onNavigate}
@@ -100,6 +104,7 @@ export function Sidebar({
         </Stack>
         <Trash
           pages={trashedPages}
+          levels={levels}
           onRestore={onRestore}
         />
       </AppShell.Section>

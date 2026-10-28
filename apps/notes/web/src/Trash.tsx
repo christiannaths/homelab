@@ -6,7 +6,8 @@ import {
   Text,
   UnstyledButton,
 } from "@mantine/core";
-import type { TreeNode } from "@homelab/notes-model";
+import type { AccessLevel, TreeNode } from "@homelab/notes-model";
+import { canChange } from "./levels.ts";
 import { useState } from "react";
 import { ChevronIcon, RestoreIcon } from "./icons.tsx";
 
@@ -16,10 +17,13 @@ import { ChevronIcon, RestoreIcon } from "./icons.tsx";
  */
 export function Trash({
   pages,
+  levels,
   onRestore,
 }: {
   /** The top of each trashed subtree, with its subpages. */
   pages: readonly TreeNode[];
+  /** The person's level on each page, from their index. */
+  levels: ReadonlyMap<string, AccessLevel>;
   onRestore: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,6 +62,7 @@ export function Trash({
         ) : (
           <TrashList
             nodes={pages}
+            levels={levels}
             onRestore={onRestore}
           />
         ))}
@@ -68,10 +73,12 @@ export function Trash({
 function TrashList({
   nodes,
   label,
+  levels,
   onRestore,
 }: {
   nodes: readonly TreeNode[];
   label?: string;
+  levels: ReadonlyMap<string, AccessLevel>;
   onRestore: (id: string) => void;
 }) {
   return (
@@ -98,20 +105,23 @@ function TrashList({
               >
                 {title}
               </Text>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
-                aria-label={`Restore ${title}`}
-                onClick={() => onRestore(node.page.id)}
-              >
-                <RestoreIcon />
-              </ActionIcon>
+              {canChange(levels, node.page.id) && (
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  aria-label={`Restore ${title}`}
+                  onClick={() => onRestore(node.page.id)}
+                >
+                  <RestoreIcon />
+                </ActionIcon>
+              )}
             </Group>
             {node.children.length > 0 && (
               <TrashList
                 nodes={node.children}
                 label={`Subpages of ${title}`}
+                levels={levels}
                 onRestore={onRestore}
               />
             )}

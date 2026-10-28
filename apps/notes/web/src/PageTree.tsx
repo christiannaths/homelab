@@ -1,5 +1,6 @@
 import { ActionIcon, Box, Group, NavLink } from "@mantine/core";
-import type { TreeNode } from "@homelab/notes-model";
+import type { AccessLevel, TreeNode } from "@homelab/notes-model";
+import { canChange } from "./levels.ts";
 import { useState, type MouseEvent } from "react";
 import { ChevronIcon, PlusIcon, TrashIcon } from "./icons.tsx";
 import { followLink, pagePath } from "./routes.ts";
@@ -13,6 +14,7 @@ export function PageTree({
   roots,
   currentId,
   above,
+  levels,
   onAddSubpage,
   onTrash,
   onNavigate,
@@ -21,6 +23,8 @@ export function PageTree({
   currentId: string | null;
   /** The ids of the pages above the current one, from the top down. */
   above: readonly string[];
+  /** The person's level on each page, from their index. */
+  levels: ReadonlyMap<string, AccessLevel>;
   onAddSubpage: (parentId: string) => void;
   /** Moves a page to the Trash; its subpages go with it. */
   onTrash: (id: string) => void;
@@ -51,6 +55,7 @@ export function PageTree({
         currentId,
         expanded,
         onToggle: toggle,
+        levels,
         onAddSubpage,
         onTrash,
         onNavigate,
@@ -63,6 +68,7 @@ interface ItemState {
   currentId: string | null;
   expanded: ReadonlySet<string>;
   onToggle: (id: string) => void;
+  levels: ReadonlyMap<string, AccessLevel>;
   onAddSubpage: (parentId: string) => void;
   onTrash: (id: string) => void;
   onNavigate: () => void;
@@ -102,6 +108,7 @@ function PageItem({ node, state }: { node: TreeNode; state: ItemState }) {
   const href = pagePath(id);
   const hasSubpages = node.children.length > 0;
   const open = hasSubpages && state.expanded.has(id);
+  const editable = canChange(state.levels, id);
   return (
     <li>
       <Group
@@ -135,24 +142,28 @@ function PageItem({ node, state }: { node: TreeNode; state: ItemState }) {
             if (followLink(event.nativeEvent, href)) state.onNavigate();
           }}
         />
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label={`Add a subpage to ${title}`}
-          onClick={() => state.onAddSubpage(id)}
-        >
-          <PlusIcon />
-        </ActionIcon>
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label={`Move ${title} to Trash`}
-          onClick={() => state.onTrash(id)}
-        >
-          <TrashIcon />
-        </ActionIcon>
+        {editable && (
+          <>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              aria-label={`Add a subpage to ${title}`}
+              onClick={() => state.onAddSubpage(id)}
+            >
+              <PlusIcon />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              aria-label={`Move ${title} to Trash`}
+              onClick={() => state.onTrash(id)}
+            >
+              <TrashIcon />
+            </ActionIcon>
+          </>
+        )}
       </Group>
       {open && (
         <PageList

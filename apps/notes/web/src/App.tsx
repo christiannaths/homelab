@@ -169,6 +169,7 @@ function Notes({ me, online }: { me: Person; online: boolean }) {
         currentId={page?.id ?? null}
         currentAbove={above.map((p) => p.id)}
         onAddPage={addPage}
+        levels={levels}
         trashedPages={tree?.trash ?? []}
         onTrash={trashPage}
         onRestore={(id) => notebook.restorePage(id)}
