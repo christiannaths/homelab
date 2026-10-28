@@ -70,7 +70,9 @@ export class DocumentSync {
     void entry.local.whenSynced
       .catch(() => undefined)
       .then(() => {
-        if (!entry.closed) this.#connect(name, entry);
+        if (entry.closed) return;
+        this.#connect(name, entry);
+        this.#notify(name);
       });
     return doc;
   }
@@ -85,6 +87,38 @@ export class DocumentSync {
     return this.#entries.get(name)?.synced ?? false;
   }
 
+  /**
+   * Whether `name` is open with its local copy loaded, so an editor bound to it starts from
+   * what this device has rather than from nothing.
+   */
+  isLoaded(name: string): boolean {
+    return this.#entries.get(name)?.provider !== undefined;
+  }
+
+  /** Who else has `name` open, for collaborators' cursors; set once it is loaded. */
+  awareness(
+    name: string,
+  ): NonNullable<HocuspocusProvider["awareness"]> | undefined {
+    return this.#entries.get(name)?.provider?.awareness ?? undefined;
+  }
+
+  /**
+   * The names of this person's documents stored on this device, whether or not they are open.
+   * Empty where the browser can't list its databases.
+   */
+  async storedNames(): Promise<string[]> {
+    const prefix = this.#storeName("");
+    try {
+      const databases = await indexedDB.databases();
+      return databases
+        .map((db) => db.name ?? "")
+        .filter((name) => name.startsWith(prefix))
+        .map((name) => name.slice(prefix.length));
+    } catch {
+      return [];
+    }
+  }
+
   /** Stops syncing `name` and deletes this device's copy of it. */
   async forget(name: string): Promise<void> {
     const entry = this.#entries.get(name);
@@ -97,8 +131,8 @@ export class DocumentSync {
   }
 
   /**
-   * Calls `listener` with a document's name when it first syncs, is replaced by a fresh copy, or
-   * is forgotten. Changes to its content are the document's own events.
+   * Calls `listener` with a document's name when its local copy has loaded, it first syncs, it
+   * is replaced by a fresh copy, or it is forgotten. Changes to its content are the document's own events.
    */
   onStateChange(listener: (name: string) => void): () => void {
     this.#listeners.add(listener);

@@ -5,6 +5,7 @@ import { indexDocName, pageDocName, workspaceDocName } from "./documents.ts";
 import { restorePatch, trashPatch } from "./edits.ts";
 import {
   applyPagePatch,
+  observePage,
   pageContent,
   previewUpdate,
   readIndex,
@@ -52,6 +53,20 @@ describe("a page document", () => {
     expect(readPage("p", doc)?.deletedAt).toBe(7);
     applyPagePatch(doc, restorePatch([readPage("p", doc)!], "p")!);
     expect(readPage("p", doc)?.deletedAt).toBeNull();
+  });
+
+  it("tells its observers when its page changes, not when its body does", () => {
+    const doc = pageDoc();
+    let calls = 0;
+    const stop = observePage(doc, () => calls++);
+    pageContent(doc).insert(0, [new Y.XmlText("typing")]);
+    expect(calls).toBe(0);
+    applyPagePatch(doc, { title: "Renamed" });
+    applyPagePatch(doc, { access: { people: { ben: "view" } } });
+    expect(calls).toBe(2);
+    stop();
+    applyPagePatch(doc, { title: "Again" });
+    expect(calls).toBe(2);
   });
 
   it("ignores access entries that aren't levels", () => {

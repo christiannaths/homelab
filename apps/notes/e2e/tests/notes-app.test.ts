@@ -13,6 +13,7 @@ import {
   goOffline,
   goOnline,
   newDevice,
+  OFFLINE_STATUS,
   onSignInPage,
   SESSION_COOKIE,
   sidebar,
@@ -201,12 +202,10 @@ describe("offline", () => {
     await goOffline(page, stack.frontDoor);
     await page.reload();
     await workspaceShows(page, ADA);
-    await page.getByText("Offline", { exact: true }).waitFor();
+    await page.getByText(OFFLINE_STATUS).waitFor();
 
     await goOnline(page, stack.frontDoor);
-    await page
-      .getByText("Offline", { exact: true })
-      .waitFor({ state: "detached" });
+    await page.getByText(OFFLINE_STATUS).waitFor({ state: "detached" });
     await workspaceShows(page, ADA);
   });
 
@@ -230,7 +229,7 @@ describe("offline", () => {
     await waitUntilOfflineReady(page);
     await goOffline(page, stack.frontDoor);
     await page.reload();
-    await page.getByText("Offline", { exact: true }).waitFor();
+    await page.getByText(OFFLINE_STATUS).waitFor();
 
     // The homelab session ends meanwhile, as when the browser is signed out from elsewhere.
     await page.context().clearCookies({ name: SESSION_COOKIE });

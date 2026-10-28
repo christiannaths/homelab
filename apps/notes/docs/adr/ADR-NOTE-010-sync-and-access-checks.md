@@ -27,7 +27,7 @@ Access differs per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [AD
 
 - **Refusals** are whole and close only that document, reason `read-only`, `access-change-refused`, `placement-refused`, `structure-refused`, `teamspace-change-refused` or `last-owner`. The device destroys provider, `Y.Doc` and local storage, then reopens from the server (`sessionAwareness: true` keeps old and new providers apart).
 - **Access changes apply live:** after each index change, that person's connections are re-checked; lost ones close with `access-revoked` (device deletes its copy), others switch read-only/writable.
-- **In-memory catalog** of every page's `meta`/`access`, every teamspace and every workspace's members, from which indexes are written ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)). Storage unchanged ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
+- **In-memory catalog** of every page's `meta`/`access`, every teamspace and every workspace's members, read from storage at start and updated after each applied change, from which indexes are written ([ADR-NOTE-013](ADR-NOTE-013-data-layout.md)). Storage unchanged ([ADR-NOTE-005](ADR-NOTE-005-document-persistence.md)).
 - **Index writes** use `disconnect({ unloadImmediately: false })`, so no device attaches to a dying document.
 - **Providers start after the local copy loads**, so stored content rides the handshake (a live update on a read-only connection stays "not applied" forever).
 - Gate: `SLOW=1` `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts`, until the real app has its own.
@@ -44,6 +44,7 @@ Access differs per document ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), [AD
   - `server/testing/databases.test.ts` → Can edit content: rows yes, views/properties no.
   - `server/testing/losing-access.test.ts` → revocation and level changes apply live and on reconnect; removal test failed ~1 in 8 before the index-write fix.
   - `e2e/tests/rejecting-edits.spec.ts`, `e2e/tests/losing-access.spec.ts` → same in the browser.
+- `apps/notes/server/test/server.test.ts` → the real server refuses another person a page, an entry for a non-member, a page in someone else's workspace or outside Private, a changed `workspaceId` and an access change below Full access, closing only that document; allowed edits apply.
 - `access-scale.spec.ts` (2,272 pages, owner with 1,973 docs, headless Chromium, localhost, median of 9; no drops or refusals) vs PR #1's gate (2,001 docs, `spikes/notes-block-editing-collaboration-poc/e2e/tests/sync-scale.spec.ts`):
 
   | Phase | Now | Old gate |

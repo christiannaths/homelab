@@ -15,7 +15,7 @@ A Yjs document ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) syncs whole, and 
 
   | Document | Holds | Reaches |
   | --- | --- | --- |
-  | `page:<id>` | `meta` (`title`, `kind` page/database/row, `parentId`, `section`, `order`, `createdAt`, `deletedAt`); `access` (`person:<id>`, `workspace` = general access, `teamspace` = members' level override; absent = inherit); `content` | who can open the page |
+  | `page:<id>` | `meta` (`workspaceId`, never changed; `title`, `kind` page/database/row, `parentId`, `section`, `order`, `createdAt`, `deletedAt`); `access` (`person:<id>`, `workspace` = general access, `teamspace` = members' level override; absent = inherit); `content` | who can open the page |
   | `index:<personId>` | `pages` (id → level), `workspaces` (ids), teamspace ids with level; no names or titles; server-written | that person, read-only |
   | `workspace:<id>` | `workspace` (`name`) | the workspace's members |
   | `teamspace:<id>` | name, kind, default flag, members' and non-members' level; members | open/closed: all workspace members; private: members and workspace owners; never guests |
@@ -49,17 +49,18 @@ A Yjs document ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) syncs whole, and 
   - `server/testing/overrides.test.ts` → page without its parent lands top of Shared, no trace of the parent.
   - `server/testing/teamspaces.test.ts`, `server/testing/guests.test.ts`, `server/testing/databases.test.ts` → private teamspaces, guests and single rows get exactly their documents.
   - `model/src/tree.test.ts`, `model/src/sharing.test.ts`, `model/src/overrides.convergence.test.ts`, `model/src/database.convergence.test.ts` → moves, cycles, renames, access changes, cell edits converge.
-- `apps/notes/server/test/server.test.ts` → the index lists the person's workspaces; index and workspace documents refused to others; a device's index change refused; both survive a restart.
+- `apps/notes/server/test/server.test.ts` → the index lists exactly the person's workspaces and pages with levels; index, workspace and page documents refused to others; a device's index change refused; all survive a restart.
 - `spikes/notes-access-sync-poc/e2e/tests/access-scale.spec.ts` → 2,272 pages within the old gate (risk 3).
 
 ## Consequences
 
 - **Startup cost is per document:** one per openable page, plus the index; the sidebar is complete only once all load (5.8 s for 1,973 in the spike).
 - Trees can differ: briefly across one person's devices while the index arrives, and legitimately between people (a cycle through a hidden page isn't one). Access is always computed on the server's full tree.
-- Besides indexes, the server writes only a new workspace's name and adds new people to default teamspaces.
+- Besides indexes, the server writes only a new workspace's name, a new person's first page (an empty one in Private, so two devices opening Notes at once don't each make one) and new people's default-teamspace membership.
 - Creating a workspace needs a connection: membership is server data.
 
 ## Changelog
 
+- 2026-10-28: The server writes a new person's first page, and `meta` names the page's workspace, since pages arrived in the real app (issue #133, spec #130).
 - 2026-10-28: Workspaces and members in SQLite, each workspace's name in `workspace:<id>`, the index lists workspaces, since an instance holds many workspaces ([ADR-NOTE-011](ADR-NOTE-011-access-control.md), issue #131, spec #130).
 - 2026-10-17: Accepted. Page, index, teamspace and schema documents; no workspace document; people and roles server data.

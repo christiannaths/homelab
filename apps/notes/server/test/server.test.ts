@@ -5,7 +5,10 @@ import { afterEach, describe, expect, test } from "vitest";
 import * as Y from "yjs";
 import {
   device,
+  indexedPages,
   indexedWorkspaces,
+  pageId,
+  writePage,
   SAM,
   KIM,
   ALEX,
@@ -20,7 +23,13 @@ import {
   type Device,
   type TestServer,
 } from "./helpers.ts";
-import { setWorkspaceName, writeIndex } from "@homelab/notes-model";
+import {
+  applyPagePatch,
+  pageContent,
+  readPage,
+  setWorkspaceName,
+  writeIndex,
+} from "@homelab/notes-model";
 import { integer, text } from "../src/rows.ts";
 
 const servers: TestServer[] = [];
@@ -45,6 +54,38 @@ function track(d: Device) {
 /** A new device of `account`'s, with Notes open on it. */
 const signedIn = (s: TestServer, account: Account) =>
   openNotes(s, track(device(s, account)), account);
+
+/** Stops `s` and starts it again on the same data, as after a deploy. */
+async function restart(s: TestServer): Promise<TestServer> {
+  for (const d of devices.splice(0)) d.destroy();
+  servers.splice(servers.indexOf(s), 1);
+  await s.close();
+  return server(s.dataDir);
+}
+
+/** The page called `id` as the server holds it, or null if it has none. */
+function storedPage(s: TestServer, id: string) {
+  const doc = s.hocuspocus.documents.get(`page:${id}`);
+  return doc ? readPage(id, doc) : null;
+}
+
+/** A top-level page `account` adds to their Private section on `d`, once their index lists it. */
+async function addPage(
+  notes: Awaited<ReturnType<typeof openNotes>>,
+  d: Device,
+  account: Account,
+) {
+  const id = pageId();
+  const opened = d.open(`page:${id}`);
+  writePage(opened.doc, {
+    id,
+    workspaceId: notes.workspaceId,
+    creatorId: account.id,
+  });
+  await opened.synced;
+  await waitFor(() => indexedPages(notes.index.doc)[id] === "full");
+  return { id, ...opened };
+}
 
 describe("the person the gateway signed in", () => {
   test("is told who they are, whatever their level of App access to Notes", async () => {
@@ -134,6 +175,195 @@ describe("the default workspace", () => {
     expect(after.workspaceId).toBe(before.workspaceId);
     expect(indexedWorkspaces(after.index.doc)).toEqual([before.workspaceId]);
     expect(workspaceName(after.workspace.doc)).toBe("Alex's workspace");
+  });
+});
+
+describe("pages", () => {
+  test("the default workspace starts with one empty page in Private, at Full access", async () => {
+    const s = await server();
+    const { index, workspaceId } = await signedIn(s, ALEX);
+    const pages = Object.entries(indexedPages(index.doc));
+    expect(pages).toEqual([[expect.any(String), "full"]]);
+    const [id] = pages[0];
+    const first = track(device(s, ALEX)).open(`page:${id}`);
+    await first.synced;
+    expect(readPage(id, first.doc)).toMatchObject({
+      workspaceId,
+      title: "",
+      parentId: null,
+      section: "private",
+      deletedAt: null,
+      access: { people: { alex: "full" } },
+    });
+  });
+
+  test("a page a person adds is listed in their index and reaches their other devices live, and nobody else's", async () => {
+    const s = await server();
+    const phoneDevice = track(device(s, ALEX));
+    const phone = await openNotes(s, phoneDevice, ALEX);
+    const page = await addPage(phone, phoneDevice, ALEX);
+    applyPagePatch(page.doc, { title: "Groceries" });
+
+    const laptop = await signedIn(s, ALEX);
+    expect(indexedPages(laptop.index.doc)[page.id]).toBe("full");
+    const onLaptop = track(device(s, ALEX)).open(`page:${page.id}`);
+    await onLaptop.synced;
+    await waitFor(() => readPage(page.id, onLaptop.doc)?.title === "Groceries");
+
+    pageContent(page.doc).insert(0, [new Y.XmlText("Milk")]);
+    await waitFor(() => pageContent(onLaptop.doc).toString().includes("Milk"));
+
+    const samsDevice = track(device(s, SAM));
+    const sam = await openNotes(s, samsDevice, SAM);
+    expect(indexedPages(sam.index.doc)[page.id]).toBeUndefined();
+    const refused = samsDevice.open(`page:${page.id}`);
+    expect(await refused.denied).toBe("no-access");
+    expect(readPage(page.id, refused.doc)).toBeNull();
+  });
+
+  test("survive a restart, and are still refused to anyone else", async () => {
+    let s = await server();
+    const d = track(device(s, ALEX));
+    const notes = await openNotes(s, d, ALEX);
+    const page = await addPage(notes, d, ALEX);
+    applyPagePatch(page.doc, { title: "Kept" });
+    await waitFor(() => storedPage(s, page.id)?.title === "Kept");
+    await signedIn(s, SAM);
+
+    s = await restart(s);
+    const again = await signedIn(s, ALEX);
+    expect(indexedPages(again.index.doc)[page.id]).toBe("full");
+    const reopened = track(device(s, ALEX)).open(`page:${page.id}`);
+    await reopened.synced;
+    expect(readPage(page.id, reopened.doc)?.title).toBe("Kept");
+    const sams = track(device(s, SAM)).open(`page:${page.id}`);
+    expect(await sams.denied).toBe("no-access");
+  });
+
+  test("one socket carries hundreds of pages", async () => {
+    const s = await server();
+    const d = track(device(s, ALEX));
+    const notes = await openNotes(s, d, ALEX);
+    await Promise.all(
+      Array.from({ length: 300 }, () => {
+        const id = pageId();
+        const opened = d.open(`page:${id}`);
+        writePage(opened.doc, {
+          id,
+          workspaceId: notes.workspaceId,
+          creatorId: ALEX.id,
+        });
+        return opened.synced;
+      }),
+    );
+    await waitFor(
+      () => Object.keys(indexedPages(notes.index.doc)).length === 301,
+    );
+  });
+});
+
+describe("a page update", () => {
+  /** Alex's page and the device holding it, with Sam signed in too. */
+  async function alexsPage() {
+    const s = await server();
+    const d = track(device(s, ALEX));
+    const notes = await openNotes(s, d, ALEX);
+    const page = await addPage(notes, d, ALEX);
+    const sam = await signedIn(s, SAM);
+    return { s, d, notes, page, sam };
+  }
+
+  test("giving an access entry to someone outside the workspace is refused", async () => {
+    const { s, page } = await alexsPage();
+    applyPagePatch(page.doc, { access: { people: { sam: "view" } } });
+    expect(await page.closed).toBe("access-change-refused");
+    expect(storedPage(s, page.id)?.access.people).toEqual({ alex: "full" });
+  });
+
+  test("changing the page's workspace is refused", async () => {
+    const { s, page, sam } = await alexsPage();
+    page.doc.getMap("meta").set("workspaceId", sam.workspaceId);
+    expect(await page.closed).toBe("placement-refused");
+    expect(storedPage(s, page.id)?.workspaceId).not.toBe(sam.workspaceId);
+  });
+
+  test("adding a page to someone else's workspace, or under their page, is refused", async () => {
+    const { s, notes, page } = await alexsPage();
+    const samsDevice = track(device(s, SAM));
+    for (const fields of [{}, { parentId: page.id, access: { people: {} } }]) {
+      const id = pageId();
+      const opened = samsDevice.open(`page:${id}`);
+      writePage(
+        opened.doc,
+        { id, workspaceId: notes.workspaceId, creatorId: SAM.id },
+        fields,
+      );
+      expect(await opened.closed).toBe("placement-refused");
+      expect(storedPage(s, id)).toBeNull();
+    }
+    expect(Object.keys(indexedPages(notes.index.doc))).toHaveLength(2);
+  });
+
+  test("adding a page outside the Private section is refused", async () => {
+    const { s, notes, d } = await alexsPage();
+    const id = pageId();
+    const opened = d.open(`page:${id}`);
+    writePage(
+      opened.doc,
+      { id, workspaceId: notes.workspaceId, creatorId: ALEX.id },
+      { section: "someone-elses-teamspace" },
+    );
+    expect(await opened.closed).toBe("placement-refused");
+    expect(storedPage(s, id)).toBeNull();
+  });
+
+  test("changing access below Full access is refused, while edits at Can edit apply", async () => {
+    let s = await server();
+    const notes = await signedIn(s, ALEX);
+    await signedIn(s, SAM);
+    // Adding workspace members comes later (spec #130); here Sam joins Alex's workspace in storage.
+    s.db
+      .prepare(
+        `INSERT INTO workspace_members (workspace_id, person_id, role, created_at)
+         VALUES (?, 'sam', 'member', 0)`,
+      )
+      .run(notes.workspaceId);
+    s = await restart(s);
+
+    const alexsDevice = track(device(s, ALEX));
+    const alex = await openNotes(s, alexsDevice, ALEX);
+    const id = pageId();
+    const shared = alexsDevice.open(`page:${id}`);
+    writePage(
+      shared.doc,
+      { id, workspaceId: alex.workspaceId, creatorId: ALEX.id },
+      { access: { people: { alex: "full", sam: "edit" } } },
+    );
+    await shared.synced;
+
+    const samsDevice = track(device(s, SAM));
+    const sam = await openNotes(s, samsDevice, SAM);
+    await waitFor(() => indexedPages(sam.index.doc)[id] === "edit");
+    const onSams = samsDevice.open(`page:${id}`);
+    await onSams.synced;
+    applyPagePatch(onSams.doc, { title: "Edited by Sam" });
+    await waitFor(() => readPage(id, shared.doc)?.title === "Edited by Sam");
+
+    applyPagePatch(onSams.doc, { access: { people: { sam: "full" } } });
+    expect(await onSams.closed).toBe("access-change-refused");
+    expect(storedPage(s, id)?.access.people).toEqual({
+      alex: "full",
+      sam: "edit",
+    });
+  });
+
+  test("that is refused closes only its document; the device's other pages stay editable", async () => {
+    const { s, notes, d, page } = await alexsPage();
+    const other = await addPage(notes, d, ALEX);
+    applyPagePatch(page.doc, { access: { people: { sam: "view" } } });
+    expect(await page.closed).toBe("access-change-refused");
+    applyPagePatch(other.doc, { title: "Still fine" });
+    await waitFor(() => storedPage(s, other.id)?.title === "Still fine");
   });
 });
 

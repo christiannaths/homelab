@@ -11,8 +11,11 @@ import { identityFrom } from "@homelab/identity";
 import {
   canEdit,
   documentLevel,
+  parseDocName,
   previewUpdate,
+  readPage,
   reviewUpdate,
+  type Page,
 } from "@homelab/notes-model";
 import { Notebooks, type SyncContext } from "./notebooks.ts";
 import { People, type Person } from "./people.ts";
@@ -72,6 +75,12 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
       if (reason) throw { reason };
     },
 
+    // Server writes (direct connections) pass here too, without beforeSync.
+    async onChange({ documentName, document }) {
+      const ref = parseDocName(documentName);
+      if (ref?.kind === "page") notebooks.pageChanged(ref.id, document);
+    },
+
     async onLoadDocument({ documentName, document }) {
       const state = documents.load(documentName);
       if (state) Y.applyUpdate(document, state);
@@ -83,7 +92,11 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     },
   });
 
-  const notebooks = new Notebooks(new Workspaces(db), hocuspocus);
+  const notebooks = new Notebooks(
+    new Workspaces(db),
+    storedPages(documents),
+    hocuspocus,
+  );
   // Indexes stored by an earlier run may list what the rules no longer give.
   await notebooks.refreshIndexes();
 
@@ -193,6 +206,20 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 }
 
 export type NotesServer = Awaited<ReturnType<typeof startServer>>;
+
+/** Every stored page's `meta` and `access`, read once at startup for the catalog. */
+function* storedPages(documents: DocumentStore): Generator<Page> {
+  for (const name of documents.names("page:")) {
+    const ref = parseDocName(name);
+    const state = documents.load(name);
+    if (ref?.kind !== "page" || !state) continue;
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, state);
+    const page = readPage(ref.id, doc);
+    doc.destroy();
+    if (page) yield page;
+  }
+}
 
 /** The y-protocols sync message that only asks for what the device lacks. */
 const SYNC_STEP_1 = 0;
