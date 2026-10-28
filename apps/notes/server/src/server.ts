@@ -8,6 +8,12 @@ import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
 import { identityFrom } from "@homelab/identity";
+import {
+  canEdit,
+  documentLevel,
+  previewUpdate,
+  reviewUpdate,
+} from "@homelab/notes-model";
 import { Notebooks, type SyncContext } from "./notebooks.ts";
 import { People, type Person } from "./people.ts";
 import { Workspaces } from "./workspaces.ts";
@@ -41,10 +47,14 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 
     // Runs for every document a socket opens; the person was read when the socket opened.
     async onAuthenticate({ context, documentName, connectionConfig }) {
-      const access = notebooks.catalog.access(context.person.id, documentName);
+      const level = documentLevel(
+        notebooks.catalog,
+        context.person.id,
+        documentName,
+      );
       // A plain object, without a message, keeps Hocuspocus from logging every refusal.
-      if (access === "none") throw { reason: "no-access" };
-      connectionConfig.readOnly = access === "read-only";
+      if (level === "none") throw { reason: "no-access" };
+      connectionConfig.readOnly = !canEdit(level);
     },
 
     // ADR-NOTE-010: every update is checked at the person's access now, not at open. A refused
@@ -53,10 +63,13 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     // drop the update silently, and the device would resend it on every reconnect.
     async beforeSync({ type, payload, document, documentName, context }) {
       if (type === SYNC_STEP_1) return;
-      const access = notebooks.catalog.access(context.person.id, documentName);
-      if (access === "none") throw { reason: "no-access" };
-      if (access === "read-only" && changes(document, payload))
-        throw { reason: "read-only" };
+      const reason = reviewUpdate(
+        notebooks.catalog,
+        context.person.id,
+        documentName,
+        previewUpdate(documentName, document, payload),
+      );
+      if (reason) throw { reason };
     },
 
     async onLoadDocument({ documentName, document }) {
@@ -183,15 +196,3 @@ export type NotesServer = Awaited<ReturnType<typeof startServer>>;
 
 /** The y-protocols sync message that only asks for what the device lacks. */
 const SYNC_STEP_1 = 0;
-
-/** Whether applying `update` would change `document`, tried on a copy. */
-function changes(document: Y.Doc, update: Uint8Array): boolean {
-  const copy = new Y.Doc();
-  Y.applyUpdate(copy, Y.encodeStateAsUpdate(document));
-  let changed = false;
-  // Yjs emits an update only for structs or deletions the copy did not have.
-  copy.on("update", () => (changed = true));
-  Y.applyUpdate(copy, update);
-  copy.destroy();
-  return changed;
-}

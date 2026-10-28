@@ -24,6 +24,7 @@
   "dependencies": {
     "@hocuspocus/server": "^4.7.1",
     "@homelab/identity": "*",
+    "@homelab/notes-model": "*",
     "@hono/node-server": "^2.1.5",
     "hono": "^4.13.13",
     "ws": "^8.22.0",

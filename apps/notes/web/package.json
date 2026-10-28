@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@hocuspocus/provider": "^4.8.0",
+    "@homelab/notes-model": "*",
     "@homelab/signed-in-state": "*",
     "@homelab/theme": "*",
     "@mantine/core": "^9.7.2",

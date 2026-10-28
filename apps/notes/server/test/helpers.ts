@@ -9,6 +9,7 @@ import {
 import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { identityHeaders, type AppAccess } from "@homelab/identity";
+import { readIndex, readWorkspaceName } from "@homelab/notes-model";
 import { startServer, type NotesServer } from "../src/server.ts";
 
 /** Who the gateway says is signing in, as the accounts service tells it. */
@@ -159,12 +160,13 @@ export function device(server: TestServer, account: Account): Device {
   };
 }
 
-/** The ids of the workspaces a device's index lists, with the person's role in each. */
-export const indexedWorkspaces = (index: Y.Doc): Record<string, unknown> =>
-  index.getMap("workspaces").toJSON();
+/** The ids of the workspaces a device's index lists. */
+export const indexedWorkspaces = (index: Y.Doc): string[] => [
+  ...readIndex(index).workspaces,
+];
 
-export const workspaceName = (workspace: Y.Doc): unknown =>
-  workspace.getMap("meta").get("name");
+export const workspaceName = (workspace: Y.Doc | undefined): string | null =>
+  workspace ? readWorkspaceName(workspace) : null;
 
 /**
  * Opens Notes on `d` as `account`, as the web client does: asks who is signed in, then opens
@@ -178,7 +180,7 @@ export async function openNotes(
   await request(server, "/api/session", account);
   const index = d.open(`index:${account.id}`);
   await index.synced;
-  const [workspaceId] = Object.keys(indexedWorkspaces(index.doc));
+  const [workspaceId] = indexedWorkspaces(index.doc);
   if (!workspaceId) throw new Error(`${account.id}'s index lists no workspace`);
   const workspace = d.open(`workspace:${workspaceId}`);
   await workspace.synced;

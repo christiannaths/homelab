@@ -16,8 +16,8 @@ A Yjs document ([ADR-NOTE-002](ADR-NOTE-002-merging-edits.md)) syncs whole, and 
   | Document | Holds | Reaches |
   | --- | --- | --- |
   | `page:<id>` | `meta` (`title`, `kind` page/database/row, `parentId`, `section`, `order`, `createdAt`, `deletedAt`); `access` (`person:<id>`, `workspace` = general access, `teamspace` = members' level override; absent = inherit); `content` | who can open the page |
-  | `index:<personId>` | `workspaces` (id → the person's role), `pages` (id → level), teamspace ids with level; no names or titles; server-written | that person, read-only |
-  | `workspace:<id>` | `meta` (`name`) | the workspace's members |
+  | `index:<personId>` | `pages` (id → level), `workspaces` (ids), teamspace ids with level; no names or titles; server-written | that person, read-only |
+  | `workspace:<id>` | `workspace` (`name`) | the workspace's members |
   | `teamspace:<id>` | name, kind, default flag, members' and non-members' level; members | open/closed: all workspace members; private: members and workspace owners; never guests |
   | `schema:<id>` | a database's properties | anyone who can open the database or any row (Can view for the latter) |
 

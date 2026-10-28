@@ -11,10 +11,10 @@ Hono for HTTP, Hocuspocus for sync, one SQLite file ([ADR-NOTE-014](../docs/adr/
 | Where | What |
 | --- | --- |
 | SQLite `people`, `workspaces`, `workspace_members` | Account data: who belongs to which workspace, as `owner`, `member` or `guest` |
-| `index:<personId>` | Server-written, read-only to that person: `workspaces` map, id → role |
-| `workspace:<id>` | `meta` map, `name`; read-write to the workspace's members |
+| `index:<personId>` | Server-written, read-only to that person: `workspaces` (ids), `pages` (id → level) |
+| `workspace:<id>` | `workspace` map, `name`; read-write to the workspace's members |
 
-Any other document is refused `no-access`. Every update is checked; one to a read-only document closes it with `read-only` ([ADR-NOTE-010](../docs/adr/ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
+Shapes and access rules: [`notes-model`](../model) (`ydoc.ts`, `review.ts`). `page:<id>` follows the page rules there; other names are refused `no-access`. Every update is reviewed; a refused one closes the document with its reason, e.g. `read-only` ([ADR-NOTE-010](../docs/adr/ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
 
 ## Routes
 

@@ -1,11 +1,13 @@
 import type { Connection, Hocuspocus } from "@hocuspocus/server";
 import * as Y from "yjs";
-import { Catalog } from "./catalog.ts";
 import {
-  workspaceDocumentName,
+  canEdit,
+  documentLevel,
+  setWorkspaceName,
+  workspaceDocName,
   writeIndex,
-  writeWorkspaceName,
-} from "./layout.ts";
+} from "@homelab/notes-model";
+import { Catalog } from "./catalog.ts";
 import type { Person } from "./people.ts";
 import type { Workspaces } from "./workspaces.ts";
 
@@ -41,8 +43,8 @@ export class Notebooks {
       const membership = this.#workspaces.create(person.id);
       this.catalog.add(membership);
       const name = person.name ? `${person.name}'s workspace` : "My workspace";
-      void this.#write(workspaceDocumentName(membership.workspaceId), (doc) =>
-        writeWorkspaceName(doc, name),
+      void this.#write(workspaceDocName(membership.workspaceId), (doc) =>
+        setWorkspaceName(doc, name),
       );
     }
     await this.refreshIndexes();
@@ -90,12 +92,12 @@ export class Notebooks {
    */
   #recheckConnections(personId: string): void {
     for (const [name, document] of this.#hocuspocus.documents) {
-      const access = this.catalog.access(personId, name);
+      const level = documentLevel(this.catalog, personId, name);
       for (const connection of document.getConnections()) {
         if (personOf(connection) !== personId) continue;
-        if (access === "none")
+        if (level === "none")
           connection.close({ code: 4403, reason: "access-revoked" });
-        else connection.readOnly = access === "read-only";
+        else connection.readOnly = !canEdit(level);
       }
     }
   }

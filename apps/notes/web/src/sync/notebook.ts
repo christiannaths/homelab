@@ -1,3 +1,9 @@
+import {
+  indexDocName,
+  readIndex,
+  readWorkspaceName,
+  workspaceDocName,
+} from "@homelab/notes-model";
 import type * as Y from "yjs";
 import { DocumentSync } from "./document-sync.ts";
 
@@ -12,16 +18,7 @@ export interface NotebookSnapshot {
   workspaces: readonly Workspace[];
 }
 
-// The documents' names and shapes (ADR-NOTE-013), as the server writes them.
-const indexName = (personId: string) => `index:${personId}`;
-const workspaceName = (id: string) => `workspace:${id}`;
-const listedWorkspaces = (index: Y.Doc) => [
-  ...index.getMap("workspaces").keys(),
-];
-function nameOf(workspace: Y.Doc | undefined): string | null {
-  const name = workspace?.getMap("meta").get("name");
-  return typeof name === "string" ? name : null;
-}
+const listedWorkspaces = (index: Y.Doc) => [...readIndex(index).workspaces];
 
 /**
  * What one person has on this device, kept in step with their index (ADR-NOTE-010): it opens
@@ -39,7 +36,7 @@ export class Notebook {
 
   constructor(sync: DocumentSync, personId: string) {
     this.#sync = sync;
-    this.#index = indexName(personId);
+    this.#index = indexDocName(personId);
     sync.onStateChange((name) => {
       if (name === this.#index) return this.#follow();
       // A document the server refused an update to comes back as a fresh copy. One the person
@@ -62,7 +59,7 @@ export class Notebook {
   #follow(): void {
     const index = this.#sync.open(this.#index);
     this.#watch(index, () => this.#follow());
-    const listed = new Set(listedWorkspaces(index).map(workspaceName));
+    const listed = new Set(listedWorkspaces(index).map(workspaceDocName));
     for (const name of listed)
       this.#watch(this.#sync.open(name), () => this.#refresh());
     // Until it has synced since opening, the index may be an empty or out-of-date local copy.
@@ -83,7 +80,7 @@ export class Notebook {
   #refresh(): void {
     const index = this.#sync.get(this.#index);
     const workspaces = (index ? listedWorkspaces(index) : [])
-      .map((id) => ({ id, name: nameOf(this.#sync.get(workspaceName(id))) }))
+      .map((id) => ({ id, name: nameOf(this.#sync.get(workspaceDocName(id))) }))
       .toSorted(
         (a, b) =>
           (a.name ?? "").localeCompare(b.name ?? "") ||
@@ -110,3 +107,6 @@ export function notebookFor(personId: string): Notebook {
   }
   return notebook;
 }
+
+const nameOf = (workspace: Y.Doc | undefined): string | null =>
+  workspace ? readWorkspaceName(workspace) : null;

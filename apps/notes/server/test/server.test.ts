@@ -20,6 +20,7 @@ import {
   type Device,
   type TestServer,
 } from "./helpers.ts";
+import { setWorkspaceName, writeIndex } from "@homelab/notes-model";
 import { integer, text } from "../src/rows.ts";
 
 const servers: TestServer[] = [];
@@ -87,16 +88,17 @@ describe("the default workspace", () => {
   test("is made on a person's first admission, named after them, with them as its owner", async () => {
     const s = await server();
     const { index, workspace, workspaceId } = await signedIn(s, ALEX);
-    expect(indexedWorkspaces(index.doc)).toEqual({ [workspaceId]: "owner" });
+    expect(indexedWorkspaces(index.doc)).toEqual([workspaceId]);
+    expect(
+      s.db.prepare("SELECT person_id, role FROM workspace_members").all(),
+    ).toEqual([{ person_id: "alex", role: "owner" }]);
     expect(workspaceName(workspace.doc)).toBe("Alex's workspace");
   });
 
   test("is made whatever the level of App access to Notes, and is called My workspace without a name", async () => {
     const s = await server();
     const sam = await signedIn(s, SAM);
-    expect(indexedWorkspaces(sam.index.doc)).toEqual({
-      [sam.workspaceId]: "owner",
-    });
+    expect(indexedWorkspaces(sam.index.doc)).toEqual([sam.workspaceId]);
     expect(workspaceName(sam.workspace.doc)).toBe("Sam's workspace");
     const kim = await signedIn(s, KIM);
     expect(workspaceName(kim.workspace.doc)).toBe("My workspace");
@@ -110,16 +112,14 @@ describe("the default workspace", () => {
     ]);
     const phone = await signedIn(s, ALEX);
     const laptop = await signedIn(s, ALEX);
-    expect(Object.keys(indexedWorkspaces(laptop.index.doc))).toEqual([
-      phone.workspaceId,
-    ]);
+    expect(indexedWorkspaces(laptop.index.doc)).toEqual([phone.workspaceId]);
   });
 
   test("is made when a device opens sync before asking who is signed in", async () => {
     const s = await server();
     const index = track(device(s, ALEX)).open(`index:${ALEX.id}`);
     await index.synced;
-    await waitFor(() => Object.keys(indexedWorkspaces(index.doc)).length === 1);
+    await waitFor(() => indexedWorkspaces(index.doc).length === 1);
   });
 
   test("and the index survive a server restart", async () => {
@@ -132,9 +132,7 @@ describe("the default workspace", () => {
 
     const after = await signedIn(s, ALEX);
     expect(after.workspaceId).toBe(before.workspaceId);
-    expect(indexedWorkspaces(after.index.doc)).toEqual({
-      [before.workspaceId]: "owner",
-    });
+    expect(indexedWorkspaces(after.index.doc)).toEqual([before.workspaceId]);
     expect(workspaceName(after.workspace.doc)).toBe("Alex's workspace");
   });
 });
@@ -170,15 +168,14 @@ describe("sync", () => {
     const workspace = samsDevice.open(`workspace:${alex.workspaceId}`);
     expect(await index.denied).toBe("no-access");
     expect(await workspace.denied).toBe("no-access");
-    expect(workspace.doc.getMap("meta").size).toBe(0);
+    expect(workspaceName(workspace.doc)).toBeNull();
 
-    sam.workspace.doc.getMap("meta").set("name", "Still mine");
+    setWorkspaceName(sam.workspace.doc, "Still mine");
     await waitFor(
       () =>
-        s.hocuspocus.documents
-          .get(`workspace:${sam.workspaceId}`)
-          ?.getMap("meta")
-          .get("name") === "Still mine",
+        workspaceName(
+          s.hocuspocus.documents.get(`workspace:${sam.workspaceId}`),
+        ) === "Still mine",
     );
   });
 
@@ -193,19 +190,20 @@ describe("sync", () => {
   test("a device's change to its index is refused and not applied", async () => {
     const s = await server();
     const { index, workspaceId } = await signedIn(s, ALEX);
-    index.doc.getMap("workspaces").set("someone-elses", "owner");
+    writeIndex(index.doc, {
+      pages: new Map(),
+      workspaces: new Set(["someone-elses"]),
+    });
     expect(await index.closed).toBe("read-only");
     const stored = s.hocuspocus.documents.get(`index:${ALEX.id}`);
-    expect(stored && indexedWorkspaces(stored)).toEqual({
-      [workspaceId]: "owner",
-    });
+    expect(stored && indexedWorkspaces(stored)).toEqual([workspaceId]);
   });
 
   test("two devices rename the workspace together, and the name survives a server restart", async () => {
     let s = await server();
     const phone = await signedIn(s, ALEX);
     const laptop = await signedIn(s, ALEX);
-    phone.workspace.doc.getMap("meta").set("name", "Household");
+    setWorkspaceName(phone.workspace.doc, "Household");
     await waitFor(() => workspaceName(laptop.workspace.doc) === "Household");
 
     for (const d of devices.splice(0)) d.destroy();
@@ -226,17 +224,16 @@ describe("sync", () => {
 
     const local = new Y.Doc();
     Y.applyUpdate(local, offlineState);
-    local.getMap("meta").set("name", "Renamed offline");
+    setWorkspaceName(local, "Renamed offline");
 
     const after = track(device(s, ALEX)).open(`workspace:${workspaceId}`);
     Y.applyUpdate(after.doc, Y.encodeStateAsUpdate(local));
     await after.synced;
     await waitFor(
       () =>
-        s.hocuspocus.documents
-          .get(`workspace:${workspaceId}`)
-          ?.getMap("meta")
-          .get("name") === "Renamed offline",
+        workspaceName(
+          s.hocuspocus.documents.get(`workspace:${workspaceId}`),
+        ) === "Renamed offline",
     );
   });
 });
