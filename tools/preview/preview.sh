@@ -17,8 +17,9 @@ set -euo pipefail
 
 command=${1:?Usage: preview.sh prepare|deploy|reset|remove <name>}
 name=${2:?Usage: preview.sh prepare|deploy|reset|remove <name>}
-if [[ ! "$name" =~ ^(staging|pr-[0-9]+)$ ]]; then
-  echo "A preview is named staging or pr-<number>, not $name." >&2
+# The name goes into DNS, a Fly app name and commands; tools/preview/name.ts makes one from a branch.
+if [[ ! "$name" =~ ^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$ ]]; then
+  echo "A preview is named with up to 40 lowercase letters, digits and hyphens, not $name." >&2
   exit 1
 fi
 : "${FLY_API_TOKEN:?}" "${FLY_ORG:?}" "${FLY_REGION:?}" "${PREVIEW_DOMAIN:?}"
@@ -54,7 +55,7 @@ zone() {
     | sort_by(length) | last // error("No DNSimple zone holds \($domain)")'
 }
 
-# A record's name within the zone: "*.pr-81.homelab" for *.pr-81.homelab.ops.bz in ops.bz.
+# A record's name within the zone: "*.feat-x.homelab" for *.feat-x.homelab.ops.bz in ops.bz.
 relative() { local full=$1 zone=$2; [[ "$full" == "$zone" ]] && echo "" || echo "${full%."$zone"}"; }
 
 delete_records() { # zone name [type]
