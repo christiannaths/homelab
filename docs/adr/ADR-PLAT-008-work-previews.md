@@ -1,7 +1,7 @@
 # ADR-PLAT-008. How is work seen running before it merges?
 
 - Status: Accepted
-- Date: 2026-10-23
+- Date: 2026-11-04
 - Depends on: [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md), [ADR-PLAT-004](ADR-PLAT-004-sign-in.md)
 - Dependency of: none
 
@@ -35,6 +35,7 @@ Cloud Claude threads do most work, and the maintainer often reviews on a phone. 
   | PR closed or merged | Removes Fly app, volume, DNS records |
   | Push to `main` touching the image | Deploys staging |
   | `workflow_dispatch` | Another branch to staging (until the next `main` push), or a reset |
+  | `workflow_dispatch` on Preview | Deploys the branch picked in "Use workflow from" to its open PR's preview, at the branch's own commit rather than the PR's merge with `main`, whatever it touches. Fails with no open PR. The branch must include the trigger |
 
   The image builds once on GitHub's runner with cached layers, is tested, then that image goes to Fly.
 
@@ -72,6 +73,7 @@ Cloud Claude threads do most work, and the maintainer often reviews on a phone. 
 
 ## Changelog
 
+- 2026-11-04: Preview can be run by hand on a branch, so a preview can be redeployed or deployed for a PR the path filter skipped. It uses GitHub's own branch picker, as GitHub offers no dropdown of branches for an input.
 - 2026-10-23: Own accounts service instead of VoidAuth; `ACCOUNTS_SECRET` replaces `STORAGE_KEY`; existing previews start fresh (issue #112, spec #110).
 - 2026-10-23: Faster deploys: one cached build on GitHub's runner, certificate requested before the build, image-untouched changes skip deploys.
 - 2026-10-23: Staging follows `main`, so one address always shows what has merged.
