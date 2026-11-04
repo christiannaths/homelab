@@ -1,0 +1,34 @@
+# Removes one preview that nothing else will remove, such as one left by a renamed branch (ADR-PLAT-008).
+name: Remove preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: The preview to remove, such as feat-offline-sync
+        required: true
+
+# Waits for a deploy of the same preview to finish first.
+concurrency:
+  group: preview-${{ inputs.name }}
+
+permissions:
+  contents: read
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_ORG: ${{ vars.FLY_ORG }}
+      FLY_REGION: ${{ vars.FLY_REGION }}
+      PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+      DNSIMPLE_TOKEN: ${{ secrets.DNSIMPLE_TOKEN }}
+      DNSIMPLE_ACCOUNT_ID: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+      PREVIEW: ${{ inputs.name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Remove the preview
+        run: tools/preview/preview.sh remove "$PREVIEW"

@@ -26,7 +26,7 @@ The preview \`${name}\` was removed when this pull request closed. Reopening it 
   console.log(`${MARKER}
 ### Preview
 
-This pull request runs on commit \`${commit}\`. It wakes in a few seconds when opened after a quiet spell.
+This preview runs on commit \`${commit}\`. It wakes in a few seconds when opened after a quiet spell.
 
 | Site | Address |
 | --- | --- |

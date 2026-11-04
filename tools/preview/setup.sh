@@ -233,7 +233,7 @@ ask FLY_REGION "Fly region previews run in (Enter for dfw, Dallas):"
 write_env FLY_REGION "$FLY_REGION"
 
 stage "DNSimple: preview domain"
-say "Each preview gets addresses like notes.pr-81.<preview domain>."
+say "Each preview gets addresses like notes.feat-offline-sync.<preview domain>."
 say "Use a domain whose DNS is hosted at DNSimple, or a subdomain of one, such as homelab.example.com."
 warn "Previews add and delete records under this name, so don't use a name you already use for something else."
 ask PREVIEW_DOMAIN "Preview domain:"

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       name:
-        description: The preview to reset, such as staging or pr-81
+        description: The preview to reset, such as staging or feat-offline-sync
         required: true
         default: staging
 

@@ -1,6 +1,6 @@
 # Previews
 
-The whole homelab from one branch on Fly.io: `pr-<number>` per open pull request, and `staging` following `main`. Design: [ADR-PLAT-008](../../docs/adr/ADR-PLAT-008-work-previews.md).
+The whole homelab from one branch on Fly.io: one named after each branch deployed (`feat/offline-sync` becomes `feat-offline-sync`), and `staging` following `main`. Design: [ADR-PLAT-008](../../docs/adr/ADR-PLAT-008-work-previews.md).
 
 ## Set up
 
@@ -29,9 +29,10 @@ Answers are remembered in git-ignored `tools/preview/.env`; rerun to replace a t
 
 | Workflow | When | Does |
 | --- | --- | --- |
-| **Preview** | Push to a same-repo PR touching image inputs; PR close | Builds and tests the image, deploys `pr-<number>`, keeps one PR comment with links; removes on close |
+| **Preview** | Push to a same-repo PR touching image inputs, or by hand with a branch; PR close or branch delete | Builds and tests the image, deploys under the branch's name, keeps one PR comment with links (always in the run summary); removes on close or delete |
 | **Deploy to staging** | Push to `main` touching image inputs, or by hand with a branch | Deploys as `staging`; links in the run summary |
 | **Reset preview** | By hand, with a name | Wipes accounts and data; fresh test people |
+| **Remove preview** | By hand, with a name | Removes a preview nothing else will, such as one left by a renamed branch |
 
 In the machine, [`start.ts`](start.ts) runs accounts, Notes and the gateway ([`Caddyfile`](Caddyfile), built as in [`platform/gateway`](../../platform/gateway/README.md)), data in `/data`. Each start adds only missing [test people](../test-people.ts), so preview changes survive restarts and deploys; a volume without accounts data is wiped first. **Reset preview** runs `node tools/preview/start.ts reset` over `fly ssh`. Test people's passwords are in the PR comment; `ACCOUNTS_SECRET` is a Fly secret made once by `preview.sh prepare`.
 

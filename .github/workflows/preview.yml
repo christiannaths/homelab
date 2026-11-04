@@ -1,11 +1,12 @@
-# A preview for every pull request from this repo (ADR-PLAT-008): each push tests the preview image,
-# then deploys it as pr-<number> and keeps one comment on the pull request up to date with its
-# links. Closing or merging the pull request removes the preview. Pull requests from forks get no
-# secrets, so they get no preview, and neither do pull requests that only change docs. Until
-# tools/preview/setup.sh has set the repository's settings, only the image test runs.
+# A preview named after its branch (ADR-PLAT-008): each push to a pull request from this repo tests
+# the preview image, then deploys it and keeps one comment on the pull request up to date with its
+# links. Closing or merging the pull request, or deleting the branch, removes the preview. Pull
+# requests from forks get no secrets, so they get no preview, and neither do pull requests that only
+# change docs. Until tools/preview/setup.sh has set the repository's settings, only the image test runs.
 #
-# Run by hand, it deploys the branch chosen under "Use workflow from" to that branch's open pull
-# request's preview. GitHub reads this file from the chosen branch, so a branch must include it.
+# Run by hand, it deploys the branch chosen under "Use workflow from", with or without a pull request,
+# and the run's summary lists the links. GitHub reads this file from the chosen branch, so a branch
+# must include it.
 name: Preview
 
 on:
@@ -25,6 +26,7 @@ on:
       - "!**/*.md"
       - "!**/docs/**"
   workflow_dispatch:
+  delete:
 
 permissions:
   contents: read
@@ -41,17 +43,26 @@ env:
   PREVIEW_IMAGE: homelab-preview:ci
 
 jobs:
-  # Its own job because a run by hand has no pull request in its event, and only a job's concurrency
-  # group can use what an earlier job found.
-  find-pull-request:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+  # Its own job because only a job's concurrency group can use what an earlier job found.
+  identify:
+    if: github.event_name == 'workflow_dispatch' || github.event.ref_type == 'branch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      number: ${{ steps.find.outputs.number }}
-      sha: ${{ steps.find.outputs.sha }}
+      name: ${{ steps.name.outputs.name }}
+      number: ${{ steps.pull-request.outputs.number }}
+      sha: ${{ steps.pull-request.outputs.sha }}
     steps:
-      - id: find
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - id: name
+        env:
+          # A delete event's github.ref is the default branch, so the deleted one is only in its payload.
+          BRANCH: ${{ github.head_ref || (github.event_name == 'delete' && github.event.ref) || github.ref_name }}
+        run: echo "name=$(node tools/preview/name.ts "$BRANCH")" >> "$GITHUB_OUTPUT"
+      - id: pull-request
         uses: actions/github-script@v8
         with:
           script: |
@@ -61,27 +72,24 @@ jobs:
               core.setOutput("sha", pull_request.head.sha);
               return;
             }
+            core.setOutput("sha", context.sha);
+            if (context.eventName !== "workflow_dispatch") return;
             const { owner, repo } = context.repo;
             const branch = context.ref.replace("refs/heads/", "");
             const { data: [open] } = await github.rest.pulls.list({ owner, repo, head: `${owner}:${branch}`, state: "open" });
-            if (!open) {
-              core.setFailed(`${branch} has no open pull request in this repo, so it has no preview to deploy.`);
-              return;
-            }
-            core.setOutput("number", open.number);
-            core.setOutput("sha", context.sha);
+            if (open) core.setOutput("number", open.number);
 
   deploy:
-    needs: find-pull-request
-    if: github.event.action != 'closed'
+    needs: identify
+    if: github.event.action != 'closed' && github.event_name != 'delete'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # A newer push, or closing the pull request, cancels a deploy still running for an older commit.
     concurrency:
-      group: preview-pr-${{ needs.find-pull-request.outputs.number }}
+      group: preview-${{ needs.identify.outputs.name }}
       cancel-in-progress: true
     env:
-      NAME: pr-${{ needs.find-pull-request.outputs.number }}
+      NAME: ${{ needs.identify.outputs.name }}
     steps:
       - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
@@ -114,10 +122,10 @@ jobs:
       - name: Write the comment
         if: vars.PREVIEW_DOMAIN != ''
         run: |
-          node tools/preview/comment.ts "$NAME" "$PREVIEW_DOMAIN" "${{ needs.find-pull-request.outputs.sha }}" > "$RUNNER_TEMP/comment.md"
+          node tools/preview/comment.ts "$NAME" "$PREVIEW_DOMAIN" "${{ needs.identify.outputs.sha }}" > "$RUNNER_TEMP/comment.md"
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Post the comment
-        if: vars.PREVIEW_DOMAIN != ''
+        if: vars.PREVIEW_DOMAIN != '' && needs.identify.outputs.number != ''
         uses: actions/github-script@v8
         with:
           script: |
@@ -125,22 +133,24 @@ jobs:
             const body = fs.readFileSync(`${process.env.RUNNER_TEMP}/comment.md`, "utf8");
             const marker = body.split("\n")[0];
             const { owner, repo } = context.repo;
-            const issue_number = ${{ needs.find-pull-request.outputs.number }};
+            const issue_number = ${{ needs.identify.outputs.number }};
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
             const existing = comments.find((comment) => comment.body?.startsWith(marker));
             if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             else await github.rest.issues.createComment({ owner, repo, issue_number, body });
 
   remove:
-    needs: find-pull-request
-    if: github.event.action == 'closed' && vars.PREVIEW_DOMAIN != ''
+    needs: identify
+    if: (github.event.action == 'closed' || github.event_name == 'delete') && vars.PREVIEW_DOMAIN != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Merging closes the pull request and deletes the branch at once. The close's run must not be
+    # stopped, since only it can update the comment, so the delete's run waits its turn.
     concurrency:
-      group: preview-pr-${{ needs.find-pull-request.outputs.number }}
-      cancel-in-progress: true
+      group: preview-${{ needs.identify.outputs.name }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     env:
-      NAME: pr-${{ needs.find-pull-request.outputs.number }}
+      NAME: ${{ needs.identify.outputs.name }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -150,6 +160,7 @@ jobs:
       - name: Remove the preview
         run: tools/preview/preview.sh remove "$NAME"
       - name: Say so on the pull request
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v8
         with:
           script: |
@@ -157,7 +168,7 @@ jobs:
             const body = execFileSync("node", ["tools/preview/comment.ts", process.env.NAME, process.env.PREVIEW_DOMAIN, "--removed"], { encoding: "utf8" });
             const marker = body.split("\n")[0];
             const { owner, repo } = context.repo;
-            const issue_number = ${{ needs.find-pull-request.outputs.number }};
+            const issue_number = ${{ needs.identify.outputs.number }};
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
             const existing = comments.find((comment) => comment.body?.startsWith(marker));
             if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
