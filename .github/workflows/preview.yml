@@ -3,6 +3,9 @@
 # links. Closing or merging the pull request removes the preview. Pull requests from forks get no
 # secrets, so they get no preview, and neither do pull requests that only change docs. Until
 # tools/preview/setup.sh has set the repository's settings, only the image test runs.
+#
+# Run by hand, it deploys the branch chosen under "Use workflow from" to that branch's open pull
+# request's preview. GitHub reads this file from the chosen branch, so a branch must include it.
 name: Preview
 
 on:
@@ -21,18 +24,13 @@ on:
       - .github/workflows/preview.yml
       - "!**/*.md"
       - "!**/docs/**"
-
-# A newer push, or closing the pull request, cancels a deploy still running for an older commit.
-concurrency:
-  group: preview-pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
 
 env:
-  NAME: pr-${{ github.event.pull_request.number }}
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
   FLY_ORG: ${{ vars.FLY_ORG }}
   FLY_REGION: ${{ vars.FLY_REGION }}
@@ -43,10 +41,47 @@ env:
   PREVIEW_IMAGE: homelab-preview:ci
 
 jobs:
+  # Its own job because a run by hand has no pull request in its event, and only a job's concurrency
+  # group can use what an earlier job found.
+  find-pull-request:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      number: ${{ steps.find.outputs.number }}
+      sha: ${{ steps.find.outputs.sha }}
+    steps:
+      - id: find
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { pull_request } = context.payload;
+            if (pull_request) {
+              core.setOutput("number", pull_request.number);
+              core.setOutput("sha", pull_request.head.sha);
+              return;
+            }
+            const { owner, repo } = context.repo;
+            const branch = context.ref.replace("refs/heads/", "");
+            const { data: [open] } = await github.rest.pulls.list({ owner, repo, head: `${owner}:${branch}`, state: "open" });
+            if (!open) {
+              core.setFailed(`${branch} has no open pull request in this repo, so it has no preview to deploy.`);
+              return;
+            }
+            core.setOutput("number", open.number);
+            core.setOutput("sha", context.sha);
+
   deploy:
-    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: find-pull-request
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # A newer push, or closing the pull request, cancels a deploy still running for an older commit.
+    concurrency:
+      group: preview-pr-${{ needs.find-pull-request.outputs.number }}
+      cancel-in-progress: true
+    env:
+      NAME: pr-${{ needs.find-pull-request.outputs.number }}
     steps:
       - uses: actions/checkout@v5
       - uses: superfly/flyctl-actions/setup-flyctl@master
@@ -79,7 +114,7 @@ jobs:
       - name: Write the comment
         if: vars.PREVIEW_DOMAIN != ''
         run: |
-          node tools/preview/comment.ts "$NAME" "$PREVIEW_DOMAIN" "${{ github.event.pull_request.head.sha }}" > "$RUNNER_TEMP/comment.md"
+          node tools/preview/comment.ts "$NAME" "$PREVIEW_DOMAIN" "${{ needs.find-pull-request.outputs.sha }}" > "$RUNNER_TEMP/comment.md"
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Post the comment
         if: vars.PREVIEW_DOMAIN != ''
@@ -90,16 +125,22 @@ jobs:
             const body = fs.readFileSync(`${process.env.RUNNER_TEMP}/comment.md`, "utf8");
             const marker = body.split("\n")[0];
             const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
+            const issue_number = ${{ needs.find-pull-request.outputs.number }};
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
             const existing = comments.find((comment) => comment.body?.startsWith(marker));
             if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             else await github.rest.issues.createComment({ owner, repo, issue_number, body });
 
   remove:
-    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && vars.PREVIEW_DOMAIN != ''
+    needs: find-pull-request
+    if: github.event.action == 'closed' && vars.PREVIEW_DOMAIN != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: preview-pr-${{ needs.find-pull-request.outputs.number }}
+      cancel-in-progress: true
+    env:
+      NAME: pr-${{ needs.find-pull-request.outputs.number }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -116,7 +157,7 @@ jobs:
             const body = execFileSync("node", ["tools/preview/comment.ts", process.env.NAME, process.env.PREVIEW_DOMAIN, "--removed"], { encoding: "utf8" });
             const marker = body.split("\n")[0];
             const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
+            const issue_number = ${{ needs.find-pull-request.outputs.number }};
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
             const existing = comments.find((comment) => comment.body?.startsWith(marker));
             if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
