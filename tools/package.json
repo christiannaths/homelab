@@ -12,7 +12,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"*.test.ts\"",
-    "e2e": "node --test \"preview/*.test.ts\""
+    "e2e": "node --test --test-force-exit \"preview/*.test.ts\""
   },
   "dependencies": {
     "@homelab/gateway": "*"
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@hocuspocus/provider": "^4.7.1",
     "@homelab/identity": "*",
+    "@homelab/notes-model": "*",
     "@types/node": "^26.6.5",
     "@types/ws": "^8.18.2",
     "typescript": "^7.0.2",

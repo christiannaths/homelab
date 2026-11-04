@@ -115,6 +115,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Test the preview image
+        timeout-minutes: 10
         run: npm run e2e -w @homelab/tools
       - name: Deploy the preview
         if: vars.PREVIEW_DOMAIN != ''
