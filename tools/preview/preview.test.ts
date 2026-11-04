@@ -13,13 +13,6 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { identityHeaders } from "@homelab/identity";
 import {
-  indexDocName,
-  readIndex,
-  readWorkspaceName,
-  setWorkspaceName,
-  workspaceDocName,
-} from "@homelab/notes-model";
-import {
   ADA,
   ADMIN,
   BOB,
@@ -238,30 +231,32 @@ async function openDocument(cookie: string, name: string) {
   return { doc, close };
 }
 
+// Notes' document layout is spelled out below because tools may not depend on an app's packages.
+
 /** Opens the workspace Notes gives the cookie's person on their first visit, the only one here. */
 async function openOwnWorkspace(cookie: string) {
   const session = await get("notes", "/api/session", { cookie });
   const personId = String(pick(session.body, "person", "id"));
-  const index = await openDocument(cookie, indexDocName(personId));
-  const [workspaceId] = readIndex(index.doc).workspaces;
+  const index = await openDocument(cookie, `index:${personId}`);
+  const [workspaceId] = index.doc.getMap("workspaces").keys();
   index.close();
   assert.ok(workspaceId, "the person's index lists a workspace");
-  return openDocument(cookie, workspaceDocName(workspaceId));
+  return openDocument(cookie, `workspace:${workspaceId}`);
 }
 
 /** Renames the person's workspace and waits until Notes has stored the change. */
 async function renameOwnWorkspace(cookie: string, name: string): Promise<void> {
   const workspace = await openOwnWorkspace(cookie);
-  setWorkspaceName(workspace.doc, name);
+  workspace.doc.getMap("workspace").set("name", name);
   // Notes writes a changed document after a second's debounce, and on shutdown.
   await new Promise((resolve) => setTimeout(resolve, 2000));
   workspace.close();
 }
 
 /** The name of the person's workspace, as Notes has it stored. */
-async function ownWorkspaceName(cookie: string): Promise<string | null> {
+async function ownWorkspaceName(cookie: string): Promise<unknown> {
   const workspace = await openOwnWorkspace(cookie);
-  const name = readWorkspaceName(workspace.doc);
+  const name = workspace.doc.getMap("workspace").get("name");
   workspace.close();
   return name;
 }
