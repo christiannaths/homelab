@@ -19,7 +19,7 @@ One ADR per topic, always stating the current decision; open questions go in **N
 | [ADR-PLAT-005](ADR-PLAT-005-app-settings.md) | How does an app get its settings from the person installing it? | Environment variables only, each also readable from a `_FILE`, checked by Zod at startup via `@homelab/settings` | Accepted |
 | [ADR-PLAT-006](ADR-PLAT-006-code-quality.md) | How is code kept consistently formatted and free of common mistakes? | Prettier formats; Oxlint, markdownlint, Stylelint and ls-lint lint; in `npm run check` and a pre-commit hook | Accepted |
 | [ADR-PLAT-007](ADR-PLAT-007-licensing.md) | How is the homelab's code licensed? | MIT; an app may carry its own licence when a dependency requires it | Accepted |
-| [ADR-PLAT-008](ADR-PLAT-008-work-previews.md) | How is work seen running before it merges? | Each open PR, and staging (following `main`), gets a whole homelab on Fly.io under a preview domain, with open test accounts | Accepted |
+| [ADR-PLAT-008](ADR-PLAT-008-work-previews.md) | How is work seen running before it merges? | Each branch deployed by its PR or by hand, and staging (following `main`), gets a whole homelab on Fly.io under a preview domain, named after the branch, with open test accounts | Accepted |
 | [ADR-PLAT-009](ADR-PLAT-009-app-contract.md) | How does an app plug into the homelab? | The app contract alone: own subdomain, manifest and icons readable signed out, identity headers on every request, no signed-out requests, switcher injected by the gateway; apps found by manifest | Accepted |
 
 ## Not decided yet

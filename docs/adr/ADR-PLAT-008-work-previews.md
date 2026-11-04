@@ -11,9 +11,9 @@ Cloud Claude threads do most work, and the maintainer often reviews on a phone. 
 
 ## Decision
 
-- **A preview** is the whole homelab from one branch, public, for trying by hand. Its name is the one varying input: `pr-<number>` (open PR from this repo) or `staging` (long-lived, follows `main`).
+- **A preview** is the whole homelab from one branch, public, for trying by hand. Its name is the one varying input: the branch as lowercase letters, digits and hyphens (`feat/offline-sync` is `feat-offline-sync`, at most 40 characters, longer ones cut and given a hash), or `staging` (long-lived, follows `main`).
 - **Fly.io**, region `FLY_REGION` (maintainer: `dfw`). One Fly app, machine and volume per preview, suspended when idle. On boot the gateway starts first and holds requests until services answer.
-- **Names and addresses:** Fly app `pr-81-homelab-ops-bz` for `pr-81` under `homelab.ops.bz` (Fly names are global); sites are `<site>.<name>.<preview domain>` (`accounts` + one per app); the session cookie is on `<name>.<preview domain>`, so sign-in covers one preview.
+- **Names and addresses:** Fly app `feat-x-homelab-ops-bz` for `feat-x` under `homelab.ops.bz` (Fly names are global); sites are `<site>.<name>.<preview domain>` (`accounts` + one per app); the session cookie is on `<name>.<preview domain>`, so sign-in covers one preview.
 - **Domain** from `PREVIEW_DOMAIN`, DNS at DNSimple. One Fly wildcard certificate, `*.<name>.<preview domain>`; deploy adds the wildcard and `_acme-challenge` CNAMEs via DNSimple, removal deletes them, and setup runs before the image build so issuance overlaps it. New apps need no DNS change.
 - **TLS ends at Fly's proxy.** The gateway serves HTTP, routes by hostname, must strip clients' `Remote-*` headers ([ADR-PLAT-004](ADR-PLAT-004-sign-in.md)), and passes only the last non-private `X-Forwarded-For` entry to accounts, so sign-in limits are per client.
 - **One image** (`tools/preview/`, [ADR-PLAT-002](ADR-PLAT-002-repo-structure.md)) runs gateway, accounts and every app in one container, since Fly mounts a volume into one container per machine. Reuses `platform/gateway`'s sign-in check and accounts' test-people loader.
@@ -31,11 +31,13 @@ Cloud Claude threads do most work, and the maintainer often reviews on a phone. 
 
   | Trigger | Does |
   | --- | --- |
-  | Push to a PR from this repo | Deploys; comment names the commit. Not for forks (no secrets) or PRs not touching the image (e.g. docs only) |
+  | Push to a PR from this repo | Deploys under the branch's name; comment names the commit. Not for forks (no secrets) or PRs not touching the image (e.g. docs only) |
   | PR closed or merged | Removes Fly app, volume, DNS records |
   | Push to `main` touching the image | Deploys staging |
   | `workflow_dispatch` | Another branch to staging (until the next `main` push), or a reset |
-  | `workflow_dispatch` on Preview | Deploys the branch picked in "Use workflow from" to its open PR's preview, at the branch's own commit rather than the PR's merge with `main`, whatever it touches. Fails with no open PR. The branch must include the trigger |
+  | `workflow_dispatch` on Preview | Deploys the branch picked in "Use workflow from", at its own commit rather than a PR's merge with `main`, whatever it touches. Needs no PR: links go in the run summary. The branch must include the trigger |
+  | Branch deleted | Removes its preview, which is how a preview without a PR ends |
+  | `workflow_dispatch` on Remove preview | Removes a named preview nothing else will, such as one left by a renamed branch |
 
   The image builds once on GitHub's runner with cached layers, is tested, then that image goes to Fly.
 
@@ -68,11 +70,13 @@ Cloud Claude threads do most work, and the maintainer often reviews on a phone. 
 - A new app is added to `tools/dev`, the preview image and test data together.
 - Previews differ from real installs (one container, Fly's TLS); such bugs can slip through.
 - Anyone can change a preview's data: previews must never hold real data or send real email.
-- A few dollars a month, mostly idle volumes; no cap on count.
+- A few dollars a month, mostly idle volumes; no cap on count. A branch that is never deleted keeps its preview.
+- Names are not checked for clashes: branches that make the same name, such as `feat/a-b` and `feat-a/b`, share a preview, and a branch named `staging` deploys over staging.
 - Other installers bring their own Fly org, domain and DNSimple account; non-DNSimple DNS needs other tooling.
 
 ## Changelog
 
+- 2026-11-04: Previews are named after their branch instead of `pr-<number>`, so a branch can have a preview before or without a PR. Deleting a branch now removes its preview, and Remove preview covers what nothing else removes. A previous `pr-<number>` preview does not carry over.
 - 2026-11-04: Preview can be run by hand on a branch, so a preview can be redeployed or deployed for a PR the path filter skipped. It uses GitHub's own branch picker, as GitHub offers no dropdown of branches for an input.
 - 2026-10-23: Own accounts service instead of VoidAuth; `ACCOUNTS_SECRET` replaces `STORAGE_KEY`; existing previews start fresh (issue #112, spec #110).
 - 2026-10-23: Faster deploys: one cached build on GitHub's runner, certificate requested before the build, image-untouched changes skip deploys.
