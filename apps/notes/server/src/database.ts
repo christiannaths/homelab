@@ -40,6 +40,31 @@ const MIGRATIONS = [
   DROP TABLE sessions;
   DELETE FROM people;
   `,
+  `
+  -- ADR-NOTE-009: App access to Notes no longer sets a role; roles belong to workspaces.
+  CREATE TABLE people_without_role (
+    id         TEXT PRIMARY KEY,
+    name       TEXT,
+    created_at INTEGER NOT NULL
+  );
+  INSERT INTO people_without_role (id, name, created_at) SELECT id, name, created_at FROM people;
+  DROP TABLE people;
+  ALTER TABLE people_without_role RENAME TO people;
+
+  -- ADR-NOTE-011, ADR-NOTE-013: an instance holds many workspaces; their names are in Yjs.
+  CREATE TABLE workspaces (
+    id         TEXT PRIMARY KEY,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE workspace_members (
+    workspace_id TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+    person_id    TEXT NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+    role         TEXT NOT NULL CHECK (role IN ('owner', 'member', 'guest')),
+    created_at   INTEGER NOT NULL,
+    PRIMARY KEY (workspace_id, person_id)
+  );
+  CREATE INDEX workspace_members_by_person ON workspace_members (person_id);
+  `,
 ];
 
 /** Opens (or creates) the instance's one SQLite file in `dataDir`, at the latest schema. */

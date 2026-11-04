@@ -1,0 +1,27 @@
+{
+  "name": "@homelab/notes-model",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "notes-model",
+    "tags": [
+      "scope:notes",
+      "platform:any"
+    ]
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run"
+  },
+  "dependencies": {
+    "fractional-indexing": "^4.0.0",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

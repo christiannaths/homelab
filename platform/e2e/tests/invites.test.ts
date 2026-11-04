@@ -9,6 +9,7 @@ import {
   newDevice,
   NOTES_URL,
   signIn,
+  inNotesAs,
 } from "./stack.ts";
 
 let browser: Browser;
@@ -74,7 +75,7 @@ describe("an invite", () => {
     await apps.getByText("Member").waitFor();
     await apps.getByRole("link", { name: "Notes" }).click();
     await page.waitForURL(`${NOTES_URL}/`);
-    await page.getByText("Signed in as Ida Noddack").waitFor();
+    await inNotesAs(page, "Ida Noddack");
 
     await admin.goto(`${ACCOUNTS_URL}/people`);
     await admin.getByRole("heading", { name: "Pending invites" }).waitFor();

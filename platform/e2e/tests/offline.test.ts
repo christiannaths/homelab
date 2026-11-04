@@ -135,7 +135,8 @@ describe("the App switcher offline", () => {
     expect(await vault.getAttribute("href")).toBe(null);
     // Forced, as a person could still click it; Playwright otherwise waits for it to be enabled.
     await vault.click({ force: true });
-    expect(page.url()).toBe(`${NOTES_URL}/`);
+    // Notes moves on from / to its first page's address by itself, so only the origin is checked.
+    expect(new URL(page.url()).origin).toBe(NOTES_URL);
     expect(
       await menuItem(page, "Encyclopedia").getAttribute("aria-disabled"),
     ).toBe(null);

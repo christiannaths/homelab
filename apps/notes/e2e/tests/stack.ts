@@ -88,7 +88,7 @@ export function onSignInPage(page: Page, frontDoor: FrontDoor): Promise<void> {
   );
 }
 
-/** Opens Notes and signs in on the sign-in page; resolves once the protected page shows. */
+/** Opens Notes and signs in on the sign-in page; resolves once the sidebar shows. */
 export async function signIn(
   page: Page,
   frontDoor: FrontDoor,
@@ -97,8 +97,29 @@ export async function signIn(
   await page.goto(frontDoor.notesUrl);
   await onSignInPage(page, frontDoor);
   await page.getByRole("button", { name: `Sign in as ${person.name}` }).click();
-  await page.getByText("Signed in as").waitFor();
+  await sidebar(page).waitFor();
 }
+
+export const sidebar = (page: Page) =>
+  page.getByRole("navigation", { name: "Sidebar" });
+
+/** The sidebar's Private section, with a link to each of the person's pages there. */
+export const privateSection = (page: Page) =>
+  sidebar(page).getByRole("region", { name: "Private" });
+
+/** The open page's title field. */
+export const pageTitle = (page: Page) =>
+  page.getByRole("textbox", { name: "Title" });
+
+/** The open page's body, in BlockNote. */
+export const pageBody = (page: Page) => page.locator(".bn-editor");
+
+/** What Notes shows while the device has no connection. */
+export const OFFLINE_STATUS = "Offline · saved locally";
+
+/** The workspace a person is given the first time they open Notes. */
+export const defaultWorkspaceOf = (person: Person) =>
+  `${person.name}'s workspace`;
 
 /** Ends the device's session, as signing out in any app or on the accounts site does. */
 export async function signOut(page: Page): Promise<void> {

@@ -3,8 +3,9 @@ ls:
   .*: kebab-case
   # React components follow the PascalCase convention.
   .tsx: kebab-case | PascalCase
-  # Conventional upper-case names such as README.md, AGENTS.md and FINDINGS.md.
-  .md: kebab-case | SCREAMING_SNAKE_CASE
+  # Conventional upper-case names such as README.md, AGENTS.md and FINDINGS.md; the
+  # domain-modeling skill's GLOSSARY-MAP.md is hyphenated.
+  .md: kebab-case | SCREAMING_SNAKE_CASE | regex:GLOSSARY-MAP
   # Go names test files <name>_test.go.
   .go: snake_case
   # ADR file names are checked in full by tools/check-adrs.ts.

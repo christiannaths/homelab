@@ -13,6 +13,7 @@ import {
   DANA,
   ENCYCLOPEDIA_URL,
   initialsInMenu,
+  inNotesAs,
   launchChromium,
   menuItems,
   newDevice,
@@ -31,9 +32,21 @@ afterAll(async () => {
   await browser?.close();
 });
 
+// `ready` waits for what an app draws after its first paint, so the layout check below compares a
+// finished page with itself rather than with one still filling in.
 const APPS = [
-  { name: "Notes", url: NOTES_URL, dir: "apps/notes" },
-  { name: "Encyclopedia", url: ENCYCLOPEDIA_URL, dir: "apps/encyclopedia" },
+  {
+    name: "Notes",
+    url: NOTES_URL,
+    dir: "apps/notes",
+    ready: (page: Page) => inNotesAs(page, ADA.name),
+  },
+  {
+    name: "Encyclopedia",
+    url: ENCYCLOPEDIA_URL,
+    dir: "apps/encyclopedia",
+    ready: async () => {},
+  },
 ];
 
 const tabBackground = (page: Page) =>
@@ -77,6 +90,7 @@ describe("the tab", () => {
       const page = await newDevice(browser);
       await signIn(page, ADA);
       await page.goto(app.url);
+      await app.ready(page);
       await tab(page).waitFor();
       const box = await tab(page).boundingBox();
       const viewport = page.viewportSize();

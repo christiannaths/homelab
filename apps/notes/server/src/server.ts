@@ -8,7 +8,18 @@ import * as Y from "yjs";
 import { openDatabase } from "./database.ts";
 import { DocumentStore } from "./documents.ts";
 import { identityFrom } from "@homelab/identity";
+import {
+  canEdit,
+  documentLevel,
+  parseDocName,
+  previewUpdate,
+  readPage,
+  reviewUpdate,
+  type Page,
+} from "@homelab/notes-model";
+import { Notebooks, type SyncContext } from "./notebooks.ts";
 import { People, type Person } from "./people.ts";
+import { Workspaces } from "./workspaces.ts";
 
 export interface ServerOptions {
   /** Holds the instance's one SQLite file (ADR-NOTE-004, ADR-NOTE-005). */
@@ -17,11 +28,6 @@ export interface ServerOptions {
   port: number;
   /** The web client's build (apps/notes/web/dist). Without it, only the API is served. */
   clientDir?: string;
-}
-
-/** Who is on the other end of a sync socket. Read once, when the socket opens. */
-interface SyncContext {
-  person: Person;
 }
 
 /** What the /sync middleware hands to the WebSocket upgrade. */
@@ -43,10 +49,36 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     maxUnauthenticatedQueueSize: 256 * 1024 * 1024,
 
     // Runs for every document a socket opens; the person was read when the socket opened.
-    // Until the access rules are built (ADR-NOTE-011), only owners open documents.
-    async onAuthenticate({ context }) {
-      if (people.get(context.person.id)?.role !== "owner")
-        throw new Error("No access");
+    async onAuthenticate({ context, documentName, connectionConfig }) {
+      const level = documentLevel(
+        notebooks.catalog,
+        context.person.id,
+        documentName,
+      );
+      // A plain object, without a message, keeps Hocuspocus from logging every refusal.
+      if (level === "none") throw { reason: "no-access" };
+      connectionConfig.readOnly = !canEdit(level);
+    },
+
+    // ADR-NOTE-010: every update is checked at the person's access now, not at open. A refused
+    // one is not applied, and throwing closes only this document, with the reason; the device
+    // then throws its copy away and syncs it again. Hocuspocus's own read-only handling would
+    // drop the update silently, and the device would resend it on every reconnect.
+    async beforeSync({ type, payload, document, documentName, context }) {
+      if (type === SYNC_STEP_1) return;
+      const reason = reviewUpdate(
+        notebooks.catalog,
+        context.person.id,
+        documentName,
+        previewUpdate(documentName, document, payload),
+      );
+      if (reason) throw { reason };
+    },
+
+    // Server writes (direct connections) pass here too, without beforeSync.
+    async onChange({ documentName, document }) {
+      const ref = parseDocName(documentName);
+      if (ref?.kind === "page") notebooks.pageChanged(ref.id, document);
     },
 
     async onLoadDocument({ documentName, document }) {
@@ -60,10 +92,24 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     },
   });
 
-  /** The person the gateway signed in, added to or brought up to date in Notes' people. */
-  const admitted = (c: Context): Person | undefined => {
+  const notebooks = new Notebooks(
+    new Workspaces(db),
+    storedPages(documents),
+    hocuspocus,
+  );
+  // Indexes stored by an earlier run may list what the rules no longer give.
+  await notebooks.refreshIndexes();
+
+  /**
+   * The person the gateway signed in, added to or brought up to date in Notes' people, with a
+   * workspace of their own.
+   */
+  const admitted = async (c: Context): Promise<Person | undefined> => {
     const identity = identityFrom(c.req.raw.headers);
-    return identity && people.admit(identity);
+    if (!identity) return undefined;
+    const person = people.admit(identity);
+    await notebooks.admit(person);
+    return person;
   };
 
   const app = new Hono<SyncEnv>();
@@ -77,17 +123,34 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 
   // The PWA calls this whenever it starts online or reconnects. A signed-out browser never gets
   // here: the gateway answers with a redirect to sign in instead.
-  app.get("/api/session", (c) => {
-    const person = admitted(c);
+  app.get("/api/session", async (c) => {
+    const person = await admitted(c);
     if (!person) return c.json({ error: "signed_out" }, 401);
     return c.json({ person });
+  });
+
+  // Needs a connection, since membership is server data (ADR-NOTE-013); the name then lives in
+  // the workspace document. JSON only: a cross-site form can't send it, so another site can't
+  // make workspaces for whoever is signed in (ADR-NOTE-014). Checked before admitting the person,
+  // which may write their first workspace.
+  app.post("/api/workspaces", async (c) => {
+    if (
+      c.req.header("content-type")?.split(";")[0].trim() !== "application/json"
+    )
+      return c.json({ error: "json_only" }, 415);
+    const person = await admitted(c);
+    if (!person) return c.json({ error: "signed_out" }, 401);
+    const name = workspaceNameFrom(await c.req.json().catch(() => undefined));
+    if (name === undefined) return c.json({ error: "name_required" }, 400);
+    const id = await notebooks.create(person, name);
+    return c.json({ workspace: { id, name } }, 201);
   });
 
   app.get(
     "/sync",
     // Refuse an upgrade that did not come through the gateway, before any WebSocket exists.
     async (c, next) => {
-      const person = admitted(c);
+      const person = await admitted(c);
       if (!person) return c.text("Unauthorized", 401);
       c.set("sync", { person });
       return next();
@@ -150,6 +213,7 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
     db,
     hocuspocus,
     async close() {
+      await notebooks.settled();
       hocuspocus.flushPendingStores();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -159,3 +223,34 @@ export async function startServer({ dataDir, port, clientDir }: ServerOptions) {
 }
 
 export type NotesServer = Awaited<ReturnType<typeof startServer>>;
+
+/** Every stored page's `meta` and `access`, read once at startup for the catalog. */
+function* storedPages(documents: DocumentStore): Generator<Page> {
+  for (const name of documents.names("page:")) {
+    const ref = parseDocName(name);
+    const state = documents.load(name);
+    if (ref?.kind !== "page" || !state) continue;
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, state);
+    const page = readPage(ref.id, doc);
+    doc.destroy();
+    if (page) yield page;
+  }
+}
+
+/** The longest workspace name kept; longer ones are cut. */
+const MAX_WORKSPACE_NAME = 100;
+
+/** The trimmed, non-empty name in a create-workspace request, or undefined. */
+function workspaceNameFrom(body: unknown): string | undefined {
+  const name =
+    typeof body === "object" && body !== null && "name" in body
+      ? body.name
+      : undefined;
+  if (typeof name !== "string") return undefined;
+  const trimmed = name.trim().slice(0, MAX_WORKSPACE_NAME);
+  return trimmed === "" ? undefined : trimmed;
+}
+
+/** The y-protocols sync message that only asks for what the device lacks. */
+const SYNC_STEP_1 = 0;

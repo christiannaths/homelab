@@ -2,19 +2,31 @@
 
 Hono for HTTP, Hocuspocus for sync, one SQLite file ([ADR-NOTE-014](../docs/adr/ADR-NOTE-014-http-and-accounts.md)). Behind the gateway, which supplies the person in `Remote-*` headers ([ADR-PLAT-004](../../../docs/adr/ADR-PLAT-004-sign-in.md), [ADR-NOTE-009](../docs/adr/ADR-NOTE-009-identity.md)); no sign-in or sessions of its own.
 
-- Admin-level App access = owner, member-level = member (read by [`@homelab/identity`](../../../packages/identity)); keyed by `Remote-User`.
-- Only owners open documents until access rules exist ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md)).
-- Serves the web client ([`../web`](../web)): one page saying who's signed in, plus the gateway's [App switcher](../../../platform/app-switcher/README.md), which owns sign-out.
+- People keyed by `Remote-User` (read by [`@homelab/identity`](../../../packages/identity)); member- and admin-level App access are treated alike.
+- A person's first request makes them a workspace they own, "Ada's workspace" or "My workspace", with one empty page in their Private section; they can make more (`POST /api/workspaces`), which can't be deleted ([ADR-NOTE-011](../docs/adr/ADR-NOTE-011-access-control.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
+- Serves the web client ([`../web`](../web)), plus the gateway's [App switcher](../../../platform/app-switcher/README.md), which owns sign-out.
+
+## Data
+
+| Where | What |
+| --- | --- |
+| SQLite `people`, `workspaces`, `workspace_members` | Account data: who belongs to which workspace, as `owner`, `member` or `guest` |
+| `index:<personId>` | Server-written, read-only to that person: `workspaces` (ids), `pages` (id → level) |
+| `workspace:<id>` | `workspace` map, `name`; read-write to the workspace's members |
+| `page:<id>` | `meta` (incl. `workspaceId`, `section` = `private`), `access` (`person:<id>` → level), `content` (BlockNote); opened at the person's level |
+
+Shapes and access rules: [`notes-model`](../model) (`ydoc.ts`, `review.ts`). Other names are refused `no-access`. The catalog (`src/catalog.ts`) reads every stored page at start and each page after every applied change; indexes are rewritten when anyone's levels change. Every update is reviewed; a refused one closes only that document with its reason (`read-only`, `access-change-refused`, `placement-refused`), and the device drops its copy and syncs it again ([ADR-NOTE-010](../docs/adr/ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-013](../docs/adr/ADR-NOTE-013-data-layout.md)).
 
 ## Routes
 
 | Route |  |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }` |
-| `GET /api/session` | `{ person }`; 401 if not via the gateway |
+| `GET /api/session` | `{ person: { id, name } }`, after making their default workspace on a first visit; 401 if not via the gateway |
+| `POST /api/workspaces` | `{ name }` (JSON only, else 415) → 201 `{ workspace: { id, name } }`: a workspace the caller owns, with one empty page in their Private section, once their index lists it. Name trimmed, cut to 100 characters; missing or blank → 400. Renaming is through `workspace:<id>`, not HTTP |
 | `GET /api/sign-in` | Redirects to `/`; loaded as a page so the gateway can send a signed-out browser to sign in and back |
-| `GET /sync` | Hocuspocus WebSocket; 401 before upgrade if not via the gateway |
-| `GET /*` | Client files; app shell for other paths outside `/api` and `/sync` |
+| `GET /sync` | Hocuspocus WebSocket, one per device for all its documents; 401 before upgrade if not via the gateway |
+| `GET /*` | Client files; app shell for other paths outside `/api` and `/sync`, such as a page's address `/pages/<id>` |
 
 ## Settings
 

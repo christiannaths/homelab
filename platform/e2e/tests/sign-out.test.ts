@@ -14,6 +14,7 @@ import {
   signIn,
   tab,
   typePassword,
+  inNotesAs,
 } from "./stack.ts";
 
 let browser: Browser;
@@ -85,7 +86,8 @@ for (const app of APPS)
       await page.getByRole("menuitem", { name: "Sign out" }).click();
       await onSignInPage(page);
       await typePassword(page, ADA);
-      await page.waitForURL(`${app.url}/`);
+      // Back on the page signed out from: Notes had already moved / on to its first page.
+      await page.waitForURL((url) => url.origin === app.url);
       await tab(page).waitFor();
     });
   });
@@ -108,7 +110,7 @@ describe("signing out on the accounts site", () => {
     await onSignInPage(page);
     await typePassword(page, ADA);
     await page.goto(`${NOTES_URL}/`);
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+    await inNotesAs(page, ADA.name);
   });
 
   it("is never a link: opening the sign-out address signs nobody out", async () => {
@@ -117,6 +119,6 @@ describe("signing out on the accounts site", () => {
     const response = await page.goto(`${ACCOUNTS_URL}/sign-out`);
     expect(response?.status()).toBe(405);
     await page.goto(`${NOTES_URL}/`);
-    await page.getByText(`Signed in as ${ADA.name}`).waitFor();
+    await inNotesAs(page, ADA.name);
   });
 });

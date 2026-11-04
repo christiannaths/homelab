@@ -1,7 +1,7 @@
 # ADR-NOTE-014. How does the server handle HTTP requests and account security?
 
 - Status: Accepted
-- Date: 2026-10-23
+- Date: 2026-10-28
 - Depends on: [ADR-NOTE-003](ADR-NOTE-003-app-delivery.md), [ADR-NOTE-004](ADR-NOTE-004-hosting-and-scale.md), [ADR-NOTE-005](ADR-NOTE-005-document-persistence.md), [ADR-NOTE-009](ADR-NOTE-009-identity.md), [ADR-NOTE-010](ADR-NOTE-010-sync-and-access-checks.md), [ADR-NOTE-011](ADR-NOTE-011-access-control.md), [ADR-PLAT-001](../../../../docs/adr/ADR-PLAT-001-toolchain.md), [ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md), [ADR-PLAT-009](../../../../docs/adr/ADR-PLAT-009-app-contract.md)
 - Dependency of: none
 
@@ -17,6 +17,7 @@ The server needs an HTTP API (session, invites, people, sharing, teamspaces, att
 - **Session check** `GET /api/session` (`redirect: "manual"`) on start, reconnect and page visible, via `@homelab/signed-in-state` ([ADR-PLAT-009](../../../../docs/adr/ADR-PLAT-009-app-contract.md)). Gateway redirect → forget the person, go to sign-in once the app can open offline. Unreachable or other non-person answer → stay as the remembered person, offline.
 - **Sign-in:** `/api/sign-in`, a page load the service worker skips, so the gateway routes a signed-out browser through the accounts service and back.
 - **No sign-out route** ([ADR-NOTE-009](ADR-NOTE-009-identity.md)).
+- **Writes take JSON only** (`content-type: application/json`, else 415), e.g. creating a workspace: a cross-site form can't send JSON, so another site can't act for whoever is signed in. No CSRF tokens.
 
 ## Alternatives considered
 
@@ -40,6 +41,7 @@ The server needs an HTTP API (session, invites, people, sharing, teamspaces, att
 
 ## Changelog
 
+- 2026-10-28: Writes take JSON only, since `POST /api/workspaces` is the first route that changes data (issue #136, spec #130).
 - 2026-10-23: `Remote-User` is the homelab accounts service's account id; sign-in/out use its pages ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md), issue #111, spec #110).
 - 2026-10-22: `/api/sign-out` removed for the App switcher ([ADR-NOTE-009](ADR-NOTE-009-identity.md), issue #89).
 - 2026-10-19: Person from gateway headers instead of OIDC sessions ([ADR-PLAT-004](../../../../docs/adr/ADR-PLAT-004-sign-in.md), PR #68).

@@ -191,6 +191,17 @@ export async function typePassword(
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
+/**
+ * Resolves once Notes shows the workspace it gives a person on their first visit, named after
+ * them, so it knows who is signed in.
+ */
+export async function inNotesAs(page: Page, name: string): Promise<void> {
+  await page
+    .getByRole("navigation", { name: "Sidebar" })
+    .getByText(`${name}'s workspace`)
+    .waitFor();
+}
+
 /** Signs in on the accounts site; resolves once the account page, where sign-in lands, shows. */
 export async function signIn(page: Page, account: Account): Promise<void> {
   await page.goto(ACCOUNTS_URL);
