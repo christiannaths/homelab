@@ -176,11 +176,10 @@ function loadPeople(people: Omit<TestPerson, "gets">[]): void {
   );
 }
 
-/** Notes' view of who is signed in, or where the gateway sent the request instead. */
+/** Whether Notes lets the cookie's person in, or where the gateway sent the request instead. */
 async function notesSession(cookie: string): Promise<string> {
   const reply = await get("notes", "/api/session", { cookie });
-  if (reply.status !== 200) return `${reply.status} ${reply.location}`;
-  return String(pick(reply.body, "person", "role"));
+  return reply.status === 200 ? "in" : `${reply.status} ${reply.location}`;
 }
 
 /** Whether the Encyclopedia lets the cookie's person in. */
@@ -212,20 +211,54 @@ async function openDocument(cookie: string, name: string) {
     document: doc,
     token: "gateway",
   });
-  provider.attach();
-  await new Promise<void>((resolve, reject) => {
-    provider.on("synced", () => resolve());
-    provider.on("authenticationFailed", () => reject(new Error("denied")));
-    // Unref'd, or the test process waits out the 20 s after the last test passes.
-    setTimeout(() => reject(new Error("no sync in 20 s")), 20_000).unref();
-  });
-  return {
-    text: doc.getText("body"),
-    close: () => {
-      provider.destroy();
-      socket.destroy();
-    },
+  const close = () => {
+    provider.destroy();
+    socket.destroy();
   };
+  provider.attach();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      provider.on("synced", () => resolve());
+      provider.on("authenticationFailed", () => reject(new Error("denied")));
+      // Unref'd, or the test process waits out the 20 s after the last test passes.
+      setTimeout(() => reject(new Error("no sync in 20 s")), 20_000).unref();
+    });
+  } catch (error) {
+    // The provider's timers would otherwise keep the test process alive for good.
+    close();
+    throw error;
+  }
+  return { doc, close };
+}
+
+// Notes' document layout is spelled out below because tools may not depend on an app's packages.
+
+/** Opens the workspace Notes gives the cookie's person on their first visit, the only one here. */
+async function openOwnWorkspace(cookie: string) {
+  const session = await get("notes", "/api/session", { cookie });
+  const personId = String(pick(session.body, "person", "id"));
+  const index = await openDocument(cookie, `index:${personId}`);
+  const [workspaceId] = index.doc.getMap("workspaces").keys();
+  index.close();
+  assert.ok(workspaceId, "the person's index lists a workspace");
+  return openDocument(cookie, `workspace:${workspaceId}`);
+}
+
+/** Renames the person's workspace and waits until Notes has stored the change. */
+async function renameOwnWorkspace(cookie: string, name: string): Promise<void> {
+  const workspace = await openOwnWorkspace(cookie);
+  workspace.doc.getMap("workspace").set("name", name);
+  // Notes writes a changed document after a second's debounce, and on shutdown.
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  workspace.close();
+}
+
+/** The name of the person's workspace, as Notes has it stored. */
+async function ownWorkspaceName(cookie: string): Promise<unknown> {
+  const workspace = await openOwnWorkspace(cookie);
+  const name = workspace.doc.getMap("workspace").get("name");
+  workspace.close();
+  return name;
 }
 
 /** Restarts the container on the same volume, as Fly does when a stopped machine wakes. */
@@ -291,11 +324,11 @@ after(() => {
 describe("signing in", () => {
   test("each test person signs in by email and gets what their App access gives them", async () => {
     const ada = await signIn(ADA);
-    assert.equal(await notesSession(ada.cookie), "owner");
+    assert.equal(await notesSession(ada.cookie), "in");
     assert.equal(await encyclopedia(ada.cookie), "in");
 
     const dana = await signIn(DANA);
-    assert.equal(await notesSession(dana.cookie), "member");
+    assert.equal(await notesSession(dana.cookie), "in");
     assert.equal(await encyclopedia(dana.cookie), "403");
 
     const bob = await signIn(BOB);
@@ -303,7 +336,7 @@ describe("signing in", () => {
     assert.equal(await encyclopedia(bob.cookie), "403");
 
     const admin = await signIn(ADMIN);
-    assert.equal(await notesSession(admin.cookie), "owner");
+    assert.equal(await notesSession(admin.cookie), "in");
     assert.equal(await encyclopedia(admin.cookie), "in");
   });
 
@@ -455,26 +488,19 @@ describe("the gateway", () => {
     });
     assert.notEqual(pick(reply.body, "person", "id"), adaId);
     assert.equal(pick(reply.body, "person", "name"), DANA.name);
-    assert.equal(pick(reply.body, "person", "role"), "member");
   });
 });
 
 describe("data", () => {
   test("accounts, sessions and Notes survive a restart on the same volume", async () => {
     const ada = await signIn(ADA);
-    const written = await openDocument(ada.cookie, "preview-test");
-    written.text.insert(0, "kept across restarts");
-    // Notes writes a changed document after a second's debounce, and on shutdown.
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    written.close();
+    await renameOwnWorkspace(ada.cookie, "kept across restarts");
 
     await restart();
 
-    assert.equal(await notesSession(ada.cookie), "owner", "still signed in");
-    const reread = await openDocument(ada.cookie, "preview-test");
-    assert.equal(reread.text.toString(), "kept across restarts");
-    reread.close();
-    assert.equal(await notesSession((await signIn(DANA)).cookie), "member");
+    assert.equal(await notesSession(ada.cookie), "in", "still signed in");
+    assert.equal(await ownWorkspaceName(ada.cookie), "kept across restarts");
+    assert.equal(await notesSession((await signIn(DANA)).cookie), "in");
   });
 
   test("a later start adds only the test people missing, keeping changes to the others", async () => {
@@ -490,19 +516,17 @@ describe("data", () => {
 
   test("a preview from before the accounts service starts fresh", async () => {
     const ada = await signIn(ADA);
-    const written = await openDocument(ada.cookie, "preview-test-cutover");
-    written.text.insert(0, "from before the cutover");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    written.close();
+    await renameOwnWorkspace(ada.cookie, "from before the cutover");
     // A volume as the previews had it: no accounts data, and Notes data from other accounts.
     docker("exec", CONTAINER, "rm", "-r", "/data/accounts");
 
     await restart();
 
     const fresh = await signIn(ADA);
-    const reread = await openDocument(fresh.cookie, "preview-test-cutover");
-    assert.equal(reread.text.toString(), "");
-    reread.close();
+    assert.equal(
+      await ownWorkspaceName(fresh.cookie),
+      `${ADA.name}'s workspace`,
+    );
   });
 
   test("reset leaves only the test people, as published, and no Notes data", async () => {
@@ -520,10 +544,7 @@ describe("data", () => {
       password: "eve-was-added-in-the-preview",
     });
     const ada = await signIn(ADA);
-    const written = await openDocument(ada.cookie, "preview-test-reset");
-    written.text.insert(0, "gone after a reset");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    written.close();
+    await renameOwnWorkspace(ada.cookie, "gone after a reset");
 
     docker("exec", CONTAINER, "node", "tools/preview/start.ts", "reset");
 
@@ -533,10 +554,11 @@ describe("data", () => {
       "the old session is gone",
     );
     const fresh = await signIn(ADA);
-    assert.equal(await notesSession(fresh.cookie), "owner");
-    const reread = await openDocument(fresh.cookie, "preview-test-reset");
-    assert.equal(reread.text.toString(), "");
-    reread.close();
+    assert.equal(await notesSession(fresh.cookie), "in");
+    assert.equal(
+      await ownWorkspaceName(fresh.cookie),
+      `${ADA.name}'s workspace`,
+    );
     assert.equal(
       (await submitSignIn("eve@example.com", "eve-was-added-in-the-preview"))
         .status,
